@@ -1,6 +1,5 @@
 #include <corehost/static_core.hpp>
 
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
@@ -16,6 +15,8 @@ void retro_set_input_poll(corehost::lr::InputPoll);
 void retro_set_input_state(corehost::lr::InputState);
 void retro_init(void);
 void retro_deinit(void);
+void retro_get_system_info(corehost::lr::SystemInfo*);
+void retro_set_controller_port_device(unsigned, unsigned);
 bool retro_load_game(const corehost::lr::GameInfo*);
 void retro_unload_game(void);
 void retro_get_system_av_info(corehost::lr::SystemAvInfo*);
@@ -24,6 +25,8 @@ void retro_reset(void);
 std::size_t retro_serialize_size(void);
 bool retro_serialize(void*, std::size_t);
 bool retro_unserialize(const void*, std::size_t);
+void* retro_get_memory_data(unsigned);
+std::size_t retro_get_memory_size(unsigned);
 }
 
 int main(int argc, char** argv) {
@@ -43,6 +46,8 @@ int main(int argc, char** argv) {
       retro_set_input_state,
       retro_init,
       retro_deinit,
+      retro_get_system_info,
+      retro_set_controller_port_device,
       retro_load_game,
       retro_unload_game,
       retro_get_system_av_info,
@@ -51,6 +56,8 @@ int main(int argc, char** argv) {
       retro_serialize_size,
       retro_serialize,
       retro_unserialize,
+      retro_get_memory_data,
+      retro_get_memory_size,
   };
 
   corehost::Hooks hooks{};
@@ -78,6 +85,11 @@ int main(int argc, char** argv) {
   if (av.timing.sample_rate <= 0.0 || av.timing.fps <= 0.0) {
     std::cerr << name << ": invalid AV timing from core\n";
     return 5;
+  }
+
+  if (!core.system_info().library_name) {
+    std::cerr << name << ": missing system info\n";
+    return 6;
   }
 
   core.shutdown();
