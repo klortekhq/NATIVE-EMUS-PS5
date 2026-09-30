@@ -1,21 +1,21 @@
 # Flycast upstream pin
 
-Canonical repository: https://github.com/flyinghead/flycast
+- Upstream: https://github.com/flyinghead/flycast
+- Commit: `e36e9df2dcc1487acdb1dc7725766f1f5ba029b5`
+- Verified: 2026-09-30
+- License: GPL-2.0-or-later lineage; preserve upstream notices/source obligations.
 
-## Current project pin
+This pin includes the current rec-x64/Xbyak SH4 dynarec and Vulkan renderer.
 
-`e36e9df2dcc1487acdb1dc7725766f1f5ba029b5`
+## PS5 CPU policy
 
-Observed as current upstream head during the 2026-09-30 audit.
+The PS5 target is built around:
 
-Relevant latest change at that point: Vulkan OIT synchronization fixes committed on 2026-09-28.
+- `HOST_CPU = CPU_X64`
+- `FEAT_SHREC = DYNAREC_JIT`
+- `FEAT_NO_RWX_PAGES`
+- Zen 2 compile tuning: `-march=znver2 -msse4.1 -mavx2 -mno-vzeroupper`
 
-## License
+The final port does **not** use the SH4 interpreter as its normal CPU backend.
 
-The repository contains the GNU GPL version 2 license text in `LICENSE`.
-
-Before vendoring or distributing a patched source snapshot, retain upstream notices and complete the repository-wide third-party inventory.
-
-## Integration policy
-
-Start from this exact revision for the first PS5 bring-up branch. Later rebases should be deliberate and tested rather than automatically following master while the platform layer is being established.
+The pin is intentionally exact while the PS5 platform delta is stabilized. Rebases should be explicit and CI-checked.
