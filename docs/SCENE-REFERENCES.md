@@ -95,6 +95,35 @@ Useful areas:
 
 ProsperoEden is especially valuable because its source exposes how a large modern emulator can be adapted into a native PS5 title.
 
+## Phi1ow / mkwii-ps5
+
+Repository: https://github.com/Phi1ow/mkwii-ps5
+
+This is **not a generic Dolphin port**. It is a native PS5 build of a statically recompiled Mario Kart Wii PAL executable based on WiiCompiled.
+
+Why it matters to NATIVE-EMUS-PS5:
+
+- concrete PS5 guest-address-space management with fixed, no-overwrite virtual reservations;
+- direct-memory backing and multiple fixed aliases for Wii guest regions;
+- documented split between memory type 11 (general cached CPU memory) and type 12 (CPU/GPU shared memory), corroborated by SharpProspero;
+- x86-64 SysV cooperative context switching and guard-page stack handling;
+- native multi-user DualSense lifecycle, borrowed handles and vibration;
+- AudioOut integration and queue-lifetime handling;
+- native AGC rendering research, shader preparation, tiling/descriptor experiments and VideoOut presentation;
+- absolute-path/filesystem constraints for native PS5 titles;
+- thread affinity/priority diagnostics;
+- reproducible dependency pins for WiiCompiled, ps5link-sdk and SharpProspero;
+- practical ShadowMount/kstuff/native-title deployment notes.
+
+How to use it:
+
+- treat the PS5 platform behavior and API observations as engineering evidence;
+- independently implement reusable host functionality inside `ps5rt`;
+- do **not** copy GPL implementation files into a differently licensed runtime without a deliberate licensing decision;
+- do not confuse static game recompilation with Dolphin's dynamic PPC JIT/MMU architecture.
+
+For Dolphin itself, this repo is therefore a **platform donor/reference**, while Dolphin upstream remains the emulator architecture.
+
 ## ps5-payload-dev / John Törnblom
 
 Organization: https://github.com/ps5-payload-dev
