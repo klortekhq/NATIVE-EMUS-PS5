@@ -101,8 +101,10 @@ struct ExecRecord {
 };
 
 struct DualJitRecord {
+  enum class Backend : std::uint8_t { jit_shared, direct } backend{Backend::jit_shared};
   int primary_handle{-1};
   int alias_handle{-1};
+  long long direct_start{-1};
   void* write_view{};
   void* execute_view{};
   std::size_t size{};
