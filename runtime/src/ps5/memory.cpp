@@ -33,6 +33,7 @@ int sceKernelReserveVirtualRange(void** address, unsigned long long size,
 int sceKernelJitCreateSharedMemory(int flags, unsigned long long size,
                                    int protection, int* destination_handle);
 int sceKernelJitMapSharedMemory(int handle, int protection, void** destination);
+int sceKernelJitCreateAliasOfSharedMemory(int handle, int protection, int* destination_handle);
 int sceKernelClose(int fd);
 }
 
@@ -94,13 +95,23 @@ struct DirectRecord {
 
 struct ExecRecord {
   enum class Backend : std::uint8_t { jit_shared, direct } backend{Backend::jit_shared};
+  int jit_handle{-1};
   long long direct_start{-1};
+  std::size_t size{};
+};
+
+struct DualJitRecord {
+  int primary_handle{-1};
+  int alias_handle{-1};
+  void* write_view{};
+  void* execute_view{};
   std::size_t size{};
 };
 
 std::mutex g_registry_mutex;
 std::unordered_map<void*, DirectRecord> g_direct_records;
 std::unordered_map<void*, ExecRecord> g_exec_records;
+std::unordered_map<void*, DualJitRecord> g_dual_jit_records;
 
 int allocate_direct_block(std::size_t size,
                           std::size_t alignment,
@@ -170,14 +181,15 @@ extern "C" void* ps5rt_exec_allocate(std::size_t requested_size, std::uintptr_t 
     // JitMapSharedMemory chooses its own address. Keep near_hint advisory only.
     mapped = nullptr;
     rc = sceKernelJitMapSharedMemory(handle, kProtRWX, &mapped);
-    const int close_rc = sceKernelClose(handle);
-    (void)close_rc;
-
     if (rc == 0 && mapped) {
       std::scoped_lock lock(g_registry_mutex);
-      g_exec_records[mapped] = {ExecRecord::Backend::jit_shared, -1, size};
+      // Keep the JIT shared-memory handle alive for the lifetime of the
+      // mapping. PS5SX2 does the same; closing it immediately is not assumed
+      // to be safe across firmwares.
+      g_exec_records[mapped] = {ExecRecord::Backend::jit_shared, handle, -1, size};
       return mapped;
     }
+    (void)sceKernelClose(handle);
   } else if (handle >= 0) {
     (void)sceKernelClose(handle);
   }
@@ -201,7 +213,7 @@ extern "C" void* ps5rt_exec_allocate(std::size_t requested_size, std::uintptr_t 
 
   {
     std::scoped_lock lock(g_registry_mutex);
-    g_exec_records[mapped] = {ExecRecord::Backend::direct, direct_start, size};
+    g_exec_records[mapped] = {ExecRecord::Backend::direct, -1, direct_start, size};
   }
   return mapped;
 }
@@ -219,7 +231,10 @@ extern "C" void ps5rt_exec_release(void* ptr) {
   }
 
   (void)sceKernelMunmap(ptr, static_cast<unsigned long long>(record.size));
-  if (record.backend == ExecRecord::Backend::direct && record.direct_start >= 0) {
+  if (record.backend == ExecRecord::Backend::jit_shared) {
+    if (record.jit_handle >= 0)
+      (void)sceKernelClose(record.jit_handle);
+  } else if (record.direct_start >= 0) {
     (void)sceKernelReleaseDirectMemory(
         record.direct_start, static_cast<unsigned long long>(record.size));
   }
@@ -530,19 +545,102 @@ Result create_jit_region(const JitRequest& request, JitRegion& out) noexcept {
   if (request.size == 0)
     return {ErrorCode::invalid_argument, 0, "JIT size is zero"};
 
-  void* address = ps5rt_exec_allocate(request.size, 0);
-  if (!address)
-    return {ErrorCode::out_of_memory, 0, "JIT allocation failed"};
-
   const auto size = round_up(request.size, kPageSize);
-  const auto protection = Protection::read | Protection::write | Protection::execute;
-  out.write_view = {address, size, MemoryKind::executable, protection};
-  out.execute_view = out.write_view;
+
+  if (!request.prefer_dual_mapping) {
+    void* address = ps5rt_exec_allocate(size, 0);
+    if (!address)
+      return {ErrorCode::out_of_memory, 0, "JIT allocation failed"};
+
+    const auto protection = Protection::read | Protection::write | Protection::execute;
+    out.write_view = {address, size, MemoryKind::executable, protection};
+    out.execute_view = out.write_view;
+    return Result::success();
+  }
+
+  int primary = -1;
+  int alias = -1;
+  void* write_view = nullptr;
+  void* execute_view = nullptr;
+
+  int rc = sceKernelJitCreateSharedMemory(
+      0, static_cast<unsigned long long>(size), kProtRWX, &primary);
+  if (rc != 0 || primary < 0)
+    return {ErrorCode::out_of_memory, rc, "JIT shared-memory creation failed"};
+
+  rc = sceKernelJitMapSharedMemory(primary, kProtRW, &write_view);
+  if (rc == 0)
+    rc = sceKernelJitCreateAliasOfSharedMemory(primary, kProtRead | kProtExec, &alias);
+  if (rc == 0)
+    rc = sceKernelJitMapSharedMemory(alias, kProtRead | kProtExec, &execute_view);
+
+  if (rc != 0 || !write_view || !execute_view) {
+    if (write_view)
+      (void)sceKernelMunmap(write_view, static_cast<unsigned long long>(size));
+    if (execute_view)
+      (void)sceKernelMunmap(execute_view, static_cast<unsigned long long>(size));
+    if (alias >= 0)
+      (void)sceKernelClose(alias);
+    (void)sceKernelClose(primary);
+    return {ErrorCode::system_error, rc, "dual-view JIT mapping failed"};
+  }
+
+  const DualJitRecord record{primary, alias, write_view, execute_view, size};
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    g_dual_jit_records[write_view] = record;
+    g_dual_jit_records[execute_view] = record;
+  }
+
+  out.write_view = {
+      write_view, size, MemoryKind::executable,
+      Protection::read | Protection::write};
+  out.execute_view = {
+      execute_view, size, MemoryKind::executable,
+      Protection::read | Protection::execute};
   return Result::success();
 }
 
 Result destroy_jit_region(JitRegion& region) noexcept {
   if (!region) return Result::success();
+
+  DualJitRecord dual{};
+  bool is_dual = false;
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    auto it = g_dual_jit_records.find(region.execute_view.address);
+    if (it == g_dual_jit_records.end())
+      it = g_dual_jit_records.find(region.write_view.address);
+    if (it != g_dual_jit_records.end()) {
+      dual = it->second;
+      g_dual_jit_records.erase(dual.write_view);
+      g_dual_jit_records.erase(dual.execute_view);
+      is_dual = true;
+    }
+  }
+
+  if (is_dual) {
+    int first_error = 0;
+    if (dual.write_view) {
+      const int rc = sceKernelMunmap(
+          dual.write_view, static_cast<unsigned long long>(dual.size));
+      if (rc != 0 && first_error == 0) first_error = rc;
+    }
+    if (dual.execute_view && dual.execute_view != dual.write_view) {
+      const int rc = sceKernelMunmap(
+          dual.execute_view, static_cast<unsigned long long>(dual.size));
+      if (rc != 0 && first_error == 0) first_error = rc;
+    }
+    if (dual.alias_handle >= 0)
+      (void)sceKernelClose(dual.alias_handle);
+    if (dual.primary_handle >= 0)
+      (void)sceKernelClose(dual.primary_handle);
+    region = {};
+    if (first_error != 0)
+      return {ErrorCode::system_error, first_error, "dual-view JIT unmap failed"};
+    return Result::success();
+  }
+
   void* const address = region.execute_view.address
       ? region.execute_view.address
       : region.write_view.address;
