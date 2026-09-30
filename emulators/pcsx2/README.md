@@ -1,5 +1,9 @@
 # PCSX2 / PlayStation 2
 
+## Progress: **25%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 ## Strategy
 
 Use PCSX2 directly with its x86-64 recompilers and Vulkan renderer.

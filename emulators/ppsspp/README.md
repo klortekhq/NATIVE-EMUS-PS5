@@ -1,5 +1,9 @@
 # PPSSPP / PSP
 
+## Progress: **25%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 ## Status
 
 **Native-engine extraction in progress.**
