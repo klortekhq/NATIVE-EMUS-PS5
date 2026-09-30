@@ -1,6 +1,8 @@
 add_library(corehost STATIC
   src/static_core.cpp
   src/ps5rt_bridge.cpp
+  src/linked_core.cpp
+  src/ps5_runner.cpp
 )
 add_library(native_emus::corehost ALIAS corehost)
 
