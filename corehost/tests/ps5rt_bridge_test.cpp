@@ -10,7 +10,8 @@ int main() {
   pad.buttons =
       static_cast<std::uint32_t>(ps5rt::Button::cross) |
       static_cast<std::uint32_t>(ps5rt::Button::up) |
-      static_cast<std::uint32_t>(ps5rt::Button::l1);
+      static_cast<std::uint32_t>(ps5rt::Button::l1) |
+      static_cast<std::uint32_t>(ps5rt::Button::touchpad);
   pad.left = {1.0f, -1.0f};
   pad.l2 = 1.0f;
 
@@ -30,6 +31,7 @@ int main() {
   assert(state.joypad_mask & (1u << 0));  // Cross -> B / south.
   assert(state.joypad_mask & (1u << 4));  // Up.
   assert(state.joypad_mask & (1u << 10)); // L1 -> L.
+  assert(state.joypad_mask & (1u << 2));  // Touchpad -> Select.
   assert(state.joypad_mask & (1u << 12)); // L2 digital threshold.
   assert(state.left_x == 32767);
   assert(state.left_y == -32768);
