@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <span>
 #include <string_view>
+#include <utility>
 
 namespace native_emus::ps1 {
 namespace {
@@ -84,7 +85,9 @@ void RuntimeIo::shutdown() noexcept {
   audio_error_reported_ = false;
 }
 
-corehost::Hooks RuntimeIo::make_hooks(VulkanEnvironment& vulkan) {
+corehost::Hooks RuntimeIo::make_hooks(
+    VulkanEnvironment& vulkan,
+    std::function<bool(std::uint32_t, std::uint32_t)> present_hw_frame) {
   corehost::Hooks hooks{};
 
   hooks.audio_batch = [this](
@@ -104,10 +107,20 @@ corehost::Hooks RuntimeIo::make_hooks(VulkanEnvironment& vulkan) {
     return environment(vulkan, cmd, data);
   };
 
-  // Beetle PSX HW presents through the Vulkan hardware-render interface.
-  // The ordinary software-frame callback is intentionally a no-op here.
-  hooks.video = [](
-      const void*, unsigned, unsigned, std::size_t, corehost::lr::PixelFormat) {};
+  hooks.video = [present_hw_frame = std::move(present_hw_frame)](
+      const void* data,
+      unsigned width,
+      unsigned height,
+      std::size_t,
+      corehost::lr::PixelFormat) {
+    if (data != RETRO_HW_FRAME_BUFFER_VALID || !present_hw_frame)
+      return;
+    if (!present_hw_frame(width, height)) {
+      ps5rt::log(
+          ps5rt::LogLevel::error, "ps1",
+          "Vulkan presenter rejected hardware frame");
+    }
+  };
 
   return hooks;
 }
