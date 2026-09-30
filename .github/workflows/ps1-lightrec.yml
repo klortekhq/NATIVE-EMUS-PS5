@@ -72,6 +72,20 @@ jobs:
             -o /tmp/ps1-display-surface-test
           /tmp/ps1-display-surface-test
 
+      - name: Test standalone PS1 Vulkan presenter geometry
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -I/tmp/beetle-psx/libretro-common/include \
+            -I/tmp/beetle-psx/parallel-psx/khronos/include \
+            ports/beetle-psx-ps5/native/vulkan_environment.cpp \
+            ports/beetle-psx-ps5/native/vulkan_provider.cpp \
+            ports/beetle-psx-ps5/native/display_surface.cpp \
+            ports/beetle-psx-ps5/native/vulkan_presenter.cpp \
+            ports/beetle-psx-ps5/tests/vulkan_presenter_test.cpp \
+            -o /tmp/ps1-vulkan-presenter-test
+          /tmp/ps1-vulkan-presenter-test
+
       - name: Test native PS1 audio input and rumble bridge
         run: |
           set -euo pipefail
