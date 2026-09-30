@@ -5,14 +5,14 @@ on:
     paths:
       - 'CMakeLists.txt'
       - 'runtime/**'
-      - 'ports/common/**'
+      - 'ports/**'
       - 'third_party/libretro/**'
       - '.github/workflows/runtime-headers.yml'
   pull_request:
     paths:
       - 'CMakeLists.txt'
       - 'runtime/**'
-      - 'ports/common/**'
+      - 'ports/**'
       - 'third_party/libretro/**'
       - '.github/workflows/runtime-headers.yml'
 
@@ -35,6 +35,11 @@ jobs:
           INC="-Iruntime/include -Ithird_party/libretro -Iports/common/libretro-static"
           g++ $CXXFLAGS $INC -c ports/common/libretro-static/native_libretro_host.cpp -o build/smoke/native_libretro_host.o
           g++ $CXXFLAGS $INC -c ports/common/libretro-static/linked_core.cpp -o build/smoke/linked_core.o
+          g++ $CXXFLAGS $INC -c ports/nes-fceumm/main.cpp -o build/smoke/nes_fceumm_main.o
+
+      - name: Validate port scripts
+        run: |
+          bash -n ports/nes-fceumm/build_ps5.sh
 
       - name: Compile PS5 backend translation units
         run: |
