@@ -5,6 +5,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 
 #include <corehost/static_core.hpp>
 #include <ps5rt/audio.hpp>
@@ -23,7 +24,9 @@ public:
   bool initialize(std::uint32_t source_sample_rate) noexcept;
   void shutdown() noexcept;
 
-  [[nodiscard]] corehost::Hooks make_hooks(VulkanEnvironment& vulkan);
+  [[nodiscard]] corehost::Hooks make_hooks(
+      VulkanEnvironment& vulkan,
+      std::function<bool(std::uint32_t, std::uint32_t)> present_hw_frame = {});
 
   [[nodiscard]] bool initialized() const noexcept {
     return input_ready_ && audio_.is_open();
