@@ -2,124 +2,156 @@
 
 ## Phase 0 — Repository foundation
 
-- [x] Publish project goals and rules.
+- [x] Publish project goals and anti-Frankenstein rules.
 - [x] Document architecture.
 - [x] Track scene references.
 - [x] Separate verified external work from repository implementation claims.
+- [x] Recover and document M8 history.
+- [x] Restore the complete 43-target M8 catalog.
+- [x] Add the five additional systems discussed outside/after M8.
+- [x] Create emulator/core workspaces for every current target family.
+- [x] Add a machine-readable target manifest.
+- [x] Add the ps5rt public C++ contract.
+- [x] Add a public-header compile smoke test.
 - [ ] Add issue templates / contribution workflow.
-- [ ] Add upstream revision manifest format.
-- [ ] Add license inventory.
+- [ ] Add pinned upstream revision manifest.
+- [ ] Add complete license inventory.
 
-## Phase 1 — PS5 shared runtime
+## Phase 1 — PS5 shared runtime implementation
+
+The API contract exists. The remaining work is the concrete PS5 backend.
 
 ### Memory / JIT
-- [ ] executable-memory abstraction
-- [ ] flexible-memory abstraction
-- [ ] pooled/direct-memory helpers
-- [ ] cache flush helpers
+- [x] public memory/JIT API contract
+- [ ] flexible-memory implementation
+- [ ] pooled/direct-memory implementation
+- [ ] JIT shared-memory implementation
+- [ ] dual mapping where useful
+- [ ] instruction-cache flush implementation
 - [ ] address-space diagnostics
 - [ ] configurable JIT cache sizing
 
 ### Threading / TLS
-- [ ] explicit thread stack-size wrapper
+- [x] public thread/TLS API contract
+- [ ] explicit PS5 stack-size implementation
 - [ ] compiler-rt emulated TLS evaluation
+- [ ] thread registration / cleanup
 - [ ] thread naming/diagnostics
 - [ ] shutdown ordering helpers
 
 ### Native services
+- [x] public audio/input/VFS/app contracts
 - [ ] AudioOut backend
 - [ ] DualSense backend
 - [ ] multi-user controller enumeration
+- [ ] keyboard/mouse optional backend
 - [ ] filesystem/storage discovery
+- [ ] SMB VFS rebase from recovered PS5SX2 patch
 - [ ] logging/crash reports
 - [ ] user service initialization
 
 ### Vulkan
+- [x] public bootstrap contract
 - [ ] choose and pin PS5 Mesa/RADV baseline
-- [ ] minimal Vulkan triangle test
+- [ ] minimal Vulkan device/triangle test
 - [ ] shader cache location policy
 - [ ] command submission metrics
 - [ ] readback metrics
 - [ ] threaded recording evaluation
 
-## Phase 2 — Native emulator ports
+## Phase 2 — modern native emulator ports
 
 ### Flycast
-Goal: first clean standalone port built around upstream Flycast.
-
+- [ ] pin upstream
 - [ ] build core with PS5 toolchain
-- [ ] x86-64 SH4 dynarec executable memory
-- [ ] Vulkan renderer
+- [ ] x86-64 SH4 dynarec through ps5rt::jit
+- [ ] Vulkan through PS5 RADV
 - [ ] AudioOut
 - [ ] DualSense
 - [ ] BIOS/game VFS
-- [ ] Dreamcast boot
+- [ ] Dreamcast BIOS boot
+- [ ] retail game boot
 - [ ] Naomi/Atomiswave follow-up
 
 ### RPCS3
-Goal: cooperate with / learn from current PS5 scene work rather than duplicate it blindly.
-
-- [ ] track PS5_RPCS3 upstream delta
+- [ ] track PS5_RPCS3 delta
 - [ ] track PS5_LLVM ABI patches
 - [ ] track PS5_Mesa RSX optimizations
 - [ ] document PPU/SPU JIT memory requirements
-- [ ] remove desktop-only frontend assumptions
-- [ ] validate headless boot path
-- [ ] build reproducibility notes
+- [ ] isolate Qt/desktop frontend
+- [ ] validate headless/native title bootstrap
+- [ ] reproducible build notes
 
-### Vita3K
-- [ ] pin upstream
-- [ ] replace desktop window/input/audio path
-- [ ] consume PS5 Dynarmic executable code cache
-- [ ] Vulkan renderer bring-up
-- [ ] Vita firmware/user-data path policy
-- [ ] first app/game boot
-
-### Cemu
-- [ ] identify wxWidgets/UI dependency boundary
-- [ ] produce headless core build plan
-- [ ] map PPC recompiler memory assumptions
+### Vita3K / Azahar
+- [ ] pin upstreams
+- [ ] converge on PS5_Dynarmic executable cache
 - [ ] Vulkan bring-up
-- [ ] controller mapping
-- [ ] first Wii U title boot
+- [ ] native audio/input/VFS
+- [ ] first guest boot
 
-### xemu
-- [ ] isolate QEMU host/platform requirements
-- [ ] evaluate current Vulkan renderer on PS5 RADV
-- [ ] investigate RDNA2 performance issues upstream
-- [ ] replace host window/audio/input
-- [ ] BIOS/EEPROM/HDD user-data model
+### Dolphin / Cemu / PPSSPP / Mupen64Plus / DeSmuME / PS1 / Saturn
+- [ ] inventory PS5 scene deltas
+- [ ] separate libretro/frontend glue from true PS5 platform fixes
+- [ ] standalone native entry points
+- [ ] consume ps5rt services
+- [ ] reproducible builds
 
-### Xenia
-- [ ] audit x64 backend portability
-- [ ] audit Vulkan path requirements
-- [ ] map EDRAM/shader assumptions to PS5 RADV
-- [ ] replace OS/platform services
-- [ ] first XEX boot
+### xemu / Xenia
+- [ ] isolate host platform requirements
+- [ ] audit current Vulkan requirements against PS5 RADV
+- [ ] adapt native audio/input/VFS
+- [ ] establish first guest boot milestones
 
-## Phase 3 — Existing scene-port consolidation
+## Phase 3 — portable and preservation cores
 
-- [ ] PPSSPP
-- [ ] Mupen64Plus
-- [ ] Azahar
-- [ ] Dolphin
-- [ ] Beetle PSX / Saturn
-- [ ] DeSmuME
-- [ ] MAME / VICE
+### Nintendo / handheld
+- [ ] Mesen 2
+- [ ] Snes9x
+- [ ] SameBoy
+- [ ] mGBA
 
-For these, the goal is not to rewrite working public ports. The goal is to document, upstream where possible, and extract reusable PS5 platform lessons.
+### Sega
+- [ ] Genesis Plus GX
+- [ ] PicoDrive
 
-## Phase 4 — UX
+### Mednafen / Beetle family
+- [ ] Virtual Boy
+- [ ] WonderSwan/Color
+- [ ] Lynx
+- [ ] PC Engine / CD / SuperGrafx
+- [ ] PC-FX
+- [ ] Neo Geo Pocket/Color
+
+### Arcade / computers
+- [ ] MAME
+- [ ] FinalBurn Neo
+- [ ] VICE
+- [ ] blueMSX
+- [ ] Fuse
+- [ ] Gearcoleco
+- [ ] Stella
+- [ ] Atari800
+- [ ] ProSystem
+- [ ] Virtual Jaguar
+- [ ] NeoCD
+- [ ] FreeIntv
+- [ ] PUAE
+
+The purpose of these ports is not only coverage. They are the safest place to harden the common PS5 host layer before every service is depended on by modern JIT-heavy emulators.
+
+## Phase 4 — packaging and UX
 
 Only after cores are stable:
 
-- unified optional launcher
-- per-system artwork
-- per-game settings
-- common save/config paths
-- performance overlay
-- update mechanism
-- controller profiles
-- network storage
+- one native executable/package per system where practical;
+- unified **optional** launcher;
+- per-system artwork;
+- per-game settings;
+- common save/config paths;
+- performance overlay;
+- update mechanism;
+- controller profiles;
+- network storage;
+- mobile/WebUI advanced configuration.
 
-The launcher must remain optional; each emulator should be runnable independently.
+The launcher remains optional. No emulator core should require another emulator frontend to run.
