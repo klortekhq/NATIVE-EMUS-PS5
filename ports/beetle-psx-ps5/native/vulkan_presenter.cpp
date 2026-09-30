@@ -486,16 +486,19 @@ void VulkanPresenter::set_image(
   source_valid_ = image != nullptr;
   source_image_ = image ? *image : retro_vulkan_image{};
   source_queue_family_ = src_queue_family;
-  source_wait_semaphores_.assign(
-      semaphores, semaphores ? semaphores + num_semaphores : semaphores);
+  source_wait_semaphores_.clear();
+  if (semaphores && num_semaphores)
+    source_wait_semaphores_.assign(
+        semaphores, semaphores + num_semaphores);
 }
 
 void VulkanPresenter::set_command_buffers(
     std::uint32_t count,
     const VkCommandBuffer* commands) {
   std::scoped_lock lock(state_mutex_);
-  source_command_buffers_.assign(
-      commands, commands ? commands + count : commands);
+  source_command_buffers_.clear();
+  if (commands && count)
+    source_command_buffers_.assign(commands, commands + count);
 }
 
 void VulkanPresenter::set_signal_semaphore(
@@ -528,6 +531,14 @@ bool VulkanPresenter::record_transfer(
       source_queue_family != VK_QUEUE_FAMILY_IGNORED &&
       source_queue_family != queue_family_;
 
+  VkImageSubresourceRange src_range = source.create_info.subresourceRange;
+  if (!src_range.aspectMask)
+    src_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  if (!src_range.levelCount)
+    src_range.levelCount = 1;
+  if (!src_range.layerCount)
+    src_range.layerCount = 1;
+
   VkImageMemoryBarrier before[2]{};
 
   before[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -540,7 +551,7 @@ bool VulkanPresenter::record_transfer(
   before[0].dstQueueFamilyIndex =
       transfer_ownership ? queue_family_ : VK_QUEUE_FAMILY_IGNORED;
   before[0].image = source.create_info.image;
-  before[0].subresourceRange = source.create_info.subresourceRange;
+  before[0].subresourceRange = src_range;
 
   before[1].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
   before[1].srcAccessMask = 0;
@@ -572,14 +583,9 @@ bool VulkanPresenter::record_transfer(
       &black, 1, &dst_range);
 
   VkImageBlit blit{};
-  blit.srcSubresource.aspectMask =
-      source.create_info.subresourceRange.aspectMask
-          ? source.create_info.subresourceRange.aspectMask
-          : VK_IMAGE_ASPECT_COLOR_BIT;
-  blit.srcSubresource.mipLevel =
-      source.create_info.subresourceRange.baseMipLevel;
-  blit.srcSubresource.baseArrayLayer =
-      source.create_info.subresourceRange.baseArrayLayer;
+  blit.srcSubresource.aspectMask = src_range.aspectMask;
+  blit.srcSubresource.mipLevel = src_range.baseMipLevel;
+  blit.srcSubresource.baseArrayLayer = src_range.baseArrayLayer;
   blit.srcSubresource.layerCount = 1;
   blit.srcOffsets[1] = {
       static_cast<std::int32_t>(source_width),
@@ -600,7 +606,7 @@ bool VulkanPresenter::record_transfer(
       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
       swapchain_images_[current_image_],
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      1, &blit, VK_FILTER_LINEAR);
+      1, &blit, VK_FILTER_NEAREST);
 
   VkImageMemoryBarrier after[2]{};
 
@@ -615,7 +621,7 @@ bool VulkanPresenter::record_transfer(
   after[0].dstQueueFamilyIndex =
       transfer_ownership ? source_queue_family : VK_QUEUE_FAMILY_IGNORED;
   after[0].image = source.create_info.image;
-  after[0].subresourceRange = source.create_info.subresourceRange;
+  after[0].subresourceRange = src_range;
 
   after[1].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
   after[1].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
