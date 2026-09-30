@@ -2,6 +2,7 @@
 #include <ps5rt/memory.hpp>
 
 #include <ps5rt/c/exec.h>
+#include <ps5rt/c/jit.h>
 #include <ps5rt/c/shm.h>
 #include <ps5rt/c/vmem.h>
 
@@ -764,3 +765,71 @@ Result flush_instruction_cache(void* address, std::size_t size) noexcept {
 }
 
 } // namespace ps5rt
+
+
+namespace {
+int ps5rt_result_to_c(const ps5rt::Result& result) noexcept {
+  if (result) return 0;
+  if (result.native_code != 0) return result.native_code;
+  return -static_cast<int>(result.code);
+}
+} // namespace
+
+extern "C" int ps5rt_jit_create(std::size_t size,
+                                  std::size_t alignment,
+                                  unsigned flags,
+                                  ps5rt_jit_region* out) {
+  if (!out || size == 0) return -1;
+  *out = {};
+
+  ps5rt::JitRequest request{};
+  request.size = size;
+  request.alignment = alignment;
+  request.debug_name = "ps5rt-c-jit";
+  request.prefer_dual_mapping = (flags & PS5RT_JIT_DUAL_VIEW) != 0;
+
+  ps5rt::JitRegion region{};
+  const auto result = ps5rt::create_jit_region(request, region);
+  if (!result) return ps5rt_result_to_c(result);
+
+  out->write_view = region.write_view.address;
+  out->execute_view = region.execute_view.address;
+  out->size = region.execute_view.size ? region.execute_view.size
+                                       : region.write_view.size;
+  return 0;
+}
+
+extern "C" int ps5rt_jit_destroy(ps5rt_jit_region* region) {
+  if (!region) return -1;
+  if (!region->write_view && !region->execute_view) {
+    *region = {};
+    return 0;
+  }
+
+  ps5rt::JitRegion cpp{};
+  cpp.write_view = {
+      region->write_view, region->size, ps5rt::MemoryKind::executable,
+      ps5rt::Protection::read | ps5rt::Protection::write};
+  cpp.execute_view = {
+      region->execute_view ? region->execute_view : region->write_view,
+      region->size, ps5rt::MemoryKind::executable,
+      ps5rt::Protection::read | ps5rt::Protection::execute};
+
+  const auto result = ps5rt::destroy_jit_region(cpp);
+  if (!result) return ps5rt_result_to_c(result);
+  *region = {};
+  return 0;
+}
+
+extern "C" int ps5rt_jit_flush(const ps5rt_jit_region* region,
+                                std::size_t offset,
+                                std::size_t size) {
+  if (!region || !region->execute_view || offset > region->size) return -1;
+  const std::size_t available = region->size - offset;
+  if (size == 0) size = available;
+  if (size > available) return -1;
+
+  auto* address = static_cast<char*>(region->execute_view) + offset;
+  const auto result = ps5rt::flush_instruction_cache(address, size);
+  return ps5rt_result_to_c(result);
+}
