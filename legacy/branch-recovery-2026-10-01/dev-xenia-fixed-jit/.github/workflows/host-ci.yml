@@ -1,0 +1,193 @@
+name: host-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -S . -B build-host -G Ninja
+          -DNATIVE_EMUS_BUILD_HEADER_TESTS=ON
+          -DCOREHOST_BUILD_TESTS=ON
+          -DPS5RT_BUILD_HOST_PLATFORM_TESTS=ON
+
+      - name: Build
+        run: cmake --build build-host --parallel 2
+
+      - name: Test
+        run: ctest --test-dir build-host --output-on-failure
+
+  ppsspp-transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch pinned PPSSPP
+        run: |
+          git clone --filter=blob:none https://github.com/hrydgard/ppsspp.git /tmp/ppsspp
+          git -C /tmp/ppsspp checkout --detach fa50bb1976065c4f8b1b47af227d367fe9771555
+
+      - name: Verify deterministic PS5 engine transformation
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_ppsspp_native.py" /tmp/ppsspp --check
+
+  flycast-transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned Flycast
+        run: |
+          git clone --filter=blob:none https://github.com/flyinghead/flycast.git /tmp/flycast
+          git -C /tmp/flycast checkout --detach e36e9df2dcc1487acdb1dc7725766f1f5ba029b5
+      - name: Verify deterministic PS5 dynarec/vmem transformation
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_flycast_native.py" /tmp/flycast --check
+
+  dynarmic-transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch PS5 Dynarmic donor
+        run: |
+          git clone --filter=blob:none https://github.com/mihawk-99/PS5_Dynarmic.git /tmp/dynarmic
+          git -C /tmp/dynarmic checkout --detach 1df2a07e9a86afef73d511a931f40bedb40b30c4
+      - name: Verify ps5rt allocator transformation
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_dynarmic_ps5rt.py" /tmp/dynarmic --check
+
+  dolphin-transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned Dolphin donor source
+        run: |
+          git clone --filter=blob:none https://github.com/libretro/dolphin.git /tmp/dolphin
+          git -C /tmp/dolphin checkout --detach c6630001e05780b7c03e661a4a539b59ef716ebc
+      - name: Verify selective standalone PS5 patch
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_dolphin_native.py" /tmp/dolphin --check
+
+  freeintv-corehost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build corehost
+        run: |
+          cmake -S . -B build-freeintv -G Ninja -DCOREHOST_BUILD_TESTS=ON
+          cmake --build build-freeintv --target corehost
+      - name: Fetch pinned FreeIntv
+        run: |
+          git clone https://github.com/libretro/FreeIntv.git /tmp/freeintv
+          git -C /tmp/freeintv checkout --detach ef3e0fe322bec62a7f916c0bb0834c08c348d0b4
+      - name: Build FreeIntv static core
+        run: make -C /tmp/freeintv platform=unix STATIC_LINKING=1 -j2
+      - name: Build FreeIntv static support
+        run: |
+          set -euo pipefail
+          LRC=/tmp/freeintv/src/deps/libretro-common
+          mkdir -p /tmp/freeintv-support
+          sources=(
+            "$LRC/file/file_path.c"
+            "$LRC/file/file_path_io.c"
+            "$LRC/compat/compat_posix_string.c"
+            "$LRC/compat/compat_snprintf.c"
+            "$LRC/compat/compat_strl.c"
+            "$LRC/compat/compat_strcasestr.c"
+            "$LRC/compat/fopen_utf8.c"
+            "$LRC/encodings/encoding_utf.c"
+            "$LRC/string/stdstring.c"
+            "$LRC/streams/file_stream.c"
+            "$LRC/time/rtime.c"
+            "$LRC/vfs/vfs_implementation.c"
+          )
+          for src in "${sources[@]}"; do
+            obj="/tmp/freeintv-support/$(echo "${src#$LRC/}" | tr '/.' '__').o"
+            cc -O2 -DNDEBUG -fPIC -I"$LRC/include" -I/tmp/freeintv/src -c "$src" -o "$obj"
+          done
+      - name: Link core directly into corehost smoke
+        run: |
+          c++ -std=c++20 -Icorehost/include             corehost/tests/real_core_lifecycle.cpp             build-freeintv/corehost/libcorehost.a             /tmp/freeintv/freeintv_libretro.a             /tmp/freeintv-support/*.o -lm             -o /tmp/freeintv-corehost-smoke
+          /tmp/freeintv-corehost-smoke FreeIntv
+
+  o2em-corehost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build corehost
+        run: |
+          cmake -S . -B build-o2em -G Ninja -DCOREHOST_BUILD_TESTS=ON
+          cmake --build build-o2em --target corehost
+      - name: Fetch pinned O2EM
+        run: |
+          git clone https://github.com/libretro/libretro-o2em.git /tmp/o2em
+          git -C /tmp/o2em checkout --detach 679d6fec04963f6e70a7ec217e3d0ebb1fe472fc
+      - name: Build O2EM static core
+        run: >
+          make -C /tmp/o2em platform=unix STATIC_LINKING=1
+          TARGET=/tmp/o2em/o2em_libretro.a -j2
+      - name: Build O2EM static support
+        run: |
+          set -euo pipefail
+          LRC=/tmp/o2em/libretro-common
+          mkdir -p /tmp/o2em-support
+          sources=(
+            "$LRC/compat/compat_posix_string.c"
+            "$LRC/compat/compat_snprintf.c"
+            "$LRC/compat/compat_strcasestr.c"
+            "$LRC/compat/compat_strl.c"
+            "$LRC/compat/fopen_utf8.c"
+            "$LRC/encodings/encoding_crc32.c"
+            "$LRC/encodings/encoding_utf.c"
+            "$LRC/file/file_path.c"
+            "$LRC/file/file_path_io.c"
+            "$LRC/streams/file_stream.c"
+            "$LRC/time/rtime.c"
+            "$LRC/vfs/vfs_implementation.c"
+            "$LRC/audio/conversion/float_to_s16.c"
+            "$LRC/audio/conversion/s16_to_float.c"
+            "$LRC/audio/resampler/audio_resampler.c"
+            "$LRC/audio/resampler/drivers/sinc_resampler.c"
+            "$LRC/features/features_cpu.c"
+            "$LRC/file/config_file.c"
+            "$LRC/file/config_file_userdata.c"
+            "$LRC/formats/wav/rwav.c"
+            "$LRC/memmap/memalign.c"
+          )
+          for src in "${sources[@]}"; do
+            obj="/tmp/o2em-support/$(echo "${src#$LRC/}" | tr '/.' '__').o"
+            cc -O2 -DNDEBUG -fPIC -I"$LRC/include" -I/tmp/o2em -I/tmp/o2em/src -c "$src" -o "$obj"
+          done
+      - name: Link core directly into corehost smoke
+        run: |
+          c++ -std=c++20 -Icorehost/include             corehost/tests/real_core_lifecycle.cpp             build-o2em/corehost/libcorehost.a             /tmp/o2em/o2em_libretro.a             /tmp/o2em-support/*.o -lm             -o /tmp/o2em-corehost-smoke
+          /tmp/o2em-corehost-smoke O2EM
+
+  mupen64plus-transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch PS5 Mupen64Plus donor
+        run: |
+          git clone --filter=blob:none https://github.com/mihawk-99/PS5_Mupen64Plus.git /tmp/mupen64
+          git -C /tmp/mupen64 checkout --detach 98ec1019d191fc3c0e1c2d031f2574e95bd8d30d
+      - name: Verify CPU + RSP JIT allocator transform
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_mupen64plus_ps5rt.py" /tmp/mupen64 --check
+
+  xenia-transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned Xenia
+        run: |
+          git clone --filter=blob:none https://github.com/xenia-project/xenia.git /tmp/xenia
+          git -C /tmp/xenia checkout --detach 95a5c3ee250f80c3b9d139658649d9ffb6db3eec
+      - name: Verify fixed-address PS5 x64 JIT transformation
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_xenia_ps5rt.py" /tmp/xenia --check
