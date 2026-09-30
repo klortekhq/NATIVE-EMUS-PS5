@@ -71,6 +71,7 @@ public:
   [[nodiscard]] bool loaded() const noexcept { return loaded_; }
   [[nodiscard]] lr::PixelFormat pixel_format() const noexcept { return pixel_format_; }
   [[nodiscard]] const std::string& name() const noexcept { return name_; }
+  [[nodiscard]] const lr::SystemAvInfo& av_info() const noexcept { return av_info_; }
 
   void set_option(std::string key, std::string value);
 
@@ -98,6 +99,7 @@ private:
   bool loaded_{};
   bool options_dirty_{};
   lr::PixelFormat pixel_format_{lr::PixelFormat::xrgb1555};
+  lr::SystemAvInfo av_info_{};
   std::unordered_map<std::string, std::string> options_{};
   std::unordered_map<std::string, std::string> option_defaults_{};
   std::array<InputState, 4> input_cache_{};
