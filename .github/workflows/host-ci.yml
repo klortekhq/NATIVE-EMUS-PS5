@@ -126,7 +126,9 @@ jobs:
           git clone https://github.com/libretro/libretro-o2em.git /tmp/o2em
           git -C /tmp/o2em checkout --detach 679d6fec04963f6e70a7ec217e3d0ebb1fe472fc
       - name: Build O2EM static core
-        run: make -C /tmp/o2em platform=unix STATIC_LINKING=1 -j2
+        run: >
+          make -C /tmp/o2em platform=unix STATIC_LINKING=1
+          TARGET=/tmp/o2em/o2em_libretro.a -j2
       - name: Build O2EM static support
         run: |
           set -euo pipefail
