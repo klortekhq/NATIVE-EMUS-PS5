@@ -43,11 +43,17 @@ int main(){
     mock::init,mock::deinit,mock::info,mock::controller,mock::load,mock::unload,mock::av,mock::run,
     mock::reset,mock::state_size,mock::save,mock::load_state,mock::memory,mock::memory_size};
 
-  int frames=0; int audio_frames=0; int logs=0;
+  int frames=0; int audio_frames=0; int logs=0; int custom_env_calls=0;
   Hooks hooks{};
   hooks.video=[&](const void*,unsigned w,unsigned h,std::size_t,lr::PixelFormat){ assert(w==2&&h==2); ++frames; };
   hooks.audio_batch=[&](const std::int16_t*,std::size_t n){audio_frames+=static_cast<int>(n);return n;};
   hooks.log=[&](std::string_view msg){ assert(msg.find("initialized")!=std::string_view::npos); ++logs; };
+  hooks.environment=[&](unsigned cmd, void* data){
+    if (cmd != 0x7f00u || !data) return false;
+    ++custom_env_calls;
+    *static_cast<unsigned*>(data)=0x505331u;
+    return true;
+  };
   hooks.input=[](unsigned){
     InputState s{};
     s.joypad_mask=1u<<8;
@@ -61,6 +67,10 @@ int main(){
   std::string err; assert(core.initialize(err)); assert(mock::init_called); assert(logs==1);
   assert(std::string(core.system_info().library_name)=="Mock");
   assert(core.av_info().timing.sample_rate==44100.0);
+  unsigned custom_env_value=0;
+  assert(mock::env(0x7f00u,&custom_env_value));
+  assert(custom_env_calls==1 && custom_env_value==0x505331u);
+  assert(!mock::env(0x7f01u,&custom_env_value));
 
   lr::Variable var{"mock_speed",nullptr};
   assert(mock::env(lr::env_get_variable,&var)); assert(std::string(var.value)=="normal");
