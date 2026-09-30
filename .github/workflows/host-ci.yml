@@ -59,3 +59,14 @@ jobs:
           git -C /tmp/dynarmic checkout --detach 1df2a07e9a86afef73d511a931f40bedb40b30c4
       - name: Verify ps5rt allocator transformation
         run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_dynarmic_ps5rt.py" /tmp/dynarmic --check
+
+  dolphin-transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned Dolphin donor source
+        run: |
+          git clone --filter=blob:none https://github.com/libretro/dolphin.git /tmp/dolphin
+          git -C /tmp/dolphin checkout --detach c6630001e05780b7c03e661a4a539b59ef716ebc
+      - name: Verify selective standalone PS5 patch
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_dolphin_native.py" /tmp/dolphin --check
