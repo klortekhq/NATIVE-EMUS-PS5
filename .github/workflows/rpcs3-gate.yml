@@ -22,6 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
       - name: Fetch pinned PS5 RPCS3 and LLVM
         run: |
           set -euo pipefail
@@ -31,3 +38,43 @@ jobs:
           git -C /tmp/llvm checkout --detach 98b45cc22e98844b7d49bbedefdfee04a740650a
       - name: Verify PPU/SPU LLVM recompiler source gate
         run: python3 "$GITHUB_WORKSPACE/tools/ps5/verify_rpcs3_ps5_sources.py" /tmp/rpcs3 /tmp/llvm
+
+      - name: Generate LLVM configuration headers
+        run: |
+          set -euo pipefail
+          cmake -S /tmp/llvm/llvm -B /tmp/llvm-config -G Ninja             -DLLVM_TARGETS_TO_BUILD=X86             -DLLVM_INCLUDE_TESTS=OFF             -DLLVM_INCLUDE_EXAMPLES=OFF             -DLLVM_INCLUDE_BENCHMARKS=OFF             -DLLVM_ENABLE_TERMINFO=OFF             -DLLVM_ENABLE_ZLIB=OFF             -DLLVM_ENABLE_ZSTD=OFF             -DLLVM_ENABLE_LIBXML2=OFF             -DLLVM_ENABLE_BINDINGS=OFF
+
+      - name: Cross-compile PS5 LLVM ABI header probe
+        run: |
+          set -euo pipefail
+          cat >/tmp/ps5_llvm_abi_probe.cpp <<'EOF'
+          #include "llvm/ADT/SmallVector.h"
+          #include "llvm/Support/TrailingObjects.h"
+          #include <cstddef>
+
+          struct alignas(32) Payload {
+            unsigned char bytes[32];
+          };
+
+          class Node final : private llvm::TrailingObjects<Node, Payload> {
+            friend llvm::TrailingObjects<Node, Payload>;
+            int value_{};
+            std::size_t numTrailingObjects(
+                llvm::TrailingObjects<Node, Payload>::OverloadToken<Payload>) const {
+              return 1;
+            }
+          };
+
+          static_assert(alignof(llvm::SmallVector<Payload, 0>) >= alignof(Payload));
+          static_assert(alignof(Node) >= alignof(Payload));
+
+          int ps5_llvm_abi_probe() {
+          #if !defined(__SCE__)
+          #error prospero-clang++ must define __SCE__
+          #endif
+            llvm::SmallVector<Payload, 0> values;
+            return static_cast<int>(values.size());
+          }
+          EOF
+          /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG             -I/tmp/llvm-config/include             -I/tmp/llvm/llvm/include             -c /tmp/ps5_llvm_abi_probe.cpp             -o /tmp/ps5_llvm_abi_probe.o
+          test -s /tmp/ps5_llvm_abi_probe.o
