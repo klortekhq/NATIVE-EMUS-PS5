@@ -25,8 +25,9 @@ public:
   AudioDevice() = default;
   AudioDevice(const AudioDevice&) = delete;
   AudioDevice& operator=(const AudioDevice&) = delete;
-  AudioDevice(AudioDevice&&) noexcept = default;
-  AudioDevice& operator=(AudioDevice&&) noexcept = default;
+  // Ownership semantics stay explicit until the concrete PS5 backend lands.
+  AudioDevice(AudioDevice&&) = delete;
+  AudioDevice& operator=(AudioDevice&&) = delete;
   ~AudioDevice();
 
   Result open(const AudioSpec& requested) noexcept;
