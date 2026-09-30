@@ -1,0 +1,45 @@
+name: dolphin-ps5-jit64-gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/**'
+      - 'ports/dolphin-ps5/**'
+      - 'patches/dolphin/**'
+      - 'tools/ps5/apply_dolphin_native.py'
+      - '.github/workflows/dolphin-gate.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: dolphin-ps5-jit64-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  jit64-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-cmake
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Cross-build Dolphin Jit64 engine
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/dolphin-ps5/build_engine_ps5.sh
+
+      - name: Upload Dolphin PS5 Jit64 engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-dolphin-jit64-ps5-engine
+          path: |
+            build/ps5/dolphin/artifacts/libdolphin_jit64_ps5.a
+            build/ps5/dolphin/artifacts/SHA256SUMS
+          if-no-files-found: error
