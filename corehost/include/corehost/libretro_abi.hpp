@@ -14,6 +14,7 @@ constexpr unsigned env_set_variables = 16;
 constexpr unsigned env_get_variable_update = 17;
 constexpr unsigned env_get_log_interface = 27;
 constexpr unsigned env_get_save_directory = 31;
+constexpr unsigned env_get_vfs_interface = 45 | environment_experimental;
 constexpr unsigned env_get_input_bitmasks = 51 | environment_experimental;
 constexpr unsigned env_get_core_options_version = 52;
 
@@ -29,10 +30,35 @@ constexpr unsigned analog_button = 2;
 constexpr unsigned analog_x = 0;
 constexpr unsigned analog_y = 1;
 
+constexpr unsigned mouse_x = 0;
+constexpr unsigned mouse_y = 1;
+constexpr unsigned mouse_left = 2;
+constexpr unsigned mouse_right = 3;
+constexpr unsigned mouse_wheel_up = 4;
+constexpr unsigned mouse_wheel_down = 5;
+constexpr unsigned mouse_middle = 6;
+constexpr unsigned mouse_wheel_left = 7;
+constexpr unsigned mouse_wheel_right = 8;
+constexpr unsigned mouse_button_4 = 9;
+constexpr unsigned mouse_button_5 = 10;
+
 enum class PixelFormat : unsigned {
   xrgb1555 = 0,
   xrgb8888 = 1,
   rgb565 = 2,
+};
+
+enum class LogLevel : int {
+  debug = 0,
+  info = 1,
+  warn = 2,
+  error = 3,
+};
+
+using LogPrintf = void(*)(LogLevel, const char*, ...);
+
+struct LogCallback {
+  LogPrintf log{};
 };
 
 struct Variable {
