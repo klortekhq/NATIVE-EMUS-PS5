@@ -20,27 +20,25 @@ The following ports have completed a reproducible cross-build with the public `p
 
 | System | Engine | PS5 output | Evidence |
 |---|---|---|---|
-| NES | FCEUmm | `nes_fceumm_pie.elf` | workflow 36716495397 / green |
-| SNES | Snes9x | `snes9x_pie.elf` | workflow 36716495397 / green |
-| SG-1000 | Genesis Plus GX | `sg1000_genesis_plus_gx_pie.elf` | workflow 36716495397 / green |
-| Master System | Genesis Plus GX | `mastersystem_genesis_plus_gx_pie.elf` | workflow 36716495397 / green |
-| Game Gear | Genesis Plus GX | `gamegear_genesis_plus_gx_pie.elf` | workflow 36716495397 / green |
-| Mega Drive / Genesis | Genesis Plus GX | `megadrive_genesis_plus_gx_pie.elf` | workflow 36716495397 / green |
+| NES | FCEUmm | `nes_fceumm_pie.elf` | workflow 36748819649 / green after corehost migration |
+| SNES | Snes9x | `snes9x_pie.elf` | workflow 36748819649 / green after corehost migration |
+| SG-1000 | Genesis Plus GX | `sg1000_genesis_plus_gx_pie.elf` | workflow 36748819649 / green after corehost migration |
+| Master System | Genesis Plus GX | `mastersystem_genesis_plus_gx_pie.elf` | workflow 36748819649 / green after corehost migration |
+| Game Gear | Genesis Plus GX | `gamegear_genesis_plus_gx_pie.elf` | workflow 36748819649 / green after corehost migration |
+| Mega Drive / Genesis | Genesis Plus GX | `megadrive_genesis_plus_gx_pie.elf` | workflow 36748819649 / green after corehost migration |
+| Intellivision | FreeIntv | `freeintv_pie.elf` | workflow 36748819649 / green |
+| Odyssey2 / Videopac | O2EM | `o2em_pie.elf` | workflow 36748819649 / green |
 
-Artifacts from workflow 36716495397 include:
+Current cross-build evidence is workflow **36748819649**. It validates the shared `corehost + ps5rt` runner after migration and produces the NES, SNES, four Genesis Plus GX variants, FreeIntv and O2EM PS5 PIE outputs. The earlier workflow 36716495397 remains useful as pre-migration evidence.
 
-- `native-nes-fceumm-ps5-pie`
-- `native-snes-snes9x-ps5-pie`
-- `native-sega-genesis-plus-gx-ps5-pie`
-
-The Sega artifact contains all four cartridge-family ELFs.
+Host-side static-link/lifecycle validation is green in workflow **36749064626** for FreeIntv and O2EM, alongside the Flycast, Dynarmic, Mupen64Plus, Dolphin and PPSSPP transformation checks.
 
 ## Modern / JIT-heavy targets
 
 | Target | Repo state | External evidence / useful reference |
 |---|---|---|
 | PCSX2 / PS2 | Reference integration research | Swordpdf/PS5SX2 demonstrates native PCSX2 recompilers + Vulkan on PS5 |
-| Flycast / Dreamcast | Port plan | Upstream standalone x86-64 dynarec + Vulkan is a strong fit for ps5rt |
+| Flycast / Dreamcast | **rec-x64/JIT transform green** | deterministic PS5 fastmem + dual-view JIT transform is green in workflow 36749064626; engine cross-build is the next gate |
 | RPCS3 / PS3 | Fast-moving external work | mihawk-99/PS5_RPCS3, PS5_LLVM and PS5_Mesa contain active PS5-specific work |
 | Vita3K / Vita | Port plan | PS5_Dynarmic work directly addresses executable code-cache needs |
 | Cemu / Wii U | Port plan | PPC recompiler + Vulkan; desktop UI separation remains a major task |
@@ -48,7 +46,7 @@ The Sega artifact contains all four cartridge-family ELFs.
 | Xenia / Xbox 360 | Platform/GPU research | x64 backend fits the host; GPU/EDRAM/Vulkan adaptation is the larger problem |
 | Switch / Eden-derived | Reference research | ProsperoEden is a public native PS5 implementation reference |
 | PPSSPP / PSP | External port research | Public PS5-specific work exists |
-| Mupen64Plus / N64 | External port research | mihawk-99 PS5 work and upstream dynarec are useful references |
+| Mupen64Plus / N64 | **CPU + RSP JIT transform green** | mihawk-99 donor allocators retarget cleanly to ps5rt in workflow 36749064626 |
 | Azahar / 3DS | External port research | PS5_Dynarmic and PS5 scene work are directly relevant |
 | Dolphin / GC/Wii | External port research | Existing PS5 work demonstrates JIT/Vulkan feasibility |
 | DeSmuME / NDS | External port research | mihawk-99/PS5_DeSmuME provides a donor/reference |
@@ -74,13 +72,13 @@ These are especially useful for hardening AudioOut, DualSense, VFS, packaging an
 | Component | Repository state | External state / notes |
 |---|---|---|
 | public runtime contract | **Implemented + evolving** | C++20 contracts plus native PS5 app/audio/input/io/video backends are in `runtime/` |
-| executable/JIT memory | interface defined | working approaches exist in PS5SX2 and PS5_Dynarmic |
-| flexible/direct/pooled memory | interface defined | implementation migration still pending |
+| executable/JIT memory | **native backend implemented + transform consumers green** | JIT shared memory, direct fallback and dual RW/RX aliases exist; Flycast/Dynarmic/Mupen transforms are CI-green |
+| flexible/direct/pooled memory | **flexible/direct implemented; pooled pending** | virtual ranges, shared/direct mapping and fixed mapping helpers are in the PS5 backend |
 | TLS | interface defined | compiler-rt emutls and PS5-specific shims need implementation/evaluation |
 | thread policy | interface defined | explicit stack handling is proven necessary by PS5SX2 |
 | AudioOut | **native backend implemented** | 48 kHz PS5 output with stateful source-rate conversion; cross-build proven |
-| DualSense | **native backend implemented** | controller 0 polling is cross-build proven; rumble/multi-user remain to migrate |
-| VFS/storage | **local random-access backend implemented** | /data and USB path policy active; SMB/network migration remains pending |
+| DualSense | **native backend implemented** | signed-in-user controller enumeration, sticks/triggers/buttons and rumble are implemented; keyboard/mouse PS5 backends remain pending |
+| VFS/storage | **local random-access + directory/storage backend implemented** | /data, USB/external discovery and save directories active; SMB/network migration remains pending |
 | Vulkan bootstrap | interface defined | Mesa/RADV PS5 work is active and rapidly improving |
 | PS5-specific LLVM ABI | external active development | critical RPCS3 fixes exist in PS5_LLVM |
 | native title tooling | research mapped | BlackBear tooling, ps5link-sdk and SharpProspero are tracked |
