@@ -20,6 +20,8 @@ mkdir -p "$OUT/src" "$OUT/obj" "$OUT/artifacts"
 git clone --filter=blob:none "$REPO" "$SRC"
 git -C "$SRC" checkout --detach "$PIN"
 
+python3 "$ROOT/tools/ps5/apply_cemu_ps5.py" "$SRC"
+
 sources=(
   src/Cafe/HW/Espresso/Recompiler/PPCRecompiler.cpp
   src/Cafe/HW/Espresso/Recompiler/PPCRecompilerIntermediate.cpp
