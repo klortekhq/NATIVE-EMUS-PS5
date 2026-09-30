@@ -16,8 +16,9 @@ src=${PPSSPP_SOURCE_DIR:-${1:-}}
 
 export NATIVE_EMUS_ROOT="$root"
 
-build="$root/build/ps5/ppsspp-engine"
+build="${PPSSPP_BUILD_DIR:-$root/build/ps5/ppsspp-engine/build}"
 rm -rf "$build"
+mkdir -p "$build"
 
 cmake -S "$src" -B "$build" -G Ninja   -DCMAKE_TOOLCHAIN_FILE="$root/tooling/ppsspp/ps5-engine-toolchain.cmake"   -DCMAKE_BUILD_TYPE=Release   -DLIBRETRO=OFF   -DHEADLESS=ON   -DUNITTEST=OFF   -DUSE_FFMPEG=OFF   -DUSE_DISCORD=OFF   -DUSE_MINIUPNPC=OFF   -DUSING_GLES2=OFF   -DUSING_X11_VULKAN=OFF   -DUSE_WAYLAND_WSI=OFF   -DUSE_SYSTEM_LIBPNG=OFF   -DUSE_SYSTEM_ZSTD=OFF   -DUSE_SYSTEM_LIBZIP=OFF   -DUSE_SYSTEM_FREETYPE=OFF
 
