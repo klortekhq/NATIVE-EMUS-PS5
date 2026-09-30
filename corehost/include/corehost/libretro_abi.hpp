@@ -7,6 +7,7 @@ namespace corehost::lr {
 constexpr unsigned api_version = 1;
 constexpr unsigned environment_experimental = 0x10000;
 
+constexpr unsigned env_set_message = 6;
 constexpr unsigned env_get_system_directory = 9;
 constexpr unsigned env_set_pixel_format = 10;
 constexpr unsigned env_get_variable = 15;
@@ -14,9 +15,17 @@ constexpr unsigned env_set_variables = 16;
 constexpr unsigned env_get_variable_update = 17;
 constexpr unsigned env_get_log_interface = 27;
 constexpr unsigned env_get_save_directory = 31;
+constexpr unsigned env_set_system_av_info = 32;
+constexpr unsigned env_set_geometry = 37;
+constexpr unsigned env_get_language = 39;
 constexpr unsigned env_get_vfs_interface = 45 | environment_experimental;
+constexpr unsigned env_get_audio_video_enable = 47 | environment_experimental;
 constexpr unsigned env_get_input_bitmasks = 51 | environment_experimental;
 constexpr unsigned env_get_core_options_version = 52;
+constexpr unsigned env_get_message_interface_version = 59;
+constexpr unsigned env_set_variable = 70;
+constexpr unsigned env_get_savestate_context = 72 | environment_experimental;
+constexpr unsigned env_get_target_sample_rate = 81 | environment_experimental;
 
 constexpr unsigned device_none = 0;
 constexpr unsigned device_joypad = 1;
@@ -42,6 +51,12 @@ constexpr unsigned mouse_wheel_right = 8;
 constexpr unsigned mouse_button_4 = 9;
 constexpr unsigned mouse_button_5 = 10;
 
+constexpr unsigned memory_save_ram = 0;
+constexpr unsigned language_english = 0;
+constexpr unsigned av_enable_video = 1u << 0;
+constexpr unsigned av_enable_audio = 1u << 1;
+constexpr unsigned savestate_context_normal = 0;
+
 enum class PixelFormat : unsigned {
   xrgb1555 = 0,
   xrgb8888 = 1,
@@ -62,15 +77,28 @@ struct LogCallback {
 };
 
 struct Variable {
-  const char* key;
-  const char* value;
+  const char* key{};
+  const char* value{};
+};
+
+struct SystemInfo {
+  const char* library_name{};
+  const char* library_version{};
+  const char* valid_extensions{};
+  bool need_fullpath{};
+  bool block_extract{};
+};
+
+struct Message {
+  const char* msg{};
+  unsigned frames{};
 };
 
 struct GameInfo {
-  const char* path;
-  const void* data;
-  std::size_t size;
-  const char* meta;
+  const char* path{};
+  const void* data{};
+  std::size_t size{};
+  const char* meta{};
 };
 
 struct GameGeometry {
@@ -107,6 +135,8 @@ struct StaticApi {
   void (*set_input_state)(InputState){};
   void (*init)(){};
   void (*deinit)(){};
+  void (*get_system_info)(SystemInfo*){};
+  void (*set_controller_port_device)(unsigned, unsigned){};
   bool (*load_game)(const GameInfo*){};
   void (*unload_game)(){};
   void (*get_system_av_info)(SystemAvInfo*){};
@@ -115,6 +145,8 @@ struct StaticApi {
   std::size_t (*serialize_size)(){};
   bool (*serialize)(void*, std::size_t){};
   bool (*unserialize)(const void*, std::size_t){};
+  void* (*get_memory_data)(unsigned){};
+  std::size_t (*get_memory_size)(unsigned){};
 };
 
 } // namespace corehost::lr
