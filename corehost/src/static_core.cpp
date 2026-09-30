@@ -1,5 +1,7 @@
 #include <corehost/static_core.hpp>
 
+#include <cstdarg>
+#include <cstdio>
 #include <mutex>
 #include <utility>
 
@@ -24,26 +26,55 @@ bool environment_trampoline(unsigned cmd, void* data) {
   auto* core = active();
   return core ? core->environment(cmd, data) : false;
 }
+
 void video_trampoline(const void* data, unsigned w, unsigned h, std::size_t pitch) {
   if (auto* core = active()) core->video(data, w, h, pitch);
 }
+
 void audio_sample_trampoline(std::int16_t l, std::int16_t r) {
   const std::int16_t frame[2]{l, r};
   if (auto* core = active()) core->audio(frame, 1);
 }
+
 std::size_t audio_batch_trampoline(const std::int16_t* data, std::size_t frames) {
   if (auto* core = active()) return core->audio(data, frames);
   return frames;
 }
+
 void input_poll_trampoline() {
   auto* core = active();
   if (!core || !core->hooks_.input) return;
   for (unsigned port = 0; port < core->input_cache_.size(); ++port)
     core->input_cache_[port] = core->hooks_.input(port);
 }
+
 std::int16_t input_state_trampoline(unsigned port, unsigned device, unsigned index, unsigned id) {
   if (auto* core = active()) return core->input_state(port, device, index, id);
   return 0;
+}
+
+void log_trampoline(lr::LogLevel, const char* fmt, ...) {
+  auto* core = active();
+  if (!core || !fmt) return;
+
+  char stack[2048];
+  va_list args;
+  va_start(args, fmt);
+  const int required = std::vsnprintf(stack, sizeof(stack), fmt, args);
+  va_end(args);
+
+  if (required < 0) return;
+  if (static_cast<std::size_t>(required) < sizeof(stack)) {
+    core->log(std::string_view(stack, static_cast<std::size_t>(required)));
+    return;
+  }
+
+  std::string dynamic(static_cast<std::size_t>(required) + 1u, '\0');
+  va_start(args, fmt);
+  std::vsnprintf(dynamic.data(), dynamic.size(), fmt, args);
+  va_end(args);
+  dynamic.resize(static_cast<std::size_t>(required));
+  core->log(dynamic);
 }
 
 StaticCore::StaticCore(std::string name, lr::StaticApi api, HostPaths paths, Hooks hooks)
@@ -64,6 +95,7 @@ bool StaticCore::initialize(std::string& error) {
     error = "incomplete static libretro API";
     return false;
   }
+
   g_active = this;
   api_.set_environment(environment_trampoline);
   api_.set_video_refresh(video_trampoline);
@@ -117,7 +149,10 @@ bool StaticCore::load_state(const void* data, std::size_t size) {
 }
 
 void StaticCore::set_option(std::string key, std::string value) {
+  auto it = options_.find(key);
+  if (it != options_.end() && it->second == value) return;
   options_[std::move(key)] = std::move(value);
+  options_dirty_ = true;
 }
 
 void StaticCore::register_variables(const lr::Variable* vars) {
@@ -135,19 +170,23 @@ bool StaticCore::environment(unsigned cmd, void* data) {
       if (!data) return false;
       *static_cast<const char**>(data) = paths_.system_dir.c_str();
       return true;
+
     case lr::env_get_save_directory:
       if (!data) return false;
       *static_cast<const char**>(data) = paths_.save_dir.c_str();
       return true;
+
     case lr::env_set_pixel_format:
       if (!data) return false;
       pixel_format_ = *static_cast<const lr::PixelFormat*>(data);
       return pixel_format_ == lr::PixelFormat::xrgb1555 ||
              pixel_format_ == lr::PixelFormat::xrgb8888 ||
              pixel_format_ == lr::PixelFormat::rgb565;
+
     case lr::env_set_variables:
       register_variables(static_cast<const lr::Variable*>(data));
       return true;
+
     case lr::env_get_variable: {
       if (!data) return false;
       auto& v = *static_cast<lr::Variable*>(data);
@@ -156,18 +195,35 @@ bool StaticCore::environment(unsigned cmd, void* data) {
       v.value = it == options_.end() ? nullptr : it->second.c_str();
       return true;
     }
+
     case lr::env_get_variable_update:
       if (!data) return false;
-      *static_cast<bool*>(data) = false;
+      *static_cast<bool*>(data) = options_dirty_;
+      options_dirty_ = false;
       return true;
+
+    case lr::env_get_log_interface:
+      if (!data) return false;
+      static_cast<lr::LogCallback*>(data)->log = log_trampoline;
+      return true;
+
     case lr::env_get_input_bitmasks:
       if (!data) return false;
       *static_cast<bool*>(data) = true;
       return true;
+
     case lr::env_get_core_options_version:
       if (!data) return false;
+      // Returning v0 intentionally keeps the first implementation small and
+      // compatible with cores that provide legacy variables as fallback.
       *static_cast<unsigned*>(data) = 0;
       return true;
+
+    // Deliberately not claiming VFS support yet. Cores that ask for it can
+    // fall back to libc/stdio while ps5rt's full VFS bridge is implemented.
+    case lr::env_get_vfs_interface:
+      return false;
+
     default:
       return false;
   }
@@ -184,11 +240,13 @@ std::size_t StaticCore::audio(const std::int16_t* data, std::size_t frames) {
 std::int16_t StaticCore::input_state(unsigned port, unsigned device, unsigned index, unsigned id) {
   if (port >= input_cache_.size()) return 0;
   const auto& state = input_cache_[port];
+
   if (device == lr::device_joypad) {
     if (id == lr::device_joypad_mask) return static_cast<std::int16_t>(state.joypad_mask);
     if (id < 16) return (state.joypad_mask & (std::uint16_t{1} << id)) ? 1 : 0;
     return 0;
   }
+
   if (device == lr::device_analog) {
     if (index == lr::analog_left) return id == lr::analog_x ? state.left_x : state.left_y;
     if (index == lr::analog_right) return id == lr::analog_x ? state.right_x : state.right_y;
@@ -196,8 +254,34 @@ std::int16_t StaticCore::input_state(unsigned port, unsigned device, unsigned in
       if (id == 12) return state.l2;
       if (id == 13) return state.r2;
     }
+    return 0;
   }
+
+  if (device == lr::device_keyboard)
+    return state.key_down(id) ? 1 : 0;
+
+  if (device == lr::device_mouse) {
+    switch (id) {
+      case lr::mouse_x: return state.mouse_x;
+      case lr::mouse_y: return state.mouse_y;
+      case lr::mouse_left: return (state.mouse_buttons & (1u << 0)) ? 1 : 0;
+      case lr::mouse_right: return (state.mouse_buttons & (1u << 1)) ? 1 : 0;
+      case lr::mouse_middle: return (state.mouse_buttons & (1u << 2)) ? 1 : 0;
+      case lr::mouse_button_4: return (state.mouse_buttons & (1u << 3)) ? 1 : 0;
+      case lr::mouse_button_5: return (state.mouse_buttons & (1u << 4)) ? 1 : 0;
+      case lr::mouse_wheel_up: return state.mouse_wheel_y > 0 ? 1 : 0;
+      case lr::mouse_wheel_down: return state.mouse_wheel_y < 0 ? 1 : 0;
+      case lr::mouse_wheel_left: return state.mouse_wheel_x < 0 ? 1 : 0;
+      case lr::mouse_wheel_right: return state.mouse_wheel_x > 0 ? 1 : 0;
+      default: return 0;
+    }
+  }
+
   return 0;
+}
+
+void StaticCore::log(std::string_view message) {
+  if (hooks_.log) hooks_.log(message);
 }
 
 } // namespace corehost
