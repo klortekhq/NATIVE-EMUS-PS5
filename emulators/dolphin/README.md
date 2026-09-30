@@ -1,5 +1,9 @@
 # Dolphin / GameCube · Wii
 
+## Progress: **25%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 ## Status
 
 **Jit64/fastmem architecture proven externally; standalone native extraction active.**

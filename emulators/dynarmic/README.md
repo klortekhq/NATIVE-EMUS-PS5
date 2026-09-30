@@ -1,5 +1,9 @@
 # Dynarmic PS5 x86-64 JIT dependency
 
+## Progress: **50%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 Dynarmic is a shared dependency for several modern ARM-family emulator ports.
 
 ## PS5 donor pin
