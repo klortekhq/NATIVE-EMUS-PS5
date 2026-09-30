@@ -35,6 +35,8 @@ int destroy_surface_calls{};
 int core_destroy_device_calls{};
 int core_reset_calls{};
 int core_destroy_calls{};
+int presentation_init_calls{};
+int presentation_shutdown_calls{};
 bool instance_had_surface{};
 bool instance_had_display{};
 bool device_had_swapchain{};
@@ -240,6 +242,22 @@ int main() {
     assert(gpu==fake_gpu());
     return fake_surface();
   };
+  presentation.initialize=[](
+      VkInstance instance, VkSurfaceKHR surface,
+      const retro_vulkan_context& context,
+      PFN_vkGetInstanceProcAddr gip,
+      PFN_vkGetDeviceProcAddr gdp) {
+    assert(instance==fake_instance());
+    assert(surface==fake_surface());
+    assert(context.gpu==fake_gpu());
+    assert(context.device==fake_device());
+    assert(context.queue==fake_queue());
+    assert(gip==fake_vkGetInstanceProcAddr);
+    assert(gdp==fake_vkGetDeviceProcAddr);
+    ++presentation_init_calls;
+    return true;
+  };
+  presentation.shutdown=[] { ++presentation_shutdown_calls; };
   presentation.get_sync_index=[] { return 2u; };
   presentation.get_sync_index_mask=[] { return 0x7u; };
 
@@ -256,6 +274,7 @@ int main() {
   assert(instance_had_display);
   assert(device_had_swapchain);
   assert(core_reset_calls==1);
+  assert(presentation_init_calls==1);
 
   const retro_hw_render_interface* base=nullptr;
   assert(environment.environment(
@@ -280,5 +299,6 @@ int main() {
   assert(destroy_device_calls==1);
   assert(destroy_surface_calls==1);
   assert(destroy_instance_calls==1);
+  assert(presentation_shutdown_calls==1);
   return 0;
 }
