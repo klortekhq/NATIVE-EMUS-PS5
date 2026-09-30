@@ -36,17 +36,31 @@ jobs:
           g++ $CXXFLAGS $INC -c ports/common/libretro-static/native_libretro_host.cpp -o build/smoke/native_libretro_host.o
           g++ $CXXFLAGS $INC -c ports/common/libretro-static/linked_core.cpp -o build/smoke/linked_core.o
           g++ $CXXFLAGS $INC -c ports/nes-fceumm/main.cpp -o build/smoke/nes_fceumm_main.o
+          g++ $CXXFLAGS $INC -c ports/snes9x-ps5/main.cpp -o build/smoke/snes9x_main.o
 
       - name: Validate port scripts
         run: |
           bash -n ports/nes-fceumm/build_ps5.sh
+          bash -n ports/snes9x-ps5/build_ps5.sh
 
-      - name: Compute candidate core archive hashes
+      - name: Validate pinned Snes9x static core
         run: |
           set -euo pipefail
-          curl -fL --retry 3 "https://codeload.github.com/libretro/snes9x/tar.gz/fae2fea08f74180759ef540ee94259213f503480" -o build/snes9x.tar.gz
-          curl -fL --retry 3 "https://codeload.github.com/libretro/Genesis-Plus-GX/tar.gz/c2838c7dc4236fc2fe94e5dbd08b41486067918e" -o build/genesis-plus-gx.tar.gz
-          sha256sum build/snes9x.tar.gz build/genesis-plus-gx.tar.gz
+          PIN=fae2fea08f74180759ef540ee94259213f503480
+          SHA=0d4b0c4181d66668ec0040eb17f90a559f7b7fa6cbd9198593c3bdbe79acd029
+          mkdir -p build/snes9x
+          curl -fL --retry 3 "https://codeload.github.com/libretro/snes9x/tar.gz/$PIN" -o build/snes9x/core.tar.gz
+          echo "$SHA  build/snes9x/core.tar.gz" | sha256sum -c -
+          tar -xzf build/snes9x/core.tar.gz -C build/snes9x
+          CORE="$PWD/build/snes9x/snes9x-$PIN"
+          make -C "$CORE/libretro" -f Makefile \
+            platform=unix STATIC_LINKING=1 STATIC_LINKING_LINK=1 \
+            TARGET="$PWD/build/snes9x/libsnes9x_libretro.a" \
+            CC=gcc CXX=g++ AR=ar
+          test -s build/snes9x/libsnes9x_libretro.a
+          for sym in retro_init retro_deinit retro_load_game retro_run retro_unload_game; do
+            nm build/snes9x/libsnes9x_libretro.a | grep -q "[[:space:]]$sym$"
+          done
 
       - name: Validate pinned FCEUmm static core
         run: |
@@ -106,4 +120,33 @@ jobs:
           path: |
             build/ps5/nes-fceumm/artifacts/nes_fceumm_pie.elf
             build/ps5/nes-fceumm/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-snes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build native SNES Snes9x
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          bash ports/snes9x-ps5/build_ps5.sh
+          test -s build/ps5/snes9x/artifacts/snes9x_pie.elf
+
+      - name: Upload native SNES build
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-snes-snes9x-ps5-pie
+          path: |
+            build/ps5/snes9x/artifacts/snes9x_pie.elf
+            build/ps5/snes9x/artifacts/SHA256SUMS
           if-no-files-found: error
