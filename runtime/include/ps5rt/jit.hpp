@@ -23,6 +23,13 @@ struct JitRequest {
   std::size_t alignment{};
   const char* debug_name{};
   bool prefer_dual_mapping{true};
+
+  // Optional fixed-address controls for recompilers whose generated-code ABI
+  // depends on specific host virtual ranges (notably Xenia).
+  void* preferred_write_address{};
+  void* preferred_execute_address{};
+  bool require_fixed_write{false};
+  bool require_fixed_execute{false};
 };
 
 Result create_jit_region(const JitRequest& request, JitRegion& out) noexcept;
