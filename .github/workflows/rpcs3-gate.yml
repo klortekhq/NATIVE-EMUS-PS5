@@ -44,6 +44,14 @@ jobs:
           set -euo pipefail
           cmake -S /tmp/llvm/llvm -B /tmp/llvm-config -G Ninja             -DLLVM_TARGETS_TO_BUILD=X86             -DLLVM_INCLUDE_TESTS=OFF             -DLLVM_INCLUDE_EXAMPLES=OFF             -DLLVM_INCLUDE_BENCHMARKS=OFF             -DLLVM_ENABLE_TERMINFO=OFF             -DLLVM_ENABLE_ZLIB=OFF             -DLLVM_ENABLE_ZSTD=OFF             -DLLVM_ENABLE_LIBXML2=OFF             -DLLVM_ENABLE_BINDINGS=OFF
 
+      - name: Generate matching LLVM TableGen IR headers
+        run: |
+          set -euo pipefail
+          cmake --build /tmp/llvm-config --target intrinsics_gen --parallel 2
+          test -s /tmp/llvm-config/include/llvm/IR/Attributes.inc
+          test -s /tmp/llvm-config/include/llvm/IR/IntrinsicEnums.inc
+          test -s /tmp/llvm-config/include/llvm/IR/IntrinsicImpl.inc
+
       - name: Cross-compile PS5 LLVM ABI header probe
         run: |
           set -euo pipefail
