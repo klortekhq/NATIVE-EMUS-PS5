@@ -17,9 +17,9 @@
     {
       "workspace": "flycast",
       "upstream_url": "https://github.com/flyinghead/flycast",
-      "upstream_revision": null,
-      "license": null,
-      "pin_status": "repository-verified-revision-pending",
+      "upstream_revision": "e36e9df2dcc1487acdb1dc7725766f1f5ba029b5",
+      "license": "GNU GPL v2 license text present; exact SPDX classification pending final inventory",
+      "pin_status": "pinned-for-first-ps5-bringup",
       "ps5_scene_references": []
     },
     {
