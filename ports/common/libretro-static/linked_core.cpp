@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <sys/stat.h>
 
 namespace native_emu::libretro {
