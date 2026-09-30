@@ -6,6 +6,7 @@
 #include <cstring>
 #include <span>
 #include <string_view>
+#include <utility>
 
 extern "C" std::int32_t sceKernelUsleep(std::uint32_t microseconds);
 
