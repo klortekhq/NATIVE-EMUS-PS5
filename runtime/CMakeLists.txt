@@ -46,3 +46,15 @@ if(PS5RT_BUILD_PS5_BACKEND)
       SceSystemService
   )
 endif()
+
+option(PS5RT_BUILD_HOST_PLATFORM_TESTS "Build host tests for PS5 platform logic with mocked SCE calls" OFF)
+
+if(PS5RT_BUILD_HOST_PLATFORM_TESTS)
+  add_executable(ps5rt-input-host-test
+    tests/input_ps5_host_test.cpp
+    src/ps5/input.cpp
+  )
+  target_link_libraries(ps5rt-input-host-test PRIVATE ps5rt::ps5rt)
+  target_compile_features(ps5rt-input-host-test PRIVATE cxx_std_20)
+  add_test(NAME ps5rt-input-host COMMAND ps5rt-input-host-test)
+endif()
