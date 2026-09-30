@@ -14,6 +14,7 @@ long long next_direct = 0x200000;
 std::unordered_map<int, std::size_t> jit_handles;
 std::unordered_map<long long, std::size_t> direct_blocks;
 std::unordered_map<void*, std::size_t> mappings;
+std::unordered_map<void*, bool> mapping_owned;
 }
 
 extern "C" int sceKernelJitCreateSharedMemory(int, unsigned long long size, int, int* out) {
@@ -33,6 +34,7 @@ extern "C" int sceKernelJitMapSharedMemory(int fd, int, void** out) {
   if (it == jit_handles.end()) return -1;
   *out = std::malloc(it->second);
   if (!*out) return -1;
+  mapping_owned[*out] = (*out == nullptr);
   mappings[*out] = it->second;
   return 0;
 }
@@ -44,6 +46,7 @@ extern "C" int sceKernelClose(int fd) {
 extern "C" int sceKernelMapFlexibleMemory(void** out, std::size_t size, int, int) {
   if (!*out) *out = std::malloc(size);
   if (!*out) return -1;
+  mapping_owned[*out] = (*out == nullptr);
   mappings[*out] = size;
   return 0;
 }
@@ -77,6 +80,7 @@ extern "C" int sceKernelMapDirectMemory(void** out, unsigned long long size, int
                                          long long, unsigned long long) {
   if (!*out) *out = std::malloc(static_cast<std::size_t>(size));
   if (!*out) return -1;
+  mapping_owned[*out] = (*out == nullptr);
   mappings[*out] = static_cast<std::size_t>(size);
   return 0;
 }
@@ -98,11 +102,32 @@ extern "C" int sceKernelMunmap(void* p, unsigned long long) {
 extern "C" int sceKernelReserveVirtualRange(void** out, unsigned long long size, int, unsigned long long) {
   if (!*out) *out = std::malloc(static_cast<std::size_t>(size));
   if (!*out) return -1;
+  mapping_owned[*out] = (*out == nullptr);
   mappings[*out] = static_cast<std::size_t>(size);
   return 0;
 }
 
 int main() {
+  {
+    ps5rt::JitRegion region{};
+    ps5rt::JitRequest request{};
+    request.size = 16 * 1024 * 1024;
+    request.alignment = 16 * 1024;
+    request.debug_name = "fixed-dual-jit";
+    request.prefer_dual_mapping = true;
+    request.preferred_execute_address =
+        reinterpret_cast<void*>(static_cast<std::uintptr_t>(0xA0000000ull));
+    request.preferred_write_address =
+        reinterpret_cast<void*>(static_cast<std::uintptr_t>(0xB0000000ull));
+    request.require_fixed_execute = true;
+    request.require_fixed_write = true;
+
+    assert(ps5rt::create_jit_region(request, region));
+    assert(region.execute_view.address == request.preferred_execute_address);
+    assert(region.write_view.address == request.preferred_write_address);
+    assert(ps5rt::destroy_jit_region(region));
+  }
+
   {
     ps5rt::JitRegion region{};
     ps5rt::JitRequest request{64 * 1024, 16 * 1024, "dual-jit", true};
