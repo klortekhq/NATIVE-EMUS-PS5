@@ -1,5 +1,8 @@
-#include "../common/libretro-static/linked_core.hpp"
+#include <corehost/linked_core.hpp>
+#include <corehost/ps5_runner.hpp>
+
 int main() {
-  return native_emu::libretro::run_linked_port({
-      "NATIVE Mega Drive - Genesis Plus GX", "MEGADRIVE", "game.md"});
+  return corehost::run_linked_core_ps5(
+      {"NATIVE Mega Drive - Genesis Plus GX", "MEGADRIVE", "game.md"},
+      corehost::linked_core_api());
 }
