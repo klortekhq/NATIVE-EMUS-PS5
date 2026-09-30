@@ -1,5 +1,9 @@
 # SameBoy
 
+## Progress: **10%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 **Systems:** Game Boy / Game Boy Color  
 **Repository state:** Port research / native PS5 integration plan
 

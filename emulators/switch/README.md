@@ -1,5 +1,9 @@
 # Switch-family emulator research
 
+## Progress: **30%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 ## Scope
 
 This directory tracks architecture lessons from public native PS5 Switch-emulator work such as ProsperoEden.

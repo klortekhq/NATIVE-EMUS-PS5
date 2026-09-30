@@ -1,5 +1,9 @@
 # RPCS3 / PlayStation 3
 
+## Progress: **30%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 ## Current situation
 
 This target is moving rapidly in the PS5 scene.

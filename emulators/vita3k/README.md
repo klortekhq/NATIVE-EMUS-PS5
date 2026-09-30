@@ -1,5 +1,9 @@
 # Vita3K / PlayStation Vita
 
+## Progress: **30%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 ## Why it fits the shared runtime
 
 Vita3K uses Dynarmic and Vulkan, which aligns well with current PS5 scene work.
