@@ -39,6 +39,17 @@ jobs:
           grep -q 'ps5rt_exec_release' /tmp/beetle-psx/libretro.c
           grep -q 'defined(__PROSPERO__)' /tmp/beetle-psx/libretro.c
 
+      - name: Test Vulkan hardware-context lifecycle
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -I/tmp/beetle-psx/libretro-common/include \
+            -I/tmp/beetle-psx/parallel-psx/khronos/include \
+            ports/beetle-psx-ps5/native/vulkan_environment.cpp \
+            ports/beetle-psx-ps5/tests/vulkan_environment_test.cpp \
+            -o /tmp/ps1-vulkan-environment-test
+          /tmp/ps1-vulkan-environment-test
+
   cross-build:
     runs-on: ubuntu-latest
     steps:
