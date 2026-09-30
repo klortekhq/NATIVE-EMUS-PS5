@@ -40,14 +40,24 @@ sources=(
   src/Cafe/HW/Espresso/Recompiler/BackendX64/BackendX64GenFPU.cpp
 )
 
+# Stage only header-only dependencies. Never add /usr/include itself to a
+# PS5 cross-build: it would make host glibc headers outrank the PS5 sysroot.
+HOST_HEADERS="$OUT/host-headers"
+mkdir -p "$HOST_HEADERS"
+for dep in boost fmt glm; do
+  [[ -d "/usr/include/$dep" ]] || {
+    echo "missing host header package: /usr/include/$dep" >&2
+    exit 4
+  }
+  cp -a "/usr/include/$dep" "$HOST_HEADERS/$dep"
+done
+
 flags=(
   -std=c++20 -O3 -DNDEBUG
   -march=znver2 -msse4.1 -mavx2 -mbmi -mbmi2 -mno-vzeroupper
   -I"$SRC/src"
   -I"$SRC"
-  -I"${BOOST_INCLUDE_DIR:-/usr/include}"
-  -I"${FMT_INCLUDE_DIR:-/usr/include}"
-  -I"${GLM_INCLUDE_DIR:-/usr/include}"
+  -I"$HOST_HEADERS"
   -include "$SRC/src/Common/precompiled.h"
 )
 
