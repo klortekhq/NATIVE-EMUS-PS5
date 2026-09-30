@@ -17,13 +17,13 @@ Native emulator ports and shared runtime research for jailbroken PlayStation 5 s
 
 ## Complete target coverage
 
-The recovered M8 baseline contains **43 system targets**. All 43 now have a canonical entry under [`systems/`](systems/README.md).
+The recovered M8 baseline contained **43 system targets**. The project has now been expanded to **60 distinct systems / hardware families**, including every additional platform explicitly discussed: Switch, Neo Geo CD, PC-FX, 3DO, Amiga, Atari ST, DOS, CD-i, Intellivision, Odyssey² and board-specific arcade targets such as CPS-1/2/3, Naomi, Atomiswave, Model 2 and Model 3.
 
-The repository also tracks the additional systems discussed outside/after M8: **Nintendo Switch, Neo Geo CD, NEC PC-FX, Intellivision and Commodore Amiga**. That gives the current project **48 documented system targets**.
+Every target is represented in [`systems/targets.json`](systems/targets.json) and documented through [`systems/`](systems/README.md).
 
 Concrete codebase workspaces live under [`emulators/`](emulators/README.md), while the shared PS5 host contract lives under [`runtime/`](runtime/README.md).
 
-See the [complete porting matrix](docs/PORTING-MATRIX.md) for CPU/JIT/GPU requirements and current PS5 references.
+See the [complete 60-target system matrix](docs/COMPLETE-SYSTEM-MATRIX.md) and the [porting matrix](docs/PORTING-MATRIX.md) for CPU/JIT/GPU requirements and current PS5 references.
 
 ## Current focus
 
@@ -62,7 +62,7 @@ The intention is **not** to force every emulator through one frontend. The share
 ## Repository layout
 
 ```text
-systems/       canonical machine/console catalog (43 M8 + additional discussed targets)
+systems/       canonical 60-target machine/console/arcade hardware catalog
 emulators/     concrete upstream emulator/core workspaces
 runtime/       shared native PS5 host contract (JIT, memory, TLS, audio, input, VFS, Vulkan)
 docs/          architecture, status, roadmap, scene references and porting matrix
