@@ -468,3 +468,38 @@ jobs:
           git -C /tmp/llvm checkout --detach 98b45cc22e98844b7d49bbedefdfee04a740650a
       - name: Verify PPU/SPU LLVM recompiler source gate
         run: python3 "$GITHUB_WORKSPACE/tools/ps5/verify_rpcs3_ps5_sources.py" /tmp/rpcs3 /tmp/llvm
+
+
+  ps5-finalize-nes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -d /opt/ps5-payload-sdk/target/lib
+
+      - name: Cross-build NES PIE
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/nes-fceumm/build_ps5.sh
+
+      - name: Convert NES PIE to native PS5 ELF and FSELF
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          bash tools/ps5/finalize_native_pie.sh             build/ps5/nes-fceumm/artifacts/nes_fceumm_pie.elf             build/ps5/nes-fceumm/native
+
+      - name: Upload finalized NES app binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-nes-fceumm-ps5-fself
+          path: |
+            build/ps5/nes-fceumm/native/eboot.elf
+            build/ps5/nes-fceumm/native/eboot.bin
+            build/ps5/nes-fceumm/native/NATIVE_SHA256SUMS
+          if-no-files-found: error
