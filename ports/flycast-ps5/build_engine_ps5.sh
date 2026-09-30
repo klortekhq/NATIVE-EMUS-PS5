@@ -45,7 +45,8 @@ export NATIVE_EMUS_ROOT="$ROOT"
   -DUSE_HOST_LIBCHDR=OFF \
   -DUSE_LIBCDIO=OFF \
   -DENABLE_CTEST=OFF \
-  -DENABLE_GDB_SERVER=OFF
+  -DENABLE_GDB_SERVER=OFF \
+  -DHAVE_MEMCPY_S=OFF
 
 "$CMAKE" --build "$OUT/build" --target flycast --parallel "${JOBS:-2}"
 
