@@ -2,6 +2,7 @@
 
 - [Architecture](ARCHITECTURE.md)
 - [Complete system catalog](../systems/README.md)
+- [Complete 60-target system matrix](COMPLETE-SYSTEM-MATRIX.md)
 - [Emulator workspaces](../emulators/README.md)
 - [Porting matrix](PORTING-MATRIX.md)
 - [Project status](STATUS.md)
