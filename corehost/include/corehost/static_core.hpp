@@ -43,6 +43,9 @@ struct Hooks {
   std::function<std::size_t(const std::int16_t*, std::size_t)> audio_batch;
   std::function<InputState(unsigned)> input;
   std::function<void(std::string_view)> log;
+  // Optional port-specific environment extension. Generic libretro services
+  // stay in corehost; hardware-render/Vulkan negotiation can live in the port.
+  std::function<bool(unsigned, void*)> environment;
 };
 
 class StaticCore final {
