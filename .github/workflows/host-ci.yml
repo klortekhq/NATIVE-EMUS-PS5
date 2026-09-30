@@ -1,0 +1,38 @@
+name: host-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  host-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -S . -B build-host -G Ninja
+          -DNATIVE_EMUS_BUILD_HEADER_TESTS=ON
+          -DCOREHOST_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build-host --parallel 2
+
+      - name: Test
+        run: ctest --test-dir build-host --output-on-failure
+
+  ppsspp-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch pinned PPSSPP
+        run: |
+          git clone --filter=blob:none https://github.com/hrydgard/ppsspp.git /tmp/ppsspp
+          git -C /tmp/ppsspp checkout --detach fa50bb1976065c4f8b1b47af227d367fe9771555
+
+      - name: Verify PS5 engine patch applies cleanly
+        run: git -C /tmp/ppsspp apply --check "$GITHUB_WORKSPACE/patches/ppsspp/v1.20.4-ps5-engine.patch"
