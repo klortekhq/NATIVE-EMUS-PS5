@@ -112,9 +112,9 @@
     {
       "workspace": "dolphin",
       "upstream_url": "https://github.com/dolphin-emu/dolphin",
-      "upstream_revision": null,
-      "license": null,
-      "pin_status": "repository-verified-revision-pending",
+      "upstream_revision": "5102a0339c2177575378107b76541e47cc52122d",
+      "license": "Per-file SPDX; most original Dolphin source GPL-2.0-or-later; aggregate GPLv3-compatible per COPYING",
+      "pin_status": "pinned-for-first-ps5-bringup",
       "ps5_scene_references": [
         "https://github.com/mihawk-99/PS5_RetroArch"
       ]
