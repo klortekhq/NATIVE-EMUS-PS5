@@ -7,6 +7,7 @@ on:
       - 'runtime/**'
       - 'ports/**'
       - 'third_party/libretro/**'
+      - 'tools/ps5/**'
       - '.github/workflows/runtime-headers.yml'
   pull_request:
     paths:
@@ -14,6 +15,7 @@ on:
       - 'runtime/**'
       - 'ports/**'
       - 'third_party/libretro/**'
+      - 'tools/ps5/**'
       - '.github/workflows/runtime-headers.yml'
 
 concurrency:
