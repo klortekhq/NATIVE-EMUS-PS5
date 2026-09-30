@@ -46,6 +46,7 @@ struct AudioDevice::Impl {
   bool shutdown{};
   bool failed{};
   AudioSpec requested{};
+  std::uint64_t resample_phase{};
 
   static void* worker_entry(void* opaque) {
     static_cast<Impl*>(opaque)->worker();
@@ -115,6 +116,7 @@ struct AudioDevice::Impl {
     capacity = head = count = 0;
     shutdown = false;
     failed = false;
+    resample_phase = 0;
   }
 
   Result push_s16(const std::int16_t* data, std::size_t frames) noexcept {
@@ -146,6 +148,35 @@ struct AudioDevice::Impl {
     pthread_mutex_unlock(&mutex);
     return Result::success();
   }
+
+  Result push_source_s16(const std::int16_t* data, std::size_t frames) noexcept {
+    if (!data || !frames)
+      return Result::success();
+    if (requested.sample_rate == kRate)
+      return push_s16(data, frames);
+
+    std::vector<std::int16_t> converted;
+    const std::uint64_t estimate =
+        (static_cast<std::uint64_t>(frames) * kRate) / requested.sample_rate + 2;
+    converted.reserve(static_cast<std::size_t>(estimate) * kChannels);
+
+    // Exact-rate zero-order hold resampler. It deliberately favors robust
+    // bring-up over DSP cleverness: no drift, no dependency, and state is
+    // preserved across callback batches. A higher-quality filter can replace
+    // this later without changing emulator-facing APIs.
+    for (std::size_t i = 0; i < frames; ++i) {
+      resample_phase += kRate;
+      while (resample_phase >= requested.sample_rate) {
+        converted.push_back(data[i * kChannels + 0]);
+        converted.push_back(data[i * kChannels + 1]);
+        resample_phase -= requested.sample_rate;
+      }
+    }
+
+    return converted.empty()
+        ? Result::success()
+        : push_s16(converted.data(), converted.size() / kChannels);
+  }
 };
 
 AudioDevice::~AudioDevice() {
@@ -155,9 +186,12 @@ AudioDevice::~AudioDevice() {
 
 Result AudioDevice::open(const AudioSpec& requested) noexcept {
   close();
-  if (requested.sample_rate != kRate || requested.channels != kChannels ||
-      requested.frames_per_grain != kGrain)
-    return error(ErrorCode::unsupported, 0, "PS5 AudioOut backend requires 48kHz stereo / 256-frame grains");
+  if (requested.channels != kChannels)
+    return error(ErrorCode::unsupported, 0, "PS5 AudioOut backend requires stereo input");
+  if (requested.sample_rate < 8000 || requested.sample_rate > 192000)
+    return error(ErrorCode::unsupported, 0, "unsupported source sample rate");
+  if (requested.frames_per_grain == 0)
+    return error(ErrorCode::invalid_argument, 0, "frames_per_grain must be nonzero");
 
   if (!impl_)
     impl_ = new (std::nothrow) Impl();
@@ -218,7 +252,7 @@ Result AudioDevice::write(std::span<const std::byte> bytes) noexcept {
     if (bytes.size() % (sizeof(std::int16_t) * kChannels) != 0)
       return error(ErrorCode::invalid_argument, 0, "unaligned s16 stereo audio buffer");
     const auto* p = reinterpret_cast<const std::int16_t*>(bytes.data());
-    return impl_->push_s16(p, bytes.size() / (sizeof(std::int16_t) * kChannels));
+    return impl_->push_source_s16(p, bytes.size() / (sizeof(std::int16_t) * kChannels));
   }
 
   if (bytes.size() % (sizeof(float) * kChannels) != 0)
@@ -230,7 +264,7 @@ Result AudioDevice::write(std::span<const std::byte> bytes) noexcept {
     const float x = std::max(-1.0f, std::min(1.0f, in[i]));
     tmp[i] = static_cast<std::int16_t>(std::lrintf(x * 32767.0f));
   }
-  return impl_->push_s16(tmp.data(), frames);
+  return impl_->push_source_s16(tmp.data(), frames);
 }
 
 Result AudioDevice::set_paused(bool paused) noexcept {
