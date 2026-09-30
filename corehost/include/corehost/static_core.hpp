@@ -25,6 +25,21 @@ struct InputState {
   std::int16_t right_y{};
   std::int16_t l2{};
   std::int16_t r2{};
+
+  // Libretro keyboard key IDs are currently below 512. Keeping this as a
+  // bitset-like array avoids leaking PS5 HID key numbering into emulator cores.
+  std::array<std::uint64_t, 8> keyboard{};
+
+  std::int16_t mouse_x{};
+  std::int16_t mouse_y{};
+  std::int16_t mouse_wheel_x{};
+  std::int16_t mouse_wheel_y{};
+  std::uint16_t mouse_buttons{};
+
+  [[nodiscard]] constexpr bool key_down(unsigned id) const noexcept {
+    return id < 512u &&
+           (keyboard[id >> 6u] & (std::uint64_t{1} << (id & 63u))) != 0;
+  }
 };
 
 struct Hooks {
@@ -66,12 +81,14 @@ private:
   friend std::size_t audio_batch_trampoline(const std::int16_t*, std::size_t);
   friend void input_poll_trampoline();
   friend std::int16_t input_state_trampoline(unsigned, unsigned, unsigned, unsigned);
+  friend void log_trampoline(lr::LogLevel, const char*, ...);
 
   bool environment(unsigned cmd, void* data);
   void video(const void* data, unsigned width, unsigned height, std::size_t pitch);
   std::size_t audio(const std::int16_t* data, std::size_t frames);
   std::int16_t input_state(unsigned port, unsigned device, unsigned index, unsigned id);
   void register_variables(const lr::Variable* vars);
+  void log(std::string_view message);
 
   std::string name_;
   lr::StaticApi api_{};
@@ -79,6 +96,7 @@ private:
   Hooks hooks_{};
   bool initialized_{};
   bool loaded_{};
+  bool options_dirty_{};
   lr::PixelFormat pixel_format_{lr::PixelFormat::xrgb1555};
   std::unordered_map<std::string, std::string> options_{};
   std::unordered_map<std::string, std::string> option_defaults_{};
