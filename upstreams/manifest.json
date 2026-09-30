@@ -1,0 +1,328 @@
+{
+  "schema_version": 1,
+  "updated": "2026-09-30",
+  "rule": "A workspace is not pinned until revision and license have been explicitly recorded.",
+  "workspaces": [
+    {
+      "workspace": "pcsx2",
+      "upstream_url": "https://github.com/PCSX2/pcsx2",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": [
+        "https://github.com/Swordpdf/PS5SX2",
+        "https://github.com/mihawk-99/PS5_LRPS2"
+      ]
+    },
+    {
+      "workspace": "flycast",
+      "upstream_url": "https://github.com/flyinghead/flycast",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "rpcs3",
+      "upstream_url": "https://github.com/RPCS3/rpcs3",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": [
+        "https://github.com/mihawk-99/PS5_RPCS3",
+        "https://github.com/mihawk-99/PS5_LLVM",
+        "https://github.com/mihawk-99/PS5_Mesa"
+      ]
+    },
+    {
+      "workspace": "vita3k",
+      "upstream_url": "https://github.com/Vita3K/Vita3K",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": [
+        "https://github.com/mihawk-99/PS5_Dynarmic"
+      ]
+    },
+    {
+      "workspace": "cemu",
+      "upstream_url": "https://github.com/cemu-project/Cemu",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "xemu",
+      "upstream_url": "https://github.com/xemu-project/xemu",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "xenia",
+      "upstream_url": "https://github.com/xenia-project/xenia",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "switch",
+      "upstream_url": null,
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "canonical-source-verification-pending",
+      "ps5_scene_references": [
+        "https://github.com/blackbearreloaded/ProsperoEden"
+      ]
+    },
+    {
+      "workspace": "ppsspp",
+      "upstream_url": "https://github.com/hrydgard/ppsspp",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": [
+        "https://github.com/OpenAGC/ps5-ppsspp"
+      ]
+    },
+    {
+      "workspace": "mupen64plus",
+      "upstream_url": "https://github.com/mupen64plus/mupen64plus-core",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": [
+        "https://github.com/mihawk-99/PS5_Mupen64Plus"
+      ]
+    },
+    {
+      "workspace": "azahar",
+      "upstream_url": "https://github.com/azahar-emu/azahar",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": [
+        "https://github.com/mihawk-99/PS5_Azahar",
+        "https://github.com/mihawk-99/PS5_Dynarmic"
+      ]
+    },
+    {
+      "workspace": "dolphin",
+      "upstream_url": "https://github.com/dolphin-emu/dolphin",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": [
+        "https://github.com/mihawk-99/PS5_RetroArch"
+      ]
+    },
+    {
+      "workspace": "mesen2",
+      "upstream_url": "https://github.com/SourMesen/Mesen2",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "snes9x",
+      "upstream_url": "https://github.com/snes9xgit/snes9x",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "sameboy",
+      "upstream_url": "https://github.com/LIJI32/SameBoy",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "mgba",
+      "upstream_url": "https://github.com/mgba-emu/mgba",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "desmume",
+      "upstream_url": "https://github.com/TASEmulators/desmume",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": [
+        "https://github.com/mihawk-99/PS5_DeSmuME"
+      ]
+    },
+    {
+      "workspace": "genesis-plus-gx",
+      "upstream_url": "https://github.com/ekeeke/Genesis-Plus-GX",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "picodrive",
+      "upstream_url": "https://github.com/notaz/picodrive",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "beetle-saturn",
+      "upstream_url": "https://github.com/libretro/beetle-saturn-libretro",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": [
+        "https://github.com/mihawk-99/PS5_BeetleSaturn"
+      ]
+    },
+    {
+      "workspace": "beetle-psx",
+      "upstream_url": "https://github.com/libretro/beetle-psx-libretro",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": [
+        "https://github.com/mihawk-99/PS5_BeetlePSX"
+      ]
+    },
+    {
+      "workspace": "mednafen",
+      "upstream_url": null,
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "canonical-source-verification-pending",
+      "ps5_scene_references": [
+        "https://github.com/libretro/beetle-supergrafx-libretro"
+      ]
+    },
+    {
+      "workspace": "mame",
+      "upstream_url": "https://github.com/mamedev/mame",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": [
+        "https://github.com/mihawk-99/PS5_MAME"
+      ]
+    },
+    {
+      "workspace": "finalburn-neo",
+      "upstream_url": "https://github.com/finalburnneo/FBNeo",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "beetle-neopop",
+      "upstream_url": "https://github.com/libretro/beetle-ngp-libretro",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "stella",
+      "upstream_url": "https://github.com/stella-emu/stella",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "atari800",
+      "upstream_url": "https://github.com/atari800/atari800",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "prosystem",
+      "upstream_url": "https://github.com/libretro/prosystem-libretro",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "virtualjaguar",
+      "upstream_url": "https://github.com/libretro/virtualjaguar-libretro",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "vice",
+      "upstream_url": null,
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "canonical-source-verification-pending",
+      "ps5_scene_references": [
+        "https://github.com/mihawk-99/PS5_VICE",
+        "https://github.com/libretro/vice-libretro"
+      ]
+    },
+    {
+      "workspace": "bluemsx",
+      "upstream_url": "https://github.com/libretro/blueMSX-libretro",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "fuse",
+      "upstream_url": null,
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "canonical-source-verification-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "gearcoleco",
+      "upstream_url": "https://github.com/drhelius/Gearcoleco",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "neocd",
+      "upstream_url": "https://github.com/libretro/neocd_libretro",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "freeintv",
+      "upstream_url": "https://github.com/libretro/FreeIntv",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    },
+    {
+      "workspace": "puae",
+      "upstream_url": "https://github.com/libretro/libretro-uae",
+      "upstream_revision": null,
+      "license": null,
+      "pin_status": "repository-verified-revision-pending",
+      "ps5_scene_references": []
+    }
+  ]
+}
