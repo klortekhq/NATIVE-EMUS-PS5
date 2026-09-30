@@ -1,0 +1,23 @@
+name: runtime-headers
+
+on:
+  push:
+    paths:
+      - 'CMakeLists.txt'
+      - 'runtime/**'
+      - '.github/workflows/runtime-headers.yml'
+  pull_request:
+    paths:
+      - 'CMakeLists.txt'
+      - 'runtime/**'
+      - '.github/workflows/runtime-headers.yml'
+
+jobs:
+  host-header-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DNATIVE_EMUS_BUILD_HEADER_TESTS=ON
+      - name: Build
+        run: cmake --build build --parallel
