@@ -441,3 +441,30 @@ jobs:
             build/ps5/mupen64plus/artifacts/ARTIFACT.json
             build/ps5/mupen64plus/artifacts/SHA256SUMS
           if-no-files-found: error
+
+
+  xenia-fixed-jit-transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned Xenia
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none https://github.com/xenia-project/xenia.git /tmp/xenia
+          git -C /tmp/xenia checkout --detach 95a5c3ee250f80c3b9d139658649d9ffb6db3eec
+      - name: Verify fixed-address x64 JIT transform
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_xenia_ps5rt.py" /tmp/xenia --check
+
+  rpcs3-llvm-source-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned PS5 RPCS3 and LLVM
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none https://github.com/mihawk-99/PS5_RPCS3.git /tmp/rpcs3
+          git -C /tmp/rpcs3 checkout --detach 2ada8e453c592d8764d2801a667f3da415794918
+          git clone --filter=blob:none https://github.com/mihawk-99/PS5_LLVM.git /tmp/llvm
+          git -C /tmp/llvm checkout --detach 98b45cc22e98844b7d49bbedefdfee04a740650a
+      - name: Verify PPU/SPU LLVM recompiler source gate
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/verify_rpcs3_ps5_sources.py" /tmp/rpcs3 /tmp/llvm
