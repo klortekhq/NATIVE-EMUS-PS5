@@ -37,11 +37,16 @@ jobs:
           g++ $CXXFLAGS $INC -c ports/common/libretro-static/linked_core.cpp -o build/smoke/linked_core.o
           g++ $CXXFLAGS $INC -c ports/nes-fceumm/main.cpp -o build/smoke/nes_fceumm_main.o
           g++ $CXXFLAGS $INC -c ports/snes9x-ps5/main.cpp -o build/smoke/snes9x_main.o
+          g++ $CXXFLAGS $INC -c ports/genesis-plus-gx-ps5/main_sg1000.cpp -o build/smoke/genesis_sg1000_main.o
+          g++ $CXXFLAGS $INC -c ports/genesis-plus-gx-ps5/main_mastersystem.cpp -o build/smoke/genesis_mastersystem_main.o
+          g++ $CXXFLAGS $INC -c ports/genesis-plus-gx-ps5/main_gamegear.cpp -o build/smoke/genesis_gamegear_main.o
+          g++ $CXXFLAGS $INC -c ports/genesis-plus-gx-ps5/main_megadrive.cpp -o build/smoke/genesis_megadrive_main.o
 
       - name: Validate port scripts
         run: |
           bash -n ports/nes-fceumm/build_ps5.sh
           bash -n ports/snes9x-ps5/build_ps5.sh
+          bash -n ports/genesis-plus-gx-ps5/build_ps5.sh
 
       - name: Validate pinned Snes9x static core
         run: |
@@ -60,6 +65,25 @@ jobs:
           test -s build/snes9x/libsnes9x_libretro.a
           for sym in retro_init retro_deinit retro_load_game retro_run retro_unload_game; do
             nm build/snes9x/libsnes9x_libretro.a | grep -q "[[:space:]]$sym$"
+          done
+
+      - name: Validate pinned Genesis Plus GX static core
+        run: |
+          set -euo pipefail
+          PIN=c2838c7dc4236fc2fe94e5dbd08b41486067918e
+          SHA=7ba2eab9d6dae71bb42e8208573300ad3475a4263e860178c4d19c36d85fc92b
+          mkdir -p build/genesis-plus-gx
+          curl -fL --retry 3 "https://codeload.github.com/libretro/Genesis-Plus-GX/tar.gz/$PIN" -o build/genesis-plus-gx/core.tar.gz
+          echo "$SHA  build/genesis-plus-gx/core.tar.gz" | sha256sum -c -
+          tar -xzf build/genesis-plus-gx/core.tar.gz -C build/genesis-plus-gx
+          CORE="$PWD/build/genesis-plus-gx/Genesis-Plus-GX-$PIN"
+          make -C "$CORE" -f Makefile.libretro \
+            platform=unix STATIC_LINKING=1 \
+            TARGET="$PWD/build/genesis-plus-gx/libgenesis_plus_gx_libretro.a" \
+            CC=gcc CXX=g++ AR=ar HAVE_CHD=0 HAVE_CDROM=0 FRONTEND_SUPPORTS_RGB565=1
+          test -s build/genesis-plus-gx/libgenesis_plus_gx_libretro.a
+          for sym in retro_init retro_deinit retro_load_game retro_run retro_unload_game; do
+            nm build/genesis-plus-gx/libgenesis_plus_gx_libretro.a | grep -q "[[:space:]]$sym$"
           done
 
       - name: Validate pinned FCEUmm static core
@@ -149,4 +173,36 @@ jobs:
           path: |
             build/ps5/snes9x/artifacts/snes9x_pie.elf
             build/ps5/snes9x/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-sega:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build Genesis Plus GX PS5 family
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          bash ports/genesis-plus-gx-ps5/build_ps5.sh
+          test -s build/ps5/genesis-plus-gx/artifacts/sg1000_genesis_plus_gx_pie.elf
+          test -s build/ps5/genesis-plus-gx/artifacts/mastersystem_genesis_plus_gx_pie.elf
+          test -s build/ps5/genesis-plus-gx/artifacts/gamegear_genesis_plus_gx_pie.elf
+          test -s build/ps5/genesis-plus-gx/artifacts/megadrive_genesis_plus_gx_pie.elf
+
+      - name: Upload Genesis Plus GX PS5 family
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-sega-genesis-plus-gx-ps5-pie
+          path: |
+            build/ps5/genesis-plus-gx/artifacts/*.elf
+            build/ps5/genesis-plus-gx/artifacts/SHA256SUMS
           if-no-files-found: error
