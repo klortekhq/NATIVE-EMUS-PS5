@@ -57,4 +57,12 @@ if(PS5RT_BUILD_HOST_PLATFORM_TESTS)
   target_link_libraries(ps5rt-input-host-test PRIVATE ps5rt::ps5rt)
   target_compile_features(ps5rt-input-host-test PRIVATE cxx_std_20)
   add_test(NAME ps5rt-input-host COMMAND ps5rt-input-host-test)
+
+  add_executable(ps5rt-memory-host-test
+    tests/memory_ps5_host_test.cpp
+    src/ps5/memory.cpp
+  )
+  target_link_libraries(ps5rt-memory-host-test PRIVATE ps5rt::ps5rt)
+  target_compile_features(ps5rt-memory-host-test PRIVATE cxx_std_20)
+  add_test(NAME ps5rt-memory-host COMMAND ps5rt-memory-host-test)
 endif()
