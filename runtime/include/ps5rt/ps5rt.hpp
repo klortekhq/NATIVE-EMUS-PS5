@@ -16,4 +16,5 @@
 #include <ps5rt/vulkan.hpp>
 #include <ps5rt/video.hpp>
 
+#include <ps5rt/c/jit.h>
 #include <ps5rt/c/vmem.h>
