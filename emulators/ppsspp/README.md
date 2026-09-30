@@ -15,13 +15,13 @@ The PS5 port must expose executable memory and the 4 GiB mirrored guest-memory l
 
 ## Current repository work
 
-- engine-only PS5 patch: `patches/ppsspp/v1.20.4-ps5-engine.patch`
+- deterministic engine transformer: `tools/ps5/apply_ppsspp_native.py`
 - PS5 toolchain: `tooling/ppsspp/ps5-engine-toolchain.cmake`
 - exact-source verifier: `tools/ps5/prepare_ppsspp_native.sh`
 - static engine compile gate: `tools/ps5/build_ppsspp_engine_archives.sh`
 - shared C contracts for executable/shared/virtual memory under `runtime/include/ps5rt/c/`
 
-The patch keeps:
+The transformation keeps:
 
 - native x86-64 MIPS JIT;
 - executable-memory allocation through `ps5rt`;
