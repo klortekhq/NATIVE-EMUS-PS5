@@ -1,5 +1,6 @@
 #include "display_surface.hpp"
 
+#include <cstdint>
 #include <vector>
 
 namespace native_emus::ps1 {
