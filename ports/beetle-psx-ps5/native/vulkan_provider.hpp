@@ -11,6 +11,15 @@ struct VulkanPresentationHooks {
   // Called after the Vulkan instance and physical device exist.
   std::function<VkSurfaceKHR(VkInstance, VkPhysicalDevice)> create_surface;
 
+  // Called after the core-negotiated device/queues exist and before the
+  // Vulkan render interface is published back to the core.
+  std::function<bool(VkInstance, VkSurfaceKHR,
+                     const retro_vulkan_context&,
+                     PFN_vkGetInstanceProcAddr,
+                     PFN_vkGetDeviceProcAddr)> initialize;
+  // Called after the core context is torn down but before VkDevice destruction.
+  std::function<void()> shutdown;
+
   std::function<void(const retro_vulkan_image*, uint32_t,
                      const VkSemaphore*, uint32_t)> set_image;
   std::function<uint32_t()> get_sync_index;
