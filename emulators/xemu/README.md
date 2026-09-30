@@ -1,5 +1,9 @@
 # xemu / Original Xbox
 
+## Progress: **15%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 ## Challenge
 
 xemu is deeper than most targets because it inherits a substantial QEMU-derived machine model.

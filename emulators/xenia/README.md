@@ -1,5 +1,9 @@
 # Xenia / Xbox 360
 
+## Progress: **30%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 ## Why it is plausible
 
 Xenia already has an x64 CPU backend, which is architecturally appropriate for the PS5 host CPU.
