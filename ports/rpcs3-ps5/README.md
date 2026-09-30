@@ -28,3 +28,18 @@ The interpreter is not the intended final backend.
 `tools/ps5/verify_rpcs3_ps5_sources.py` verifies the exact RPCS3/LLVM pins, the PPU and SPU recompiler sources, the static `rpcs3_emu` engine boundary, and the two PS5 LLVM ABI alignment fixes.
 
 Next gate: cross-build `rpcs3_emu` with the pinned PS5 LLVM fork, then connect Vulkan/RADV.
+
+
+## Verified PS5 compiler gates
+
+The following gates have already passed with the public PS5 toolchain:
+
+- PS5_LLVM ABI alignment probe for `SmallVector<T,0>` and `TrailingObjects`;
+- real `Utilities/JITASM.cpp` compilation;
+- real `SPUASMJITRecompiler.cpp` compilation.
+
+The next LLVM gate compiles `PPUTranslator.cpp` and
+`SPULLVMRecompiler.cpp`. LLVM source headers and generated TableGen IR
+headers must come from the **same PS5_LLVM commit**. Mixing the newer source
+tree with generated `.inc` files from another LLVM version is explicitly
+forbidden by the workflow.
