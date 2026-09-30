@@ -1,5 +1,9 @@
 # Sega Model 3
 
+## Progress: **10%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 Preferred base: Supermodel.
 
 Reference: https://github.com/trzy/Supermodel

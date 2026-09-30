@@ -1,5 +1,9 @@
 # Mupen64Plus / Nintendo 64
 
+## Progress: **45%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 ## Status
 
 **Dual-JIT PS5 allocator integration active.**

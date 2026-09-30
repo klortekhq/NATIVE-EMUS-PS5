@@ -1,5 +1,9 @@
 # Neo Geo CD
 
+## Progress: **10%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 Preferred base: NeoCD, with FBNeo/MAME as compatibility references.
 
 Reference: https://github.com/libretro/neocd_libretro

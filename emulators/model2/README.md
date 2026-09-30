@@ -1,5 +1,9 @@
 # Sega Model 2
 
+## Progress: **5%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 ## Status
 
 Research target.
