@@ -21,6 +21,7 @@ void init(){
 void deinit(){deinit_called=true;}
 bool load(const lr::GameInfo* info){load_called=info&&info->path&&std::strlen(info->path)>0; return load_called;}
 void unload(){unload_called=true;}
+void av(lr::SystemAvInfo* out){ assert(out); out->geometry={320,240,640,480,4.0f/3.0f}; out->timing={60.0,44100.0}; }
 void run(){poll(); static std::uint32_t pix[4]={}; video(pix,2,2,8); std::int16_t samples[4]={1,1,2,2}; batch(samples,2);}
 void reset(){}
 std::size_t state_size(){return 4;}
@@ -29,7 +30,7 @@ bool load_state(const void* p,std::size_t n){return n==4&&std::memcmp(p,"TEST",4
 }
 
 int main(){
-  lr::StaticApi api{mock::set_env,mock::set_video,mock::set_audio,mock::set_batch,mock::set_poll,mock::set_input,mock::init,mock::deinit,mock::load,mock::unload,mock::run,mock::reset,mock::state_size,mock::save,mock::load_state};
+  lr::StaticApi api{mock::set_env,mock::set_video,mock::set_audio,mock::set_batch,mock::set_poll,mock::set_input,mock::init,mock::deinit,mock::load,mock::unload,mock::av,mock::run,mock::reset,mock::state_size,mock::save,mock::load_state};
   int frames=0; int audio_frames=0; int logs=0;
   Hooks hooks{};
   hooks.video=[&](const void*,unsigned w,unsigned h,std::size_t,lr::PixelFormat){ assert(w==2&&h==2); ++frames; };
@@ -49,6 +50,9 @@ int main(){
 
   StaticCore core("mock",api,{"/system","/save"},hooks);
   std::string err; assert(core.initialize(err)); assert(mock::init_called); assert(logs==1);
+  assert(core.av_info().geometry.base_width==320);
+  assert(core.av_info().geometry.base_height==240);
+  assert(core.av_info().timing.sample_rate==44100.0);
 
   lr::Variable var{"mock_speed",nullptr};
   assert(mock::env(lr::env_get_variable,&var)); assert(std::string(var.value)=="normal");
