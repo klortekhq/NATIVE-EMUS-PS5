@@ -91,7 +91,8 @@ bool StaticCore::initialize(std::string& error) {
   }
   if (!api_.set_environment || !api_.set_video_refresh || !api_.set_audio_sample ||
       !api_.set_audio_sample_batch || !api_.set_input_poll || !api_.set_input_state ||
-      !api_.init || !api_.deinit || !api_.load_game || !api_.unload_game || !api_.run) {
+      !api_.init || !api_.deinit || !api_.load_game || !api_.unload_game ||
+      !api_.get_system_av_info || !api_.run) {
     error = "incomplete static libretro API";
     return false;
   }
@@ -104,6 +105,7 @@ bool StaticCore::initialize(std::string& error) {
   api_.set_input_poll(input_poll_trampoline);
   api_.set_input_state(input_state_trampoline);
   api_.init();
+  api_.get_system_av_info(&av_info_);
   initialized_ = true;
   return true;
 }
@@ -120,6 +122,7 @@ bool StaticCore::load_path(std::string_view path, std::string& error) {
     error = "core rejected content";
     return false;
   }
+  api_.get_system_av_info(&av_info_);
   loaded_ = true;
   return true;
 }
