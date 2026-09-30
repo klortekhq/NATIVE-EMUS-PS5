@@ -68,3 +68,54 @@ jobs:
           set -euo pipefail
           /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG -fno-operator-names             -I/tmp/xenia             -I/tmp/xenia/src             -I"$GITHUB_WORKSPACE/runtime/include"             -c /tmp/xenia/src/xenia/cpu/backend/x64/x64_backend.cc             -o /tmp/xenia_x64_backend.o
           test -s /tmp/xenia_x64_backend.o
+
+      - name: Cross-build complete Xenia x64 backend archive
+        run: |
+          set -euo pipefail
+          CXX=/opt/ps5-payload-sdk/bin/prospero-clang++
+          AR=/opt/ps5-payload-sdk/bin/prospero-ar
+          mkdir -p /tmp/xenia-x64-obj
+
+          common_flags=(
+            -std=c++20 -O2 -DNDEBUG -fno-operator-names
+            -DXBYAK_NO_OP_NAMES
+            -DXBYAK_ENABLE_OMITTED_OPERAND
+            -DCAPSTONE_X86_ATT_DISABLE
+            -DCAPSTONE_DIET_NO
+            -DCAPSTONE_X86_REDUCE_NO
+            -DCAPSTONE_HAS_X86
+            -DCAPSTONE_USE_SYS_DYN_MEM
+            -I/tmp/xenia
+            -I/tmp/xenia/src
+            -I/tmp/xenia/third_party/capstone/include
+            -I"$GITHUB_WORKSPACE/runtime/include"
+          )
+
+          objects=()
+          for src in /tmp/xenia/src/xenia/cpu/backend/x64/*.cc; do
+            case "$src" in
+              *_win.cc|*_posix.cc) continue ;;
+            esac
+            base="$(basename "$src" .cc)"
+            obj="/tmp/xenia-x64-obj/${base}.o"
+            echo "PS5 x64 backend: $(basename "$src")"
+            "$CXX" "${common_flags[@]}" -c "$src" -o "$obj"
+            objects+=("$obj")
+          done
+
+          test "${#objects[@]}" -ge 8
+          "$AR" rcs /tmp/libxenia_cpu_backend_x64_ps5.a "${objects[@]}"
+          test -s /tmp/libxenia_cpu_backend_x64_ps5.a
+
+          contents="$("$AR" t /tmp/libxenia_cpu_backend_x64_ps5.a)"
+          grep -q '^x64_backend.o$' <<<"$contents"
+          grep -q '^x64_code_cache.o$' <<<"$contents"
+          grep -q '^x64_emitter.o$' <<<"$contents"
+          grep -q '^x64_sequences.o$' <<<"$contents"
+
+      - name: Upload Xenia x64 PS5 backend
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-xenia-x64-ps5-backend
+          path: /tmp/libxenia_cpu_backend_x64_ps5.a
+          if-no-files-found: error
