@@ -16,7 +16,8 @@ jobs:
         run: >
           cmake -S . -B build-host -G Ninja
           -DNATIVE_EMUS_BUILD_HEADER_TESTS=ON
-          -DCOREHOST_BUILD_TESTS=ON\n          -DPS5RT_BUILD_HOST_PLATFORM_TESTS=ON
+          -DCOREHOST_BUILD_TESTS=ON
+          -DPS5RT_BUILD_HOST_PLATFORM_TESTS=ON
 
       - name: Build
         run: cmake --build build-host --parallel 2
@@ -24,7 +25,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build-host --output-on-failure
 
-  ppsspp-patch:
+  ppsspp-transform:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,5 +35,5 @@ jobs:
           git clone --filter=blob:none https://github.com/hrydgard/ppsspp.git /tmp/ppsspp
           git -C /tmp/ppsspp checkout --detach fa50bb1976065c4f8b1b47af227d367fe9771555
 
-      - name: Verify PS5 engine patch applies cleanly
-        run: git -C /tmp/ppsspp apply --check "$GITHUB_WORKSPACE/patches/ppsspp/v1.20.4-ps5-engine.patch"
+      - name: Verify deterministic PS5 engine transformation
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_ppsspp_native.py" /tmp/ppsspp --check
