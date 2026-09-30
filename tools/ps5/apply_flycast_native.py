@@ -53,7 +53,9 @@ bool take_jit(void* rw, ps5rt::JitRegion& out) {
 }
 } // namespace
 
-void destroy();\n\nbool region_lock(void* start, size_t len) {
+void destroy();
+
+bool region_lock(void* start, size_t len) {
     return ps5rt_vmem_protect(start, len, PS5RT_VMEM_READ) == 0;
 }
 
