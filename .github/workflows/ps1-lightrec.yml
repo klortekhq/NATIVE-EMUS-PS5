@@ -62,6 +62,21 @@ jobs:
             -o /tmp/ps1-vulkan-provider-test
           /tmp/ps1-vulkan-provider-test
 
+      - name: Test native PS1 audio input and rumble bridge
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -I/tmp/beetle-psx/libretro-common/include \
+            -I/tmp/beetle-psx/parallel-psx/khronos/include \
+            -Icorehost/include \
+            -Iruntime/include \
+            ports/beetle-psx-ps5/native/vulkan_environment.cpp \
+            ports/beetle-psx-ps5/native/runtime_io.cpp \
+            corehost/src/ps5rt_bridge.cpp \
+            ports/beetle-psx-ps5/tests/runtime_io_test.cpp \
+            -o /tmp/ps1-runtime-io-test
+          /tmp/ps1-runtime-io-test
+
   cross-build:
     runs-on: ubuntu-latest
     steps:
