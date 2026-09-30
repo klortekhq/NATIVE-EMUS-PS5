@@ -47,6 +47,33 @@ make -C "$CORE" platform=unix STATIC_LINKING=1 \
 
 [[ -s "$CORE_LIB" ]] || { echo "FreeIntv static archive was not produced" >&2; exit 3; }
 
+# STATIC_LINKING deliberately excludes frontend-side libretro-common helpers.
+# Build the exact vendored helpers from the same pinned FreeIntv checkout.
+LRC="$CORE/src/deps/libretro-common"
+SUPPORT_SOURCES=(
+  "$LRC/file/file_path.c"
+  "$LRC/file/file_path_io.c"
+  "$LRC/compat/compat_posix_string.c"
+  "$LRC/compat/compat_snprintf.c"
+  "$LRC/compat/compat_strl.c"
+  "$LRC/compat/compat_strcasestr.c"
+  "$LRC/compat/fopen_utf8.c"
+  "$LRC/encodings/encoding_utf.c"
+  "$LRC/string/stdstring.c"
+  "$LRC/streams/file_stream.c"
+  "$LRC/time/rtime.c"
+  "$LRC/vfs/vfs_implementation.c"
+)
+SUPPORT_OBJECTS=()
+for src in "${SUPPORT_SOURCES[@]}"; do
+  rel="${src#$LRC/}"
+  obj="$OUT/obj/freeintv_lrc_${rel//\//_}.o"
+  "$CC" -O2 -DNDEBUG -fPIC \
+    -I"$LRC/include" -I"$CORE/src" \
+    -c "$src" -o "$obj"
+  SUPPORT_OBJECTS+=("$obj")
+done
+
 if command -v nm >/dev/null 2>&1; then
   for sym in retro_init retro_deinit retro_get_system_info retro_get_system_av_info retro_load_game retro_run retro_unload_game; do
     nm "$CORE_LIB" 2>/dev/null | grep -q "[[:space:]]$sym$" || {
@@ -81,7 +108,7 @@ for src in "${SOURCES[@]}"; do
 done
 
 PIE="$OUT/artifacts/freeintv_pie.elf"
-"$CXX" -o "$PIE" "${OBJECTS[@]}" "$CORE_LIB" \
+"$CXX" -o "$PIE" "${OBJECTS[@]}" "$CORE_LIB" "${SUPPORT_OBJECTS[@]}" \
   -pthread -lm \
   -lSceAudioOut -lScePad -lSceUserService -lSceVideoOut -lSceSystemService
 
