@@ -56,9 +56,18 @@ void flush_frame(const void* address, std::size_t bytes) noexcept {
 std::uint32_t pixel_argb(const VideoFrame& f, std::uint32_t x, std::uint32_t y) noexcept {
   const auto* row = static_cast<const std::uint8_t*>(f.pixels) +
                     static_cast<std::size_t>(y) * f.pitch_bytes;
-  if (f.format == PixelFormat::rgb565) {
+  if (f.format == PixelFormat::rgb1555 || f.format == PixelFormat::rgb565) {
     std::uint16_t v{};
     std::memcpy(&v, row + static_cast<std::size_t>(x) * 2, 2);
+    if (f.format == PixelFormat::rgb1555) {
+      const std::uint32_t r = (v >> 10) & 31u;
+      const std::uint32_t g = (v >> 5) & 31u;
+      const std::uint32_t b = v & 31u;
+      return 0xff000000u |
+             ((r << 3 | r >> 2) << 16) |
+             ((g << 3 | g >> 2) << 8) |
+             (b << 3 | b >> 2);
+    }
     const std::uint32_t r = (v >> 11) & 31u;
     const std::uint32_t g = (v >> 5) & 63u;
     const std::uint32_t b = v & 31u;
