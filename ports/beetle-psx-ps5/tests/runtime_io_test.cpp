@@ -1,4 +1,5 @@
 #include "../native/runtime_io.hpp"
+#include <ps5rt/log.hpp>
 
 #include <cassert>
 #include <cmath>
