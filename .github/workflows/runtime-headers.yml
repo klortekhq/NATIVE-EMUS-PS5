@@ -22,31 +22,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure public runtime headers
-        run: cmake -S . -B build -DNATIVE_EMUS_BUILD_HEADER_TESTS=ON
+      - name: Configure runtime and corehost tests
+        run: >
+          cmake -S . -B build
+          -DNATIVE_EMUS_BUILD_HEADER_TESTS=ON
+          -DCOREHOST_BUILD_TESTS=ON
+          -DPS5RT_BUILD_HOST_PLATFORM_TESTS=ON
 
-      - name: Build public runtime headers
+      - name: Build runtime and corehost tests
         run: cmake --build build --parallel
 
-      - name: Compile native static-core host
+      - name: Run runtime and corehost tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Compile standalone port entry points
         run: |
           mkdir -p build/smoke
           CXXFLAGS="-std=c++20 -Wall -Wextra -Wpedantic"
-          INC="-Iruntime/include -Ithird_party/libretro -Iports/common/libretro-static"
-          g++ $CXXFLAGS $INC -c ports/common/libretro-static/native_libretro_host.cpp -o build/smoke/native_libretro_host.o
-          g++ $CXXFLAGS $INC -c ports/common/libretro-static/linked_core.cpp -o build/smoke/linked_core.o
-          g++ $CXXFLAGS $INC -c ports/nes-fceumm/main.cpp -o build/smoke/nes_fceumm_main.o
-          g++ $CXXFLAGS $INC -c ports/snes9x-ps5/main.cpp -o build/smoke/snes9x_main.o
-          g++ $CXXFLAGS $INC -c ports/genesis-plus-gx-ps5/main_sg1000.cpp -o build/smoke/genesis_sg1000_main.o
-          g++ $CXXFLAGS $INC -c ports/genesis-plus-gx-ps5/main_mastersystem.cpp -o build/smoke/genesis_mastersystem_main.o
-          g++ $CXXFLAGS $INC -c ports/genesis-plus-gx-ps5/main_gamegear.cpp -o build/smoke/genesis_gamegear_main.o
-          g++ $CXXFLAGS $INC -c ports/genesis-plus-gx-ps5/main_megadrive.cpp -o build/smoke/genesis_megadrive_main.o
+          INC="-Iruntime/include -Icorehost/include"
+          for src in             ports/nes-fceumm/main.cpp             ports/snes9x-ps5/main.cpp             ports/genesis-plus-gx-ps5/main_sg1000.cpp             ports/genesis-plus-gx-ps5/main_mastersystem.cpp             ports/genesis-plus-gx-ps5/main_gamegear.cpp             ports/genesis-plus-gx-ps5/main_megadrive.cpp             ports/freeintv-ps5/main.cpp             ports/o2em-ps5/main.cpp; do
+            obj="build/smoke/$(echo "$src" | tr '/.' '__').o"
+            g++ $CXXFLAGS $INC -c "$src" -o "$obj"
+          done
 
-      - name: Validate port scripts
+      - name: Validate all PS5 port scripts
         run: |
-          bash -n ports/nes-fceumm/build_ps5.sh
-          bash -n ports/snes9x-ps5/build_ps5.sh
-          bash -n ports/genesis-plus-gx-ps5/build_ps5.sh
+          set -euo pipefail
+          while IFS= read -r script; do
+            echo "bash -n $script"
+            bash -n "$script"
+          done < <(find ports -name build_ps5.sh -type f | sort)
 
       - name: Validate pinned Snes9x static core
         run: |
@@ -205,4 +210,62 @@ jobs:
           path: |
             build/ps5/genesis-plus-gx/artifacts/*.elf
             build/ps5/genesis-plus-gx/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-freeintv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build native Intellivision FreeIntv
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          bash ports/freeintv-ps5/build_ps5.sh
+          test -s build/ps5/freeintv/artifacts/freeintv_pie.elf
+
+      - name: Upload native Intellivision build
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-intellivision-freeintv-ps5-pie
+          path: |
+            build/ps5/freeintv/artifacts/freeintv_pie.elf
+            build/ps5/freeintv/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-o2em:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build native Odyssey2 O2EM
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          bash ports/o2em-ps5/build_ps5.sh
+          test -s build/ps5/o2em/artifacts/o2em_pie.elf
+
+      - name: Upload native Odyssey2 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-odyssey2-o2em-ps5-pie
+          path: |
+            build/ps5/o2em/artifacts/o2em_pie.elf
+            build/ps5/o2em/artifacts/SHA256SUMS
           if-no-files-found: error
