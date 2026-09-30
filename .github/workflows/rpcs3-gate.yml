@@ -1,0 +1,33 @@
+name: rpcs3-ps5-llvm-gate
+
+on:
+  push:
+    paths:
+      - 'tools/ps5/verify_rpcs3_ps5_sources.py'
+      - 'ports/rpcs3-ps5/**'
+      - '.github/workflows/rpcs3-gate.yml'
+  pull_request:
+    paths:
+      - 'tools/ps5/verify_rpcs3_ps5_sources.py'
+      - 'ports/rpcs3-ps5/**'
+      - '.github/workflows/rpcs3-gate.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: rpcs3-ps5-llvm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-and-abi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned PS5 RPCS3 and LLVM
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none https://github.com/mihawk-99/PS5_RPCS3.git /tmp/rpcs3
+          git -C /tmp/rpcs3 checkout --detach 2ada8e453c592d8764d2801a667f3da415794918
+          git clone --filter=blob:none https://github.com/mihawk-99/PS5_LLVM.git /tmp/llvm
+          git -C /tmp/llvm checkout --detach 98b45cc22e98844b7d49bbedefdfee04a740650a
+      - name: Verify PPU/SPU LLVM recompiler source gate
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/verify_rpcs3_ps5_sources.py" /tmp/rpcs3 /tmp/llvm
