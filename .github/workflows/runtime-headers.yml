@@ -441,3 +441,33 @@ jobs:
             build/ps5/mupen64plus/artifacts/ARTIFACT.json
             build/ps5/mupen64plus/artifacts/SHA256SUMS
           if-no-files-found: error
+
+  ps5-cross-build-beetle-psx-lightrec-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+          test -x /opt/ps5-payload-sdk/bin/prospero-ranlib
+
+      - name: Cross-build Beetle PSX HW Lightrec x86-64 engine
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/beetle-psx-ps5/build_engine_ps5.sh
+
+      - name: Upload Beetle PSX HW PS5 Lightrec engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-beetle-psx-hw-lightrec-x64-ps5-engine
+          path: |
+            build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
+            build/ps5/beetle-psx/artifacts/ARTIFACT.json
+            build/ps5/beetle-psx/artifacts/SHA256SUMS
+          if-no-files-found: error
