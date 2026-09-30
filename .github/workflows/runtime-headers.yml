@@ -479,6 +479,15 @@ jobs:
           /opt/ps5-payload-sdk/bin/prospero-clang++ -std=c++20             -I/tmp/xenia/src -c /tmp/xenia_ps5_platform.cpp             -o /tmp/xenia_ps5_platform.o
           test -s /tmp/xenia_ps5_platform.o
 
+      - name: Cross-compile transformed Xenia x64 code cache
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          set -euo pipefail
+          git -C /tmp/xenia submodule update --init --depth 1 third_party/fmt
+          /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG             -I/tmp/xenia             -I/tmp/xenia/src             -I"$GITHUB_WORKSPACE/runtime/include"             -c /tmp/xenia/src/xenia/cpu/backend/x64/x64_code_cache.cc             -o /tmp/xenia_x64_code_cache.o
+          test -s /tmp/xenia_x64_code_cache.o
+
   rpcs3-llvm-source-gate:
     runs-on: ubuntu-latest
     steps:
