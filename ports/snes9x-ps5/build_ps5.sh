@@ -86,5 +86,14 @@ if [[ -n "${PS5_NATIVE_TOOL:-}" ]]; then
  "$PS5_NATIVE_TOOL" link "$PIE" "$OUT/artifacts/app_ps5.elf"
  "$PS5_NATIVE_TOOL" self "$OUT/artifacts/app_ps5.elf" "$OUT/artifacts/eboot.bin"
 fi
+python3 "$ROOT/tools/ps5/write_artifact_manifest.py" \
+ --output-dir "$OUT/artifacts" \
+ --system "Super Nintendo / Super Famicom" \
+ --core "Snes9x" \
+ --upstream "libretro/snes9x" \
+ --pin "$PIN" \
+ --cpu-backend "upstream-interpreter" \
+ --graphics-backend "software -> ps5rt VideoOut" \
+ --artifact "$PIE"
 find "$OUT/artifacts" -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$OUT/artifacts/SHA256SUMS"
 echo "SNES PS5 build complete: $PIE"
