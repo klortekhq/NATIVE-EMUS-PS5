@@ -6,14 +6,34 @@ This document distinguishes **verified public scene progress** from **our reposi
 
 ## Repository coverage
 
-- **48 system targets** are now represented under `systems/`.
-- **43** are the recovered M8 baseline.
-- **5** are additional systems discussed outside/after M8: Switch, Neo Geo CD, PC-FX, Intellivision and Amiga.
-- **36 emulator/core workspaces** are represented under `emulators/`.
-- the shared `ps5rt` public C++ contract now exists for memory/JIT, TLS, threading, AudioOut, input, VFS, application lifecycle and Vulkan bootstrap.
+- **60 system / hardware targets** are represented under `systems/`.
+- **43** are the recovered M8 baseline; the catalog was expanded with every additional system explicitly discussed, including board-specific arcade targets.
+- emulator/core workspaces are separated from the machine catalog so one clean engine can serve multiple systems.
+- the shared `ps5rt` layer now contains public contracts plus native PS5 implementations for application lifecycle, local random-access I/O, software VideoOut, AudioOut and DualSense input; JIT/TLS/Vulkan work remains on the modern-emulator track.
 - M8 and earlier recovered artifacts remain documented separately under `legacy/` and `artifacts/`.
 
 A directory or contract does **not** mean that the corresponding emulator is already built or playable from this repository. Status claims remain evidence-based.
+
+## Repository-native PS5 cross-builds
+
+The following ports have completed a reproducible cross-build with the public `ps5-payload-dev` SDK in GitHub Actions. **Cross-built is not the same as hardware-playable**: these binaries still require validation on an actual jailbroken PS5.
+
+| System | Engine | PS5 output | Evidence |
+|---|---|---|---|
+| NES | FCEUmm | `nes_fceumm_pie.elf` | workflow 36716495397 / green |
+| SNES | Snes9x | `snes9x_pie.elf` | workflow 36716495397 / green |
+| SG-1000 | Genesis Plus GX | `sg1000_genesis_plus_gx_pie.elf` | workflow 36716495397 / green |
+| Master System | Genesis Plus GX | `mastersystem_genesis_plus_gx_pie.elf` | workflow 36716495397 / green |
+| Game Gear | Genesis Plus GX | `gamegear_genesis_plus_gx_pie.elf` | workflow 36716495397 / green |
+| Mega Drive / Genesis | Genesis Plus GX | `megadrive_genesis_plus_gx_pie.elf` | workflow 36716495397 / green |
+
+Artifacts from workflow 36716495397 include:
+
+- `native-nes-fceumm-ps5-pie`
+- `native-snes-snes9x-ps5-pie`
+- `native-sega-genesis-plus-gx-ps5-pie`
+
+The Sega artifact contains all four cartridge-family ELFs.
 
 ## Modern / JIT-heavy targets
 
@@ -53,14 +73,14 @@ These are especially useful for hardening AudioOut, DualSense, VFS, packaging an
 
 | Component | Repository state | External state / notes |
 |---|---|---|
-| public runtime contract | **Scaffolded** | C++20 headers and CMake interface are in `runtime/` |
+| public runtime contract | **Implemented + evolving** | C++20 contracts plus native PS5 app/audio/input/io/video backends are in `runtime/` |
 | executable/JIT memory | interface defined | working approaches exist in PS5SX2 and PS5_Dynarmic |
 | flexible/direct/pooled memory | interface defined | implementation migration still pending |
 | TLS | interface defined | compiler-rt emutls and PS5-specific shims need implementation/evaluation |
 | thread policy | interface defined | explicit stack handling is proven necessary by PS5SX2 |
-| AudioOut | interface defined | direct AudioOut works in PS5SX2 |
-| DualSense | interface defined | multiple public homebrew implementations exist |
-| VFS/storage | interface defined | internal/USB/M.2 paths are well demonstrated; SMB migration remains pending |
+| AudioOut | **native backend implemented** | 48 kHz PS5 output with stateful source-rate conversion; cross-build proven |
+| DualSense | **native backend implemented** | controller 0 polling is cross-build proven; rumble/multi-user remain to migrate |
+| VFS/storage | **local random-access backend implemented** | /data and USB path policy active; SMB/network migration remains pending |
 | Vulkan bootstrap | interface defined | Mesa/RADV PS5 work is active and rapidly improving |
 | PS5-specific LLVM ABI | external active development | critical RPCS3 fixes exist in PS5_LLVM |
 | native title tooling | research mapped | BlackBear tooling, ps5link-sdk and SharpProspero are tracked |
