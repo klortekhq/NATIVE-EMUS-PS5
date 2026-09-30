@@ -18,7 +18,7 @@ def transform_header(text:str)->str:
     text=replace_once(
         text,
         '#include "xenia/cpu/backend/code_cache.h"\n',
-        '#include "xenia/cpu/backend/code_cache.h"\n#ifdef __PROSPERO__\n#include <ps5rt/jit.hpp>\n#endif\n',
+        '#include "xenia/cpu/backend/code_cache.h"\n#ifdef __PROSPERO__\n#include <ps5rt/jit.hpp>\n#include <ps5rt/c/vmem.h>\n#endif\n',
         "ps5rt JIT include")
     text=replace_once(
         text,
@@ -30,6 +30,24 @@ def transform_header(text:str)->str:
 def transform_source(text:str)->str:
     text=replace_once(
         text,
+        """  if (indirection_table_base_) {
+    xe::memory::DeallocFixed(indirection_table_base_, 0,
+                             xe::memory::DeallocationType::kRelease);
+  }
+""",
+        """  if (indirection_table_base_) {
+#ifdef __PROSPERO__
+    (void)ps5rt_vrange_release(indirection_table_base_, kIndirectionTableSize);
+#else
+    xe::memory::DeallocFixed(indirection_table_base_, 0,
+                             xe::memory::DeallocationType::kRelease);
+#endif
+  }
+""",
+        "PS5 fixed indirection destruction")
+
+    text=replace_once(
+        text,
         "  // Unmap all views and close mapping.\n  if (mapping_ != xe::memory::kFileMappingHandleInvalid) {\n",
         "  // Unmap all views and close mapping.\n#ifdef __PROSPERO__\n  if (ps5_generated_code_jit_) {\n    (void)ps5rt::destroy_jit_region(ps5_generated_code_jit_);\n  }\n#else\n  if (mapping_ != xe::memory::kFileMappingHandleInvalid) {\n",
         "PS5 JIT destruction")
@@ -38,6 +56,32 @@ def transform_source(text:str)->str:
         "    mapping_ = xe::memory::kFileMappingHandleInvalid;\n  }\n}\n\nbool X64CodeCache::Initialize() {\n",
         "    mapping_ = xe::memory::kFileMappingHandleInvalid;\n  }\n#endif\n}\n\nbool X64CodeCache::Initialize() {\n",
         "PS5 destructor conditional close")
+
+    text=replace_once(
+        text,
+        """  indirection_table_base_ = reinterpret_cast<uint8_t*>(xe::memory::AllocFixed(
+      reinterpret_cast<void*>(kIndirectionTableBase), kIndirectionTableSize,
+      xe::memory::AllocationType::kReserve,
+      xe::memory::PageAccess::kReadWrite));
+""",
+        """#ifdef __PROSPERO__
+  {
+    void* ps5_indirection = nullptr;
+    if (ps5rt_vrange_reserve_fixed(
+            kIndirectionTableSize,
+            reinterpret_cast<void*>(kIndirectionTableBase),
+            0x4000, &ps5_indirection) == 0) {
+      indirection_table_base_ = static_cast<uint8_t*>(ps5_indirection);
+    }
+  }
+#else
+  indirection_table_base_ = reinterpret_cast<uint8_t*>(xe::memory::AllocFixed(
+      reinterpret_cast<void*>(kIndirectionTableBase), kIndirectionTableSize,
+      xe::memory::AllocationType::kReserve,
+      xe::memory::PageAccess::kReadWrite));
+#endif
+""",
+        "PS5 fixed indirection reservation")
 
     begin="""  // Create mmap file. This allows us to share the code cache with the debugger.
   file_name_ = fmt::format("xenia_code_cache_{}", Clock::QueryHostTickCount());
@@ -90,7 +134,31 @@ def transform_source(text:str)->str:
 
   // Preallocate the function map to a large, reasonable size.
 """
-    return replace_once(text,end,end_repl,"PS5 fixed code cache end")
+    text=replace_once(text,end,end_repl,"PS5 fixed code cache end")
+
+    text=replace_once(
+        text,
+        """  // Commit the memory.
+  xe::memory::AllocFixed(
+      indirection_table_base_ + (guest_low - kIndirectionTableBase),
+      guest_high - guest_low, xe::memory::AllocationType::kCommit,
+      xe::memory::PageAccess::kReadWrite);
+""",
+        """  // Commit the memory.
+#ifdef __PROSPERO__
+  (void)ps5rt_vmem_commit(
+      indirection_table_base_ + (guest_low - kIndirectionTableBase),
+      guest_high - guest_low,
+      PS5RT_VMEM_READ | PS5RT_VMEM_WRITE);
+#else
+  xe::memory::AllocFixed(
+      indirection_table_base_ + (guest_low - kIndirectionTableBase),
+      guest_high - guest_low, xe::memory::AllocationType::kCommit,
+      xe::memory::PageAccess::kReadWrite);
+#endif
+""",
+        "PS5 indirection commit")
+    return text
 
 def main()->int:
     ap=argparse.ArgumentParser()
