@@ -1,21 +1,21 @@
 # Sony PlayStation / PS1
 
-## Progress: **30%**
+## Progress: **60%**
 
 > Progress is measured against the **native standalone PS5 target**, not against upstream Beetle PSX maturity.
 
 | Gate | Weight | Current |
 |---|---:|---:|
 | Upstream/donor pin + provenance | 10% | 10% |
-| Reproducible PS5 engine cross-build | 15% | 0% — CI running |
-| Native Lightrec/GNU Lightning x86-64 recompiler | 25% | 10% — ps5rt executable-pool integration landed |
+| Reproducible PS5 engine cross-build | 15% | **15% — green** |
+| Native Lightrec/GNU Lightning x86-64 recompiler | 25% | **25% — binary-verified** |
 | Vulkan/RADV renderer | 15% | 5% — PS5 donor path verified, standalone integration pending |
 | Native audio/input | 10% | 5% — ps5rt backends ready, PS1 adapter pending |
 | Disc/VFS/saves | 10% | 0% |
 | Native title/package shell | 5% | 0% |
 | Physical PS5 boot/game validation | 10% | 0% |
 
-**Total: 30 / 100**
+**Total: 60 / 100**
 
 The percentage only rises when a gate gains reproducible evidence.
 
@@ -45,6 +45,20 @@ The interpreter is not the target release backend.
 
 The current PS5_BeetlePSX donor deliberately disables Lightrec on its PS5 build because its executable code buffer had not yet been routed to console executable memory. NATIVE-EMUS-PS5 now owns that missing integration through `ps5rt_exec_allocate()`.
 
+## Engine evidence
+
+Workflow **36781556800** produced the PS5 engine archive (artifact **11127512766**).
+
+Verified archive evidence:
+
+- size: 20,130,670 bytes;
+- SHA-256: `b709412d7cc3dbe815fcde63dc6daddfdf994fe96998a12ed148cc857df2deb2`;
+- contains `lightrec.o`, `recompiler.o`, `lightning.o`, `jit_memory.o`;
+- exports `lightrec_execute` and GNU Lightning `_jit_set_code`;
+- references `ps5rt_exec_allocate` and `ps5rt_exec_release`.
+
+This closes the engine cross-build and native CPU/JIT gates.
+
 ## Renderer
 
 Target:
@@ -71,10 +85,9 @@ Disc access will be integrated with the shared `ps5rt::media` / VFS layer while 
 
 ## Immediate next gates
 
-1. green PS5 cross-build containing Lightrec + GNU Lightning;
-2. native input/audio adapter;
-3. standalone Vulkan/RADV renderer;
-4. disc/VFS + memory-card persistence;
-5. native app shell/package;
-6. BIOS/legal test executable boot on physical PS5;
-7. broader game validation.
+1. native input/audio adapter;
+2. standalone Vulkan/RADV renderer;
+3. disc/VFS + memory-card persistence;
+4. native app shell/package;
+5. BIOS/legal test executable boot on physical PS5;
+6. broader game validation.
