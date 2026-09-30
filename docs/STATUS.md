@@ -33,21 +33,21 @@ Current cross-build evidence is workflow **36748819649**. It validates the share
 
 Host-side static-link/lifecycle validation is green in workflow **36749064626** for FreeIntv and O2EM, alongside the Flycast, Dynarmic, Mupen64Plus, Dolphin and PPSSPP transformation checks.
 
-## Modern / JIT-heavy targets
+Dynarmic A32+A64 x86-64 JIT cross-build evidence: workflow **36760157664**.\n\n## Modern / JIT-heavy targets
 
 | Target | Repo state | External evidence / useful reference |
 |---|---|---|
 | PCSX2 / PS2 | Reference integration research | Swordpdf/PS5SX2 demonstrates native PCSX2 recompilers + Vulkan on PS5 |
 | Flycast / Dreamcast | **rec-x64/JIT transform green** | deterministic PS5 fastmem + dual-view JIT transform is green in workflow 36749064626; engine cross-build is the next gate |
 | RPCS3 / PS3 | Fast-moving external work | mihawk-99/PS5_RPCS3, PS5_LLVM and PS5_Mesa contain active PS5-specific work |
-| Vita3K / Vita | Port plan | PS5_Dynarmic work directly addresses executable code-cache needs |
+| Vita3K / Vita | **shared A32/A64 x64 JIT gate green** | `libdynarmic_ps5.a` cross-build is green; Vita3K integration is next |
 | Cemu / Wii U | Port plan | PPC recompiler + Vulkan; desktop UI separation remains a major task |
 | xemu / Xbox | Platform research | QEMU-derived machine model makes host isolation broader |
 | Xenia / Xbox 360 | Platform/GPU research | x64 backend fits the host; GPU/EDRAM/Vulkan adaptation is the larger problem |
-| Switch / Eden-derived | Reference research | ProsperoEden is a public native PS5 implementation reference |
+| Switch / Eden-derived | **shared A32/A64 x64 JIT gate green** | Dynarmic PS5 archive is reproducible; ProsperoEden remains the native platform reference |
 | PPSSPP / PSP | External port research | Public PS5-specific work exists |
 | Mupen64Plus / N64 | **CPU + RSP JIT transform green** | mihawk-99 donor allocators retarget cleanly to ps5rt in workflow 36749064626 |
-| Azahar / 3DS | External port research | PS5_Dynarmic and PS5 scene work are directly relevant |
+| Azahar / 3DS | **shared A32/A64 x64 JIT gate green** | `libdynarmic_ps5.a` now cross-builds with both JIT frontends |
 | Dolphin / GC/Wii | External port research | Existing PS5 work demonstrates JIT/Vulkan feasibility |
 | DeSmuME / NDS | External port research | mihawk-99/PS5_DeSmuME provides a donor/reference |
 | Beetle PSX / Saturn | External port research | mihawk-99 PS5 ports exist |
