@@ -97,7 +97,8 @@ extern "C" int sceKernelMprotect(const void*, unsigned long long, int) {
 extern "C" int sceKernelMunmap(void* p, unsigned long long) {
   auto it = mappings.find(p);
   if (it != mappings.end()) {
-    std::free(p);
+    if (mapping_owned[p]) std::free(p);
+    mapping_owned.erase(p);
     mappings.erase(it);
   }
   return 0;
@@ -112,6 +113,18 @@ extern "C" int sceKernelReserveVirtualRange(void** out, unsigned long long size,
 }
 
 int main() {
+  {
+    void* fixed = nullptr;
+    void* requested = reinterpret_cast<void*>(
+        static_cast<std::uintptr_t>(0x80000000ull));
+    assert(ps5rt_vrange_reserve_fixed(
+               0x20000000ull, requested, 0x4000, &fixed) == 0);
+    assert(fixed == requested);
+    assert(mappings.contains(requested));
+    assert(ps5rt_vrange_release(fixed, 0x20000000ull) == 0);
+    assert(!mappings.contains(requested));
+  }
+
   {
     ps5rt::JitRegion region{};
     ps5rt::JitRequest request{};
