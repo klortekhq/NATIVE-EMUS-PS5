@@ -108,3 +108,14 @@ jobs:
         run: |
           c++ -std=c++20 -Icorehost/include             corehost/tests/real_core_lifecycle.cpp             build-o2em/corehost/libcorehost.a             /tmp/o2em/o2em_libretro.a -lm             -o /tmp/o2em-corehost-smoke
           /tmp/o2em-corehost-smoke O2EM
+
+  mupen64plus-transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch PS5 Mupen64Plus donor
+        run: |
+          git clone --filter=blob:none https://github.com/mihawk-99/PS5_Mupen64Plus.git /tmp/mupen64
+          git -C /tmp/mupen64 checkout --detach 98ec1019d191fc3c0e1c2d031f2574e95bd8d30d
+      - name: Verify CPU + RSP JIT allocator transform
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_mupen64plus_ps5rt.py" /tmp/mupen64 --check
