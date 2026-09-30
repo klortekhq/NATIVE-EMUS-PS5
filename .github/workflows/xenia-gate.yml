@@ -59,6 +59,6 @@ jobs:
       - name: Cross-compile transformed Xenia x64 code cache
         run: |
           set -euo pipefail
-          git -C /tmp/xenia submodule update --init --depth 1             third_party/fmt third_party/cpptoml
+          git -C /tmp/xenia submodule update --init --depth 1             third_party/fmt third_party/cpptoml third_party/cxxopts
           /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG             -I/tmp/xenia             -I/tmp/xenia/src             -I"$GITHUB_WORKSPACE/runtime/include"             -c /tmp/xenia/src/xenia/cpu/backend/x64/x64_code_cache.cc             -o /tmp/xenia_x64_code_cache.o
           test -s /tmp/xenia_x64_code_cache.o
