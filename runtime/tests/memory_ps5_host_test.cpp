@@ -2,6 +2,7 @@
 #include <ps5rt/memory.hpp>
 #include <ps5rt/c/exec.h>
 #include <ps5rt/c/shm.h>
+#include <ps5rt/c/vmem.h>
 
 #include <cassert>
 #include <cstddef>
