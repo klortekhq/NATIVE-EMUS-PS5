@@ -3,6 +3,9 @@
 #include <ps5rt/app.hpp>
 #include <ps5rt/audio.hpp>
 #include <ps5rt/input.hpp>
+#include <ps5rt/io.hpp>
+#include <ps5rt/log.hpp>
+#include <ps5rt/diagnostics.hpp>
 #include <ps5rt/jit.hpp>
 #include <ps5rt/memory.hpp>
 #include <ps5rt/result.hpp>
