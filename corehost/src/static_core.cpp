@@ -2,6 +2,7 @@
 
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
 #include <mutex>
 #include <utility>
 
@@ -89,10 +90,11 @@ bool StaticCore::initialize(std::string& error) {
     error = "another static core is already active";
     return false;
   }
+
   if (!api_.set_environment || !api_.set_video_refresh || !api_.set_audio_sample ||
       !api_.set_audio_sample_batch || !api_.set_input_poll || !api_.set_input_state ||
-      !api_.init || !api_.deinit || !api_.load_game || !api_.unload_game ||
-      !api_.get_system_av_info || !api_.run) {
+      !api_.init || !api_.deinit || !api_.get_system_info || !api_.load_game ||
+      !api_.unload_game || !api_.get_system_av_info || !api_.run) {
     error = "incomplete static libretro API";
     return false;
   }
@@ -104,7 +106,13 @@ bool StaticCore::initialize(std::string& error) {
   api_.set_audio_sample_batch(audio_batch_trampoline);
   api_.set_input_poll(input_poll_trampoline);
   api_.set_input_state(input_state_trampoline);
+
+  api_.get_system_info(&system_info_);
   api_.init();
+
+  if (api_.set_controller_port_device)
+    api_.set_controller_port_device(0, lr::device_joypad);
+
   api_.get_system_av_info(&av_info_);
   initialized_ = true;
   return true;
@@ -115,13 +123,54 @@ bool StaticCore::load_path(std::string_view path, std::string& error) {
     error = "core not initialized";
     return false;
   }
+  if (path.empty()) {
+    error = "empty content path";
+    return false;
+  }
   if (loaded_) unload();
+
   const std::string stable_path(path);
-  lr::GameInfo info{stable_path.c_str(), nullptr, 0, nullptr};
+  lr::GameInfo info{};
+  info.path = stable_path.c_str();
+
+  if (!system_info_.need_fullpath) {
+    std::FILE* f = std::fopen(stable_path.c_str(), "rb");
+    if (!f) {
+      error = "cannot open content";
+      return false;
+    }
+    if (std::fseek(f, 0, SEEK_END) != 0) {
+      std::fclose(f);
+      error = "cannot seek content";
+      return false;
+    }
+    const long n = std::ftell(f);
+    if (n < 0 || static_cast<unsigned long>(n) > 512ul * 1024ul * 1024ul ||
+        std::fseek(f, 0, SEEK_SET) != 0) {
+      std::fclose(f);
+      error = "content size invalid";
+      return false;
+    }
+    content_buffer_.resize(static_cast<std::size_t>(n));
+    const auto got = content_buffer_.empty()
+        ? 0u
+        : std::fread(content_buffer_.data(), 1, content_buffer_.size(), f);
+    std::fclose(f);
+    if (got != content_buffer_.size()) {
+      content_buffer_.clear();
+      error = "content read failed";
+      return false;
+    }
+    info.data = content_buffer_.empty() ? nullptr : content_buffer_.data();
+    info.size = content_buffer_.size();
+  }
+
   if (!api_.load_game(&info)) {
+    content_buffer_.clear();
     error = "core rejected content";
     return false;
   }
+
   api_.get_system_av_info(&av_info_);
   loaded_ = true;
   return true;
@@ -129,12 +178,22 @@ bool StaticCore::load_path(std::string_view path, std::string& error) {
 
 void StaticCore::run_frame() { if (loaded_) api_.run(); }
 void StaticCore::reset() { if (loaded_ && api_.reset) api_.reset(); }
-void StaticCore::unload() { if (loaded_) { api_.unload_game(); loaded_ = false; } }
+
+void StaticCore::unload() {
+  if (loaded_) {
+    api_.unload_game();
+    loaded_ = false;
+  }
+  content_buffer_.clear();
+}
 
 void StaticCore::shutdown() {
   std::scoped_lock lock(g_mutex);
-  if (loaded_) { api_.unload_game(); loaded_ = false; }
-  if (initialized_) { api_.deinit(); initialized_ = false; }
+  unload();
+  if (initialized_) {
+    api_.deinit();
+    initialized_ = false;
+  }
   if (g_active == this) g_active = nullptr;
 }
 
@@ -143,7 +202,10 @@ bool StaticCore::save_state(std::vector<std::uint8_t>& out) {
   const auto size = api_.serialize_size();
   if (!size) return false;
   out.resize(size);
-  if (!api_.serialize(out.data(), out.size())) { out.clear(); return false; }
+  if (!api_.serialize(out.data(), out.size())) {
+    out.clear();
+    return false;
+  }
   return true;
 }
 
@@ -158,6 +220,14 @@ void StaticCore::set_option(std::string key, std::string value) {
   options_dirty_ = true;
 }
 
+void* StaticCore::memory_data(unsigned id) noexcept {
+  return api_.get_memory_data ? api_.get_memory_data(id) : nullptr;
+}
+
+std::size_t StaticCore::memory_size(unsigned id) const noexcept {
+  return api_.get_memory_size ? api_.get_memory_size(id) : 0;
+}
+
 void StaticCore::register_variables(const lr::Variable* vars) {
   if (!vars) return;
   for (auto* v = vars; v->key; ++v) {
@@ -169,6 +239,11 @@ void StaticCore::register_variables(const lr::Variable* vars) {
 
 bool StaticCore::environment(unsigned cmd, void* data) {
   switch (cmd) {
+    case lr::env_set_message:
+      if (data && static_cast<const lr::Message*>(data)->msg)
+        log(static_cast<const lr::Message*>(data)->msg);
+      return true;
+
     case lr::env_get_system_directory:
       if (!data) return false;
       *static_cast<const char**>(data) = paths_.system_dir.c_str();
@@ -199,6 +274,14 @@ bool StaticCore::environment(unsigned cmd, void* data) {
       return true;
     }
 
+    case lr::env_set_variable: {
+      if (!data) return false;
+      const auto& v = *static_cast<const lr::Variable*>(data);
+      if (!v.key || !v.value) return false;
+      set_option(v.key, v.value);
+      return true;
+    }
+
     case lr::env_get_variable_update:
       if (!data) return false;
       *static_cast<bool*>(data) = options_dirty_;
@@ -210,6 +293,26 @@ bool StaticCore::environment(unsigned cmd, void* data) {
       static_cast<lr::LogCallback*>(data)->log = log_trampoline;
       return true;
 
+    case lr::env_set_system_av_info:
+      if (!data) return false;
+      av_info_ = *static_cast<const lr::SystemAvInfo*>(data);
+      return true;
+
+    case lr::env_set_geometry:
+      if (!data) return false;
+      av_info_.geometry = *static_cast<const lr::GameGeometry*>(data);
+      return true;
+
+    case lr::env_get_language:
+      if (!data) return false;
+      *static_cast<unsigned*>(data) = lr::language_english;
+      return true;
+
+    case lr::env_get_audio_video_enable:
+      if (!data) return false;
+      *static_cast<unsigned*>(data) = lr::av_enable_video | lr::av_enable_audio;
+      return true;
+
     case lr::env_get_input_bitmasks:
       if (!data) return false;
       *static_cast<bool*>(data) = true;
@@ -217,13 +320,24 @@ bool StaticCore::environment(unsigned cmd, void* data) {
 
     case lr::env_get_core_options_version:
       if (!data) return false;
-      // Returning v0 intentionally keeps the first implementation small and
-      // compatible with cores that provide legacy variables as fallback.
       *static_cast<unsigned*>(data) = 0;
       return true;
 
-    // Deliberately not claiming VFS support yet. Cores that ask for it can
-    // fall back to libc/stdio while ps5rt's full VFS bridge is implemented.
+    case lr::env_get_message_interface_version:
+      if (!data) return false;
+      *static_cast<unsigned*>(data) = 0;
+      return true;
+
+    case lr::env_get_savestate_context:
+      if (!data) return false;
+      *static_cast<unsigned*>(data) = lr::savestate_context_normal;
+      return true;
+
+    case lr::env_get_target_sample_rate:
+      if (!data) return false;
+      *static_cast<unsigned*>(data) = 48000;
+      return true;
+
     case lr::env_get_vfs_interface:
       return false;
 
