@@ -27,7 +27,7 @@ This matrix is a technical routing table. The "track" column groups similar engi
 | Saturn | Beetle Saturn | interpreter/JIT-dependent upstream path | software/hybrid | B complex-retro | mihawk-99/PS5_BeetleSaturn |
 | Dreamcast / Naomi / Atomiswave | Flycast | x86-64 SH4 dynarec | Vulkan | C modern | shared RADV/JIT runtime |
 | WonderSwan / Color | Beetle WonderSwan | interpreter | software | A portable | Mednafen patterns |
-| PlayStation | Beetle PSX HW / DuckStation | interpreter/dynarec | software/Vulkan-capable | B JIT | mihawk-99/PS5_BeetlePSX |
+| PlayStation | Beetle PSX HW | **Lightrec + GNU Lightning x86-64** | Vulkan / RADV | B JIT | PS5_BeetlePSX donor + ps5rt executable pool |
 | PlayStation 2 | PCSX2 | x86-64 recompilers | Vulkan | C modern | Swordpdf/PS5SX2 |
 | PlayStation 3 | RPCS3 | PPU/SPU LLVM | Vulkan/RADV | C modern | mihawk-99/PS5_RPCS3 + PS5_LLVM + PS5_Mesa |
 | PSP | PPSSPP | x86-64 JIT | Vulkan | B JIT | OpenAGC/ps5-ppsspp + PS5_RetroArch |
