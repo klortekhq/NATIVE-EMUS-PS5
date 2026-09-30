@@ -41,6 +41,26 @@ jobs:
         run: |
           bash -n ports/nes-fceumm/build_ps5.sh
 
+      - name: Validate pinned FCEUmm static core
+        run: |
+          set -euo pipefail
+          PIN=236ccdfc911e84c60fea6b9d0699c2d440a8de14
+          SHA=dd002cde9b5271979e0394bb9e696bd37e149ced473ff1e3629cc7fed502381f
+          mkdir -p build/fceumm
+          curl -fL --retry 3 "https://codeload.github.com/libretro/libretro-fceumm/tar.gz/$PIN" -o build/fceumm/core.tar.gz
+          echo "$SHA  build/fceumm/core.tar.gz" | sha256sum -c -
+          tar -xzf build/fceumm/core.tar.gz -C build/fceumm
+          CORE="build/fceumm/libretro-fceumm-$PIN"
+          make -C "$CORE" -f Makefile.libretro \
+            platform=unix STATIC_LINKING=1 \
+            TARGET="$PWD/build/fceumm/libfceumm_libretro.a" \
+            CC=gcc CXX=g++ AR=ar \
+            HAVE_HDPACK=0 HAVE_NTSC=1 WANT_32BPP=1
+          test -s build/fceumm/libfceumm_libretro.a
+          for sym in retro_init retro_deinit retro_load_game retro_run retro_unload_game; do
+            nm build/fceumm/libfceumm_libretro.a | grep -q "[[:space:]]$sym$"
+          done
+
       - name: Compile PS5 backend translation units
         run: |
           mkdir -p build/smoke
