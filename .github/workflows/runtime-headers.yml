@@ -41,6 +41,13 @@ jobs:
         run: |
           bash -n ports/nes-fceumm/build_ps5.sh
 
+      - name: Compute candidate core archive hashes
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 "https://codeload.github.com/libretro/snes9x/tar.gz/fae2fea08f74180759ef540ee94259213f503480" -o build/snes9x.tar.gz
+          curl -fL --retry 3 "https://codeload.github.com/libretro/Genesis-Plus-GX/tar.gz/c2838c7dc4236fc2fe94e5dbd08b41486067918e" -o build/genesis-plus-gx.tar.gz
+          sha256sum build/snes9x.tar.gz build/genesis-plus-gx.tar.gz
+
       - name: Validate pinned FCEUmm static core
         run: |
           set -euo pipefail
