@@ -15,6 +15,16 @@ Native emulator ports and shared runtime research for jailbroken PlayStation 5 s
 - **No proprietary content.** No firmware, BIOS, keys, games or Sony proprietary SDK material belongs in this repository.
 - **Evidence over hype.** A port is only marked working when code/build/runtime evidence exists.
 
+## Complete target coverage
+
+The recovered M8 baseline contains **43 system targets**. All 43 now have a canonical entry under [`systems/`](systems/README.md).
+
+The repository also tracks the additional systems discussed outside/after M8: **Nintendo Switch, Neo Geo CD, NEC PC-FX, Intellivision and Commodore Amiga**. That gives the current project **48 documented system targets**.
+
+Concrete codebase workspaces live under [`emulators/`](emulators/README.md), while the shared PS5 host contract lives under [`runtime/`](runtime/README.md).
+
+See the [complete porting matrix](docs/PORTING-MATRIX.md) for CPU/JIT/GPU requirements and current PS5 references.
+
 ## Current focus
 
 | Platform | Upstream / reference | Native CPU path | Graphics path | Current project status |
@@ -52,31 +62,15 @@ The intention is **not** to force every emulator through one frontend. The share
 ## Repository layout
 
 ```text
-docs/
-  ARCHITECTURE.md
-  ROADMAP.md
-  SCENE-REFERENCES.md
-  STATUS.md
-
-runtime/
-  README.md
-
-emulators/
-  pcsx2/
-  flycast/
-  rpcs3/
-  vita3k/
-  cemu/
-  xemu/
-  xenia/
-  switch/
-  ppsspp/
-  mupen64plus/
-  azahar/
-  dolphin/
+systems/       canonical machine/console catalog (43 M8 + additional discussed targets)
+emulators/     concrete upstream emulator/core workspaces
+runtime/       shared native PS5 host contract (JIT, memory, TLS, audio, input, VFS, Vulkan)
+docs/          architecture, status, roadmap, scene references and porting matrix
+legacy/        recovered historical M0→M8 material and patches
+artifacts/     hashes/manifests for recovered build artifacts
 ```
 
-The emulator directories initially contain port notes, dependency maps and implementation plans. Source is added only when we have a clean, license-compatible integration strategy.
+Emulator source is imported only when there is a clean, license-compatible integration strategy. Historical build packs stay separate from the current source layout.
 
 ## Important scene references
 
