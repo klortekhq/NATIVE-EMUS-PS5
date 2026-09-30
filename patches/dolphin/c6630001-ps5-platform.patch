@@ -301,8 +301,8 @@ index 5d5085aa09..48afb09fac 100644
 +    // Code blocks free their executable memory here (CodeBlock.h, off iOS):
 +    // what the platform layer handed out goes back to it, direct memory and
 +    // all, rather than being only unmapped.
-+    if (ps5rt_exec_release(ptr) == 0)
-+      return true;
++    ps5rt_exec_release(ptr);
++    return true;
 +#endif
  #ifdef _WIN32
      if (!VirtualFree(ptr, 0, MEM_RELEASE))
