@@ -56,6 +56,116 @@ def transform(root: pathlib.Path) -> dict[pathlib.Path, str]:
     )
     out[mmu] = text
 
+    precompiled = root / "src/Common/precompiled.h"
+    text = precompiled.read_text()
+    text = replace_once(
+        text,
+        "#if defined(__GNUC__)\n#define ATTR_MS_ABI __attribute__((ms_abi))\n#else\n#define ATTR_MS_ABI\n#endif\n",
+        """#if defined(__SCE__)
+#define ATTR_MS_ABI
+#elif defined(__GNUC__)
+#define ATTR_MS_ABI __attribute__((ms_abi))
+#else
+#define ATTR_MS_ABI
+#endif
+""",
+        "PS5 SysV host ABI attribute",
+    )
+    out[precompiled] = text
+
+    allocator = root / "src/Cafe/HW/Espresso/Recompiler/IML/IMLRegisterAllocator.cpp"
+    text = allocator.read_text()
+    text = replace_once(
+        text,
+        "const IMLPhysReg intParamToPhysReg[3] = {IMLArchX86::PHYSREG_GPR_BASE + X86_REG_RCX, IMLArchX86::PHYSREG_GPR_BASE + X86_REG_RDX, IMLArchX86::PHYSREG_GPR_BASE + X86_REG_R8};",
+        """#if defined(__SCE__)
+        const IMLPhysReg intParamToPhysReg[3] = {IMLArchX86::PHYSREG_GPR_BASE + X86_REG_RDI, IMLArchX86::PHYSREG_GPR_BASE + X86_REG_RSI, IMLArchX86::PHYSREG_GPR_BASE + X86_REG_RDX};
+#else
+        const IMLPhysReg intParamToPhysReg[3] = {IMLArchX86::PHYSREG_GPR_BASE + X86_REG_RCX, IMLArchX86::PHYSREG_GPR_BASE + X86_REG_RDX, IMLArchX86::PHYSREG_GPR_BASE + X86_REG_R8};
+#endif""",
+        "PS5 SysV integer parameter registers",
+    )
+    text = replace_once(
+        text,
+        """        volatileRegs.SetAvailable(IMLArchX86::PHYSREG_GPR_BASE + X86_REG_RDX);
+        volatileRegs.SetAvailable(IMLArchX86::PHYSREG_GPR_BASE + X86_REG_R8);""",
+        """        volatileRegs.SetAvailable(IMLArchX86::PHYSREG_GPR_BASE + X86_REG_RDX);
+#if defined(__SCE__)
+        volatileRegs.SetAvailable(IMLArchX86::PHYSREG_GPR_BASE + X86_REG_RSI);
+        volatileRegs.SetAvailable(IMLArchX86::PHYSREG_GPR_BASE + X86_REG_RDI);
+#endif
+        volatileRegs.SetAvailable(IMLArchX86::PHYSREG_GPR_BASE + X86_REG_R8);""",
+        "PS5 SysV volatile GPR set",
+    )
+    text = replace_once(
+        text,
+        """        // YMM0-YMM5 are volatile
+        for (int i = 0; i <= 5; i++)
+            volatileRegs.SetAvailable(IMLArchX86::PHYSREG_FPR_BASE + i);
+        // for YMM6-YMM15 only the upper 128 bits are volatile which we dont use""",
+        """#if defined(__SCE__)
+        // SysV AMD64: all XMM/YMM registers are caller-saved.
+        for (int i = 0; i <= 15; i++)
+            volatileRegs.SetAvailable(IMLArchX86::PHYSREG_FPR_BASE + i);
+#else
+        // Microsoft x64: XMM0-XMM5 are volatile.
+        for (int i = 0; i <= 5; i++)
+            volatileRegs.SetAvailable(IMLArchX86::PHYSREG_FPR_BASE + i);
+        // for YMM6-YMM15 only the upper 128 bits are volatile which we dont use
+#endif""",
+        "PS5 SysV volatile vector set",
+    )
+    out[allocator] = text
+
+    backend = root / "src/Cafe/HW/Espresso/Recompiler/BackendX64/BackendX64.cpp"
+    text = backend.read_text()
+    text = replace_once(
+        text,
+        """        // set parameters
+        x64Gen_mov_reg64_reg64(x64GenContext, X86_REG_RCX, REG_RESV_HCPU);
+        x64Gen_mov_reg64_imm64(x64GenContext, X86_REG_RDX, funcId);""",
+        """        // set host ABI parameters
+#if defined(__SCE__)
+        x64Gen_mov_reg64_reg64(x64GenContext, X86_REG_RDI, REG_RESV_HCPU);
+        x64Gen_mov_reg64_imm64(x64GenContext, X86_REG_RSI, funcId);
+#else
+        x64Gen_mov_reg64_reg64(x64GenContext, X86_REG_RCX, REG_RESV_HCPU);
+        x64Gen_mov_reg64_imm64(x64GenContext, X86_REG_RDX, funcId);
+#endif""",
+        "PS5 SysV HLE parameters",
+    )
+    text = replace_once(
+        text,
+        """    x64Emit_mov_mem64_reg64(&x64GenContext, X86_REG_RDX, offsetof(PPCInterpreter_t, rspTemp), X86_REG_RSP);
+
+    // MOV RSP, RDX (ppc interpreter instance)
+    x64Gen_mov_reg64_reg64(&x64GenContext, REG_RESV_HCPU, X86_REG_RDX);""",
+        """#if defined(__SCE__)
+    // SysV: argument 2 (PPCInterpreter_t*) is RSI.
+    x64Emit_mov_mem64_reg64(&x64GenContext, X86_REG_RSI, offsetof(PPCInterpreter_t, rspTemp), X86_REG_RSP);
+    x64Gen_mov_reg64_reg64(&x64GenContext, REG_RESV_HCPU, X86_REG_RSI);
+#else
+    x64Emit_mov_mem64_reg64(&x64GenContext, X86_REG_RDX, offsetof(PPCInterpreter_t, rspTemp), X86_REG_RSP);
+
+    // MOV RSP, RDX (ppc interpreter instance)
+    x64Gen_mov_reg64_reg64(&x64GenContext, REG_RESV_HCPU, X86_REG_RDX);
+#endif""",
+        "PS5 SysV entry hCPU argument",
+    )
+    text = replace_once(
+        text,
+        """    //JMP recFunc
+    x64Gen_jmp_reg64(&x64GenContext, X86_REG_RCX); // call argument 1""",
+        """    // JMP recFunc using host ABI argument 1.
+#if defined(__SCE__)
+    x64Gen_jmp_reg64(&x64GenContext, X86_REG_RDI);
+#else
+    x64Gen_jmp_reg64(&x64GenContext, X86_REG_RCX);
+#endif""",
+        "PS5 SysV entry code argument",
+    )
+    out[backend] = text
+
     return out
 
 def main() -> int:
