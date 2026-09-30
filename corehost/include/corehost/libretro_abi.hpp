@@ -73,6 +73,24 @@ struct GameInfo {
   const char* meta;
 };
 
+struct GameGeometry {
+  unsigned base_width{};
+  unsigned base_height{};
+  unsigned max_width{};
+  unsigned max_height{};
+  float aspect_ratio{};
+};
+
+struct SystemTiming {
+  double fps{};
+  double sample_rate{};
+};
+
+struct SystemAvInfo {
+  GameGeometry geometry{};
+  SystemTiming timing{};
+};
+
 using Environment = bool(*)(unsigned, void*);
 using VideoRefresh = void(*)(const void*, unsigned, unsigned, std::size_t);
 using AudioSample = void(*)(std::int16_t, std::int16_t);
@@ -91,6 +109,7 @@ struct StaticApi {
   void (*deinit)(){};
   bool (*load_game)(const GameInfo*){};
   void (*unload_game)(){};
+  void (*get_system_av_info)(SystemAvInfo*){};
   void (*run)(){};
   void (*reset)(){};
   std::size_t (*serialize_size)(){};
