@@ -49,5 +49,5 @@ Compile Vita3K core for PS5 with Dynarmic using ps5rt::jit and create a Vulkan d
 - [x] PS5 Xbyak executable-code allocator identified in Mihawk's fork
 - [x] allocator retargeted to shared `ps5rt_exec_*`
 - [x] final CPU policy: Dynarmic x86-64 JIT, not full interpretation
-- [ ] Vita3K core cross-compile against the shared allocator
+- [x] Shared Dynarmic A32+A64 x86-64 JIT archive cross-builds on PS5\n- [ ] Vita3K core cross-compile against the shared allocator
 - [ ] physical PS5 JIT/fastmem validation
