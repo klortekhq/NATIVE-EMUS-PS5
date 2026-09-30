@@ -60,6 +60,13 @@ bool VulkanProvider::initialize(
     shutdown();
     return false;
   }
+  if (presentation_.initialize &&
+      !presentation_.initialize(
+          instance_, surface_, context_,
+          get_instance_proc_addr_, get_device_proc_addr_)) {
+    shutdown();
+    return false;
+  }
   if (!publish_interface()) {
     shutdown();
     return false;
@@ -76,6 +83,9 @@ bool VulkanProvider::initialize(
 void VulkanProvider::shutdown() noexcept {
   if (environment_.context_live())
     environment_.context_destroy();
+
+  if (presentation_.shutdown)
+    presentation_.shutdown();
 
   const auto* negotiation = environment_.negotiation();
 
