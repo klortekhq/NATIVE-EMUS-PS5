@@ -1,26 +1,24 @@
 # Documentation Index
 
 - [Architecture](ARCHITECTURE.md)
+- [Complete system catalog](../systems/README.md)
+- [Emulator workspaces](../emulators/README.md)
+- [Porting matrix](PORTING-MATRIX.md)
 - [Project status](STATUS.md)
 - [Roadmap](ROADMAP.md)
 - [PS5 scene engineering references](SCENE-REFERENCES.md)
 - [Third-party and upstream policy](THIRD-PARTY.md)
-
-## Emulator plans
-
-- [PCSX2 / PS2](../emulators/pcsx2/README.md)
-- [Flycast / Dreamcast, Naomi, Atomiswave](../emulators/flycast/README.md)
-- [RPCS3 / PS3](../emulators/rpcs3/README.md)
-- [Vita3K / Vita](../emulators/vita3k/README.md)
-- [Cemu / Wii U](../emulators/cemu/README.md)
-- [xemu / Xbox](../emulators/xemu/README.md)
-- [Xenia / Xbox 360](../emulators/xenia/README.md)
-- [Switch-family research](../emulators/switch/README.md)
-- [PPSSPP / PSP](../emulators/ppsspp/README.md)
-- [Mupen64Plus / N64](../emulators/mupen64plus/README.md)
-- [Azahar / 3DS](../emulators/azahar/README.md)
-- [Dolphin / GameCube, Wii](../emulators/dolphin/README.md)
+- [Recovered artifacts](../artifacts/RECOVERED.md)
+- [M8 historical snapshot](../legacy/m8/README.md)
 
 ## Shared platform
 
-- [PS5 runtime](../runtime/README.md)
+- [PS5 runtime overview](../runtime/README.md)
+- [ps5rt public headers](../runtime/include/ps5rt)
+- [header compile smoke test](../runtime/tests/header_compile.cpp)
+
+## Where to start
+
+For a machine, begin in [`systems/`](../systems/README.md).  
+For a codebase, begin in [`emulators/`](../emulators/README.md).  
+For reusable PS5 host work, begin in [`runtime/`](../runtime/README.md).
