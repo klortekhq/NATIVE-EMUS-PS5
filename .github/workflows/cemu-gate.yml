@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'ports/cemu-ps5/**'
+      - 'tools/ps5/apply_cemu_ps5.py'
       - '.github/workflows/cemu-gate.yml'
   workflow_dispatch:
 
