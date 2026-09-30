@@ -131,6 +131,16 @@ if [[ -n "${PS5_NATIVE_TOOL:-}" ]]; then
   [[ -s "$OUT/artifacts/app_ps5.elf" && -s "$OUT/artifacts/eboot.bin" ]] || exit 7
 fi
 
+python3 "$ROOT/tools/ps5/write_artifact_manifest.py" \
+  --output-dir "$OUT/artifacts" \
+  --system "Magnavox Odyssey2 / Philips Videopac" \
+  --core "O2EM" \
+  --upstream "libretro/libretro-o2em" \
+  --pin "$PIN" \
+  --cpu-backend "upstream-interpreter" \
+  --graphics-backend "software -> ps5rt VideoOut" \
+  --artifact "$PIE"
+
 find "$OUT/artifacts" -maxdepth 1 -type f ! -name SHA256SUMS -print0 | \
   sort -z | xargs -0 sha256sum > "$OUT/artifacts/SHA256SUMS"
 
