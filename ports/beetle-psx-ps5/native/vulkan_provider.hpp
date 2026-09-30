@@ -27,6 +27,10 @@ struct VulkanPresentationHooks {
   std::function<void(uint32_t, const VkCommandBuffer*)> set_command_buffers;
   std::function<void()> wait_sync_index;
   std::function<void(VkSemaphore)> set_signal_semaphore;
+  // If supplied, these become the queue lock exposed to the core too, so
+  // frontend presentation and core worker submissions serialize identically.
+  std::function<void()> lock_queue;
+  std::function<void()> unlock_queue;
 };
 
 class VulkanProvider final {
