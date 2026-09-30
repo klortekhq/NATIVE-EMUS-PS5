@@ -386,6 +386,104 @@
       "status": "research",
       "group": "additional-discussed",
       "note": "historical discussed target; outside M8 baseline"
+    },
+    {
+      "id": "3do",
+      "name": "3DO Interactive Multiplayer",
+      "core": "Opera",
+      "status": "research",
+      "group": "additional-discussed",
+      "note": "historical discussed target; static/native PS5 port"
+    },
+    {
+      "id": "atarist",
+      "name": "Atari ST / STE / TT / Falcon",
+      "core": "Hatari",
+      "status": "research",
+      "group": "additional-discussed",
+      "note": "historical discussed target; standalone native port"
+    },
+    {
+      "id": "dos",
+      "name": "DOS / IBM PC compatibles",
+      "core": "DOSBox Staging",
+      "status": "research",
+      "group": "additional-discussed",
+      "note": "historical discussed target; standalone native port"
+    },
+    {
+      "id": "cdi",
+      "name": "Philips CD-i",
+      "core": "SAME CDi / MAME",
+      "status": "research",
+      "group": "additional-discussed",
+      "note": "historical discussed target; CD/VFS and firmware validation"
+    },
+    {
+      "id": "odyssey2",
+      "name": "Magnavox Odyssey2 / Philips Videopac G7000",
+      "core": "O2EM",
+      "status": "research",
+      "group": "additional-discussed",
+      "note": "historical discussed target"
+    },
+    {
+      "id": "cps1",
+      "name": "Capcom CPS-1",
+      "core": "FinalBurn Neo / MAME",
+      "status": "research",
+      "group": "arcade-board",
+      "note": "board-specific compatibility target"
+    },
+    {
+      "id": "cps2",
+      "name": "Capcom CPS-2",
+      "core": "FinalBurn Neo / MAME",
+      "status": "research",
+      "group": "arcade-board",
+      "note": "board-specific compatibility target"
+    },
+    {
+      "id": "cps3",
+      "name": "Capcom CPS-3",
+      "core": "FinalBurn Neo / MAME",
+      "status": "research",
+      "group": "arcade-board",
+      "note": "board-specific compatibility target"
+    },
+    {
+      "id": "naomi",
+      "name": "Sega Naomi",
+      "core": "Flycast",
+      "status": "research",
+      "group": "arcade-board",
+      "note": "shared Flycast x64 dynarec + Vulkan engine"
+    },
+    {
+      "id": "atomiswave",
+      "name": "Sammy Atomiswave",
+      "core": "Flycast",
+      "status": "research",
+      "group": "arcade-board",
+      "note": "shared Flycast x64 dynarec + Vulkan engine"
+    },
+    {
+      "id": "model2",
+      "name": "Sega Model 2",
+      "core": "MAME research / Model 2 reference",
+      "status": "research",
+      "group": "arcade-board",
+      "note": "no Wine/Windows-wrapper architecture"
+    },
+    {
+      "id": "model3",
+      "name": "Sega Model 3",
+      "core": "Supermodel",
+      "status": "research",
+      "group": "arcade-board",
+      "note": "standalone native port candidate"
     }
-  ]
+  ],
+  "coverage_count": 60,
+  "coverage_note": "Expanded from M8's 43 targets to all systems/hardware explicitly discussed in the project, with major arcade boards tracked separately."
 }
