@@ -332,3 +332,34 @@ jobs:
             build/ps5/dynarmic/artifacts/libdynarmic_ps5.a
             build/ps5/dynarmic/artifacts/SHA256SUMS
           if-no-files-found: error
+
+
+  ps5-cross-build-ppsspp-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Cross-build PPSSPP MIPS x86-64 JIT engine
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/ppsspp-ps5/build_engine_ps5.sh
+
+      - name: Upload PPSSPP PS5 JIT engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ppsspp-x64-jit-ps5-engine
+          path: |
+            build/ps5/ppsspp-engine/artifacts/libppsspp_core_ps5.a
+            build/ps5/ppsspp-engine/artifacts/libppsspp_common_ps5.a
+            build/ps5/ppsspp-engine/artifacts/BUILD-MANIFEST.json
+            build/ps5/ppsspp-engine/artifacts/SHA256SUMS
+          if-no-files-found: error
