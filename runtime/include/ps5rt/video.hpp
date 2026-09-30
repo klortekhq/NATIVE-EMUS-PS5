@@ -8,6 +8,7 @@
 namespace ps5rt {
 
 enum class PixelFormat : std::uint8_t {
+  rgb1555,
   rgb565,
   xrgb8888,
   argb8888,
