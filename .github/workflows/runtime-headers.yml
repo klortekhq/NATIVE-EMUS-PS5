@@ -16,6 +16,10 @@ on:
       - 'third_party/libretro/**'
       - '.github/workflows/runtime-headers.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   host-compile-smoke:
     runs-on: ubuntu-latest
