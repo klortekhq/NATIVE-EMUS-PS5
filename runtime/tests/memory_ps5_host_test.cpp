@@ -1,6 +1,7 @@
 #include <ps5rt/jit.hpp>
 #include <ps5rt/memory.hpp>
 #include <ps5rt/c/exec.h>
+#include <ps5rt/c/jit.h>
 #include <ps5rt/c/shm.h>
 #include <ps5rt/c/vmem.h>
 
@@ -155,6 +156,21 @@ int main() {
     assert(region.write_view.address != region.execute_view.address);
     assert(jit_handles.size() == 2);
     assert(ps5rt::destroy_jit_region(region));
+    assert(jit_handles.empty());
+    assert(mappings.empty());
+  }
+
+  {
+    ps5rt_jit_region c_region{};
+    assert(ps5rt_jit_create(
+               128 * 1024, 16 * 1024, PS5RT_JIT_DUAL_VIEW, &c_region) == 0);
+    assert(c_region.write_view);
+    assert(c_region.execute_view);
+    assert(c_region.write_view != c_region.execute_view);
+    assert(c_region.size >= 128 * 1024);
+    assert(ps5rt_jit_flush(&c_region, 0, 4096) == 0);
+    assert(ps5rt_jit_destroy(&c_region) == 0);
+    assert(!c_region.write_view && !c_region.execute_view && c_region.size == 0);
     assert(jit_handles.empty());
     assert(mappings.empty());
   }
