@@ -71,3 +71,32 @@ jobs:
             echo "compile $src -> $obj"
             g++ $CXXFLAGS $INC -c "$src" -o "$obj"
           done
+
+  ps5-cross-build-nes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build native NES FCEUmm
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          bash ports/nes-fceumm/build_ps5.sh
+          test -s build/ps5/nes-fceumm/artifacts/nes_fceumm_pie.elf
+
+      - name: Upload native NES build
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-nes-fceumm-ps5-pie
+          path: |
+            build/ps5/nes-fceumm/artifacts/nes_fceumm_pie.elf
+            build/ps5/nes-fceumm/artifacts/SHA256SUMS
+          if-no-files-found: error
