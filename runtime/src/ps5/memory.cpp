@@ -40,9 +40,11 @@ namespace {
 
 constexpr std::size_t kPageSize = 0x4000;
 constexpr std::size_t kLargeAlignment = 0x200000;
-constexpr int kDirectMemoryType = 12;
+constexpr int kDirectMemoryTypeCached = 11;
+constexpr int kDirectMemoryTypeCachedShared = 12;
 constexpr int kFlexibleMapFixed = 0x1;
 constexpr int kVirtualMapFixed = 0x10;
+constexpr int kVirtualMapNoOverwrite = 0x80;
 constexpr int kDirectMapFixed = 0x10;
 
 constexpr int kProtRead = 1;
@@ -100,7 +102,10 @@ std::mutex g_registry_mutex;
 std::unordered_map<void*, DirectRecord> g_direct_records;
 std::unordered_map<void*, ExecRecord> g_exec_records;
 
-int allocate_direct_block(std::size_t size, std::size_t alignment, long long& out_start) noexcept {
+int allocate_direct_block(std::size_t size,
+                          std::size_t alignment,
+                          int memory_type,
+                          long long& out_start) noexcept {
   const long long total = sceKernelGetDirectMemorySize();
   if (total <= 0) return -1;
 
@@ -108,7 +113,7 @@ int allocate_direct_block(std::size_t size, std::size_t alignment, long long& ou
   return sceKernelAllocateDirectMemory(
       0, total, static_cast<unsigned long long>(size),
       static_cast<unsigned long long>(normalized_alignment),
-      kDirectMemoryType, &out_start);
+      memory_type, &out_start);
 }
 
 int map_direct_block(long long direct_start,
@@ -182,7 +187,7 @@ extern "C" void* ps5rt_exec_allocate(std::size_t requested_size, std::uintptr_t 
   long long direct_start = -1;
   const std::size_t alignment =
       size >= kLargeAlignment ? kLargeAlignment : kPageSize;
-  if (allocate_direct_block(size, alignment, direct_start) != 0)
+  if (allocate_direct_block(size, alignment, kDirectMemoryTypeCachedShared, direct_start) != 0)
     return nullptr;
 
   void* mapped = nullptr;
@@ -226,7 +231,7 @@ extern "C" int ps5rt_shm_create(std::size_t requested_size, ps5rt_shm* out) {
 
   const std::size_t size = round_up(requested_size, kPageSize);
   long long direct_start = -1;
-  const int rc = allocate_direct_block(size, kPageSize, direct_start);
+  const int rc = allocate_direct_block(size, kPageSize, kDirectMemoryTypeCached, direct_start);
   if (rc != 0) return rc;
 
   out->handle = static_cast<std::uint64_t>(direct_start);
@@ -307,7 +312,7 @@ extern "C" int ps5rt_vrange_reserve(std::size_t requested_size,
   // still succeed at another legal address.
   int rc = sceKernelReserveVirtualRange(
       &address, static_cast<unsigned long long>(size),
-      hint ? kVirtualMapFixed : 0,
+      hint ? (kVirtualMapFixed | kVirtualMapNoOverwrite) : 0,
       static_cast<unsigned long long>(normalized_alignment));
   if (rc != 0 && hint) {
     address = nullptr;
@@ -443,7 +448,7 @@ Result allocate_memory(MemoryKind kind,
 
   if (kind == MemoryKind::direct) {
     long long direct_start = -1;
-    int rc = allocate_direct_block(size, alignment, direct_start);
+    int rc = allocate_direct_block(size, alignment, kDirectMemoryTypeCached, direct_start);
     if (rc != 0)
       return {ErrorCode::out_of_memory, rc, "direct memory allocation failed"};
 
