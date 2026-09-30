@@ -25,11 +25,7 @@ struct InputState {
   std::int16_t right_y{};
   std::int16_t l2{};
   std::int16_t r2{};
-
-  // Libretro keyboard key IDs are currently below 512. Keeping this as a
-  // bitset-like array avoids leaking PS5 HID key numbering into emulator cores.
   std::array<std::uint64_t, 8> keyboard{};
-
   std::int16_t mouse_x{};
   std::int16_t mouse_y{};
   std::int16_t mouse_wheel_x{};
@@ -71,9 +67,12 @@ public:
   [[nodiscard]] bool loaded() const noexcept { return loaded_; }
   [[nodiscard]] lr::PixelFormat pixel_format() const noexcept { return pixel_format_; }
   [[nodiscard]] const std::string& name() const noexcept { return name_; }
+  [[nodiscard]] const lr::SystemInfo& system_info() const noexcept { return system_info_; }
   [[nodiscard]] const lr::SystemAvInfo& av_info() const noexcept { return av_info_; }
 
   void set_option(std::string key, std::string value);
+  void* memory_data(unsigned id) noexcept;
+  std::size_t memory_size(unsigned id) const noexcept;
 
 private:
   friend bool environment_trampoline(unsigned, void*);
@@ -99,10 +98,12 @@ private:
   bool loaded_{};
   bool options_dirty_{};
   lr::PixelFormat pixel_format_{lr::PixelFormat::xrgb1555};
+  lr::SystemInfo system_info_{};
   lr::SystemAvInfo av_info_{};
   std::unordered_map<std::string, std::string> options_{};
   std::unordered_map<std::string, std::string> option_defaults_{};
   std::array<InputState, 4> input_cache_{};
+  std::vector<std::uint8_t> content_buffer_{};
 };
 
 } // namespace corehost
