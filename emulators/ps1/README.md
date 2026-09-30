@@ -1,6 +1,6 @@
 # PlayStation 1 emulator workspace
 
-## Progress: **30%**
+## Progress: **60%**
 
 Selected implementation: **Beetle PSX HW + Lightrec**.
 
@@ -46,6 +46,20 @@ The PS5 donor already provides:
 
 Our port re-enables Lightrec and backs its TLSF code pool with `ps5rt`.
 
+## Engine gate — complete
+
+Workflow **36781556800** produced the PS5 engine archive (artifact **11127512766**).
+
+Verified archive evidence:
+
+- size: 20,130,670 bytes;
+- SHA-256: `b709412d7cc3dbe815fcde63dc6daddfdf994fe96998a12ed148cc857df2deb2`;
+- contains `lightrec.o`, `recompiler.o`, `lightning.o`, `jit_memory.o`;
+- exports `lightrec_execute` and GNU Lightning `_jit_set_code`;
+- references `ps5rt_exec_allocate` and `ps5rt_exec_release`.
+
+This closes the engine cross-build and native CPU/JIT gates.
+
 ## Next
 
-The next score increase requires the PS5 cross-build job to produce a static archive that contains the Lightrec and GNU Lightning objects. After that the renderer and native service adapters become the next gates.
+The next score increase now comes from the native Vulkan hardware-context provider and the PS1 audio/input adapter. The engine is already cross-built with the required x86-64 recompiler.
