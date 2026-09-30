@@ -58,7 +58,19 @@ def transform(root: pathlib.Path) -> dict[pathlib.Path, str]:
 
     path = root / "CMakeLists.txt"
     text = path.read_text()
+    text = replace_once(
+        text,
+        'option(GOLD "Gold build" OFF)\n',
+        'option(GOLD "Gold build" OFF)\noption(PPSSPP_PS5 "Build native PlayStation 5 engine" OFF)\n',
+        "CMake PS5 option",
+    )
     text = replace_once(text, "if(NOT OPENGL_LIBRARIES)\n", "if(NOT OPENGL_LIBRARIES AND NOT PPSSPP_PS5)\n", "CMake OpenGL")
+    text = replace_once(
+        text,
+        "if(NOT LIBRETRO AND NOT IOS AND NOT MACOSX)\n",
+        "if(NOT LIBRETRO AND NOT IOS AND NOT MACOSX AND NOT PPSSPP_PS5)\n",
+        "CMake desktop SDL exclusion",
+    )
     text = replace_once(
         text,
         "target_compile_definitions(Common PRIVATE Z7_CRC_NUM_TABLES=1)\n",
@@ -86,6 +98,16 @@ if(NOT PPSSPP_PS5)
 endif()
 """,
         "CMake Vulkan-only",
+    )
+    out[path] = text
+
+    path = root / "ext/CMakeLists.txt"
+    text = path.read_text()
+    text = replace_once(
+        text,
+        "if(NOT USING_GLES2)\n\tadd_subdirectory(glew)\nendif()\n",
+        "if(NOT USING_GLES2 AND NOT PPSSPP_PS5)\n\tadd_subdirectory(glew)\nendif()\n",
+        "ext CMake GLEW exclusion",
     )
     out[path] = text
 
