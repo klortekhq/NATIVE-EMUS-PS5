@@ -405,3 +405,39 @@ jobs:
             build/ps5/vita3k-dynarmic/artifacts/ARTIFACT.json
             build/ps5/vita3k-dynarmic/artifacts/SHA256SUMS
           if-no-files-found: error
+
+  ps5-cross-build-mupen64plus-jit-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+          test -x /opt/ps5-payload-sdk/bin/prospero-ranlib
+
+      - name: Install N64 assembler dependency
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends nasm
+
+      - name: Cross-build Mupen64Plus R4300 + RSP x64 JIT engine
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/mupen64plus-ps5/build_engine_ps5.sh
+
+      - name: Upload Mupen64Plus PS5 JIT engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-mupen64plus-r4300-rsp-x64-ps5-engine
+          path: |
+            build/ps5/mupen64plus/artifacts/libmupen64plus_ps5_jit_engine.a
+            build/ps5/mupen64plus/artifacts/ARTIFACT.json
+            build/ps5/mupen64plus/artifacts/SHA256SUMS
+          if-no-files-found: error
