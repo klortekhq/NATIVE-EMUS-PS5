@@ -19,6 +19,7 @@ std::size_t audio_bytes{};
 float last_low{};
 float last_high{};
 int rumble_calls{};
+int present_calls{};
 }
 
 namespace ps5rt {
@@ -105,7 +106,14 @@ int main() {
   assert(input_init_calls == 1);
   assert(audio_open_calls == 1);
 
-  auto hooks = io.make_hooks(vulkan);
+  auto hooks = io.make_hooks(
+      vulkan,
+      [](std::uint32_t width, std::uint32_t height) {
+        assert(width == 320);
+        assert(height == 240);
+        ++present_calls;
+        return true;
+      });
 
   const auto p0 = hooks.input(0);
   const auto p1 = hooks.input(1);
@@ -119,6 +127,11 @@ int main() {
   assert(hooks.audio_batch(samples, 4) == 4);
   assert(audio_write_calls == 1);
   assert(audio_bytes == sizeof(samples));
+
+  hooks.video(
+      RETRO_HW_FRAME_BUFFER_VALID, 320, 240, 0,
+      corehost::lr::PixelFormat::xrgb8888);
+  assert(present_calls == 1);
 
   retro_rumble_interface rumble{};
   assert(hooks.environment(
