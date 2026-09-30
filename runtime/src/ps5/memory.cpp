@@ -64,6 +64,18 @@ std::size_t normalize_alignment(std::size_t alignment) noexcept {
   return round_up(alignment, kPageSize);
 }
 
+void align_range(void* address,
+                 std::size_t requested_size,
+                 void*& page_address,
+                 std::size_t& page_size) noexcept {
+  const auto start = reinterpret_cast<std::uintptr_t>(address);
+  const auto page_start = start & ~(static_cast<std::uintptr_t>(kPageSize) - 1);
+  const auto end = start + requested_size;
+  const auto page_end = round_up(end, kPageSize);
+  page_address = reinterpret_cast<void*>(page_start);
+  page_size = page_end - page_start;
+}
+
 int to_native_protection(ps5rt::Protection protection) noexcept {
   const auto bits = static_cast<std::uint8_t>(protection);
   int result = 0;
@@ -320,7 +332,10 @@ extern "C" int ps5rt_vmem_commit(void* address,
                                   std::size_t requested_size,
                                   unsigned flags) {
   if (!address || requested_size == 0) return -1;
-  const auto size = round_up(requested_size, kPageSize);
+
+  void* page_address = nullptr;
+  std::size_t size = 0;
+  align_range(address, requested_size, page_address, size);
 
   int protection = 0;
   if (flags & PS5RT_VMEM_READ) protection |= kProtRead;
@@ -328,11 +343,11 @@ extern "C" int ps5rt_vmem_commit(void* address,
   if (flags & PS5RT_VMEM_EXEC) protection |= kProtExec;
   if (protection == 0) return -1;
 
-  void* mapped = address;
+  void* mapped = page_address;
   int rc = sceKernelMapFlexibleMemory(
       &mapped, size, protection, kFlexibleMapFixed);
   if (rc != 0) return rc;
-  if (mapped != address) {
+  if (mapped != page_address) {
     (void)sceKernelReleaseFlexibleMemory(mapped, size);
     return -1;
   }
@@ -342,16 +357,19 @@ extern "C" int ps5rt_vmem_commit(void* address,
 extern "C" int ps5rt_vmem_decommit(void* address,
                                     std::size_t requested_size) {
   if (!address || requested_size == 0) return -1;
-  const auto size = round_up(requested_size, kPageSize);
 
-  int rc = sceKernelReleaseFlexibleMemory(address, size);
+  void* page_address = nullptr;
+  std::size_t size = 0;
+  align_range(address, requested_size, page_address, size);
+
+  int rc = sceKernelReleaseFlexibleMemory(page_address, size);
   if (rc != 0) return rc;
 
-  void* reserved = address;
+  void* reserved = page_address;
   rc = sceKernelReserveVirtualRange(
       &reserved, size, kVirtualMapFixed, kPageSize);
   if (rc != 0) return rc;
-  if (reserved != address) {
+  if (reserved != page_address) {
     (void)sceKernelMunmap(reserved, size);
     return -1;
   }
@@ -362,14 +380,17 @@ extern "C" int ps5rt_vmem_protect(void* address,
                                    std::size_t requested_size,
                                    unsigned flags) {
   if (!address || requested_size == 0) return -1;
-  const auto size = round_up(requested_size, kPageSize);
+
+  void* page_address = nullptr;
+  std::size_t size = 0;
+  align_range(address, requested_size, page_address, size);
 
   int protection = 0;
   if (flags & PS5RT_VMEM_READ) protection |= kProtRead;
   if (flags & PS5RT_VMEM_WRITE) protection |= kProtWrite;
   if (flags & PS5RT_VMEM_EXEC) protection |= kProtExec;
 
-  return sceKernelMprotect(address, size, protection);
+  return sceKernelMprotect(page_address, size, protection);
 }
 
 namespace ps5rt {
