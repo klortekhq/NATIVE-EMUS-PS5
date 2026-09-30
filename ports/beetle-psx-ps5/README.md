@@ -1,6 +1,6 @@
 # Beetle PSX HW PS5 — Lightrec x86-64 gate
 
-## Progress: **30%**
+## Progress: **60%**
 
 > This percentage describes **our native standalone PS5 port**, not the maturity of Beetle PSX itself or Mihawk's existing PS5 libretro work.
 
@@ -9,15 +9,15 @@
 | Gate | Weight | Current |
 |---|---:|---:|
 | Upstream/donor pinned + licensing/provenance mapped | 10% | 10% |
-| Reproducible PS5 engine cross-build | 15% | 0% — CI pending |
-| Native CPU recompiler/JIT | 25% | 10% — Lightrec→ps5rt source integration landed; PS5 cross-build pending |
+| Reproducible PS5 engine cross-build | 15% | **15% — green** |
+| Native CPU recompiler/JIT | 25% | **25% — Lightrec + GNU Lightning x86-64 verified in archive** |
 | Vulkan/RADV renderer | 15% | 5% — verified donor path exists; standalone integration pending |
 | Native audio/input | 10% | 5% — shared ps5rt backends exist; PS1 adapter pending |
 | VFS/disc/saves | 10% | 0% |
 | Native title/package shell | 5% | 0% |
 | Physical PS5 boot/game validation | 10% | 0% |
 
-**Total: 30 / 100**
+**Total: 60 / 100**
 
 The score only increases when a gate has reproducible evidence.
 
@@ -65,9 +65,23 @@ This donor already contains the PS5 Vulkan platform work and recent PS5-specific
 
 The build fails if the archive does not contain Lightrec, the threaded recompiler and GNU Lightning objects.
 
+## Engine evidence
+
+Workflow **36781556800** produced the PS5 engine archive (artifact **11127512766**).
+
+Verified archive evidence:
+
+- size: 20,130,670 bytes;
+- SHA-256: `b709412d7cc3dbe815fcde63dc6daddfdf994fe96998a12ed148cc857df2deb2`;
+- contains `lightrec.o`, `recompiler.o`, `lightning.o`, `jit_memory.o`;
+- exports `lightrec_execute` and GNU Lightning `_jit_set_code`;
+- references `ps5rt_exec_allocate` and `ps5rt_exec_release`.
+
+This closes the engine cross-build and native CPU/JIT gates.
+
 ## Next gates
 
-- make the Lightrec engine cross-build green in CI;
+- attach `ps5rt::input` + `AudioOut`;
 - attach `ps5rt::input` + `AudioOut`;
 - retain Beetle's Vulkan renderer on PS5 RADV;
 - wire CHD/CUE/PBP through native VFS/media;
