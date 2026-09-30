@@ -31,6 +31,7 @@ if(PS5RT_BUILD_PS5_BACKEND)
     src/ps5/audio.cpp
     src/ps5/input.cpp
     src/ps5/io.cpp
+    src/ps5/memory.cpp
     src/ps5/video.cpp
   )
   add_library(ps5rt::ps5 ALIAS ps5rt_ps5)
