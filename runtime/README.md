@@ -10,6 +10,8 @@ runtime/
     app.hpp
     audio.hpp
     input.hpp
+    io.hpp
+    media.hpp
     jit.hpp
     memory.hpp
     thread.hpp
@@ -76,7 +78,16 @@ Preferred host interface:
 - DualSense
 - multiple users/controllers
 - rumble
-- optional keyboard/mouse
+- keyboard through USB-HID usage state
+- mouse deltas/buttons/wheel
+
+### Optical media
+
+`ps5rt::media` provides a host-side disc source contract for systems that need random-access optical media without forcing a single generic disc parser onto every emulator.
+
+Primary consumers include Sega CD, Saturn, Dreamcast, PC Engine CD, Neo Geo CD, PC-FX, CD-i, 3DO, PS1 and PS2.
+
+Upstream CHD/CUE parsers remain inside the emulator when that is the cleaner/safer path; the shared layer mainly supplies storage/network readers.
 
 ### VFS
 
