@@ -92,3 +92,16 @@ These are especially useful for hardening AudioOut, DualSense, VFS, packaging an
 5. **portable cores:** use Snes9x/SameBoy/mGBA/Genesis Plus GX/Stella-class ports to validate audio/input/VFS/packaging;
 6. **Cemu/Dolphin/PPSSPP/N64/NDS/PS1/Saturn:** consolidate known scene fixes into standalone-native designs;
 7. **xemu/Xenia/MAME/Jaguar/Amiga:** maintain dedicated deeper-host tracks.
+
+
+### PlayStation / PS1 — 30%
+
+- Selected core: Beetle PSX HW.
+- Required CPU backend: Lightrec + GNU Lightning x86-64.
+- PS5 donor pinned at `mihawk-99/PS5_BeetlePSX@e43b3980e031c47066917c941be6ace6f51ed24f`.
+- Deterministic transform is green in host CI.
+- Transform re-enables Lightrec on PS5 and supplies its TLSF code pool through `ps5rt_exec_allocate()`.
+- Native PS5 engine cross-build is the current gate.
+- Vulkan/RADV, native app shell and physical-console validation remain after the CPU/JIT gate.
+
+See `systems/ps1/README.md` for the weighted percentage.
