@@ -62,16 +62,19 @@ HOST_SOURCES=(
  "$ROOT/runtime/src/ps5/audio.cpp"
  "$ROOT/runtime/src/ps5/input.cpp"
  "$ROOT/runtime/src/ps5/io.cpp"
+  "$ROOT/runtime/src/ps5/vfs.cpp"
+  "$ROOT/corehost/src/static_core.cpp"
+  "$ROOT/corehost/src/ps5rt_bridge.cpp"
+  "$ROOT/corehost/src/linked_core.cpp"
+  "$ROOT/corehost/src/ps5_runner.cpp"
  "$ROOT/runtime/src/ps5/video.cpp"
- "$ROOT/ports/common/libretro-static/native_libretro_host.cpp"
- "$ROOT/ports/common/libretro-static/linked_core.cpp"
  "$ROOT/ports/snes9x-ps5/main.cpp"
 )
 HOST_OBJECTS=()
 for src in "${HOST_SOURCES[@]}"; do
  rel="${src#$ROOT/}"; obj="$OUT/obj/${rel//\//_}.o"
  "$CXX" -std=c++20 -O3 -DNDEBUG -fno-exceptions -pthread \
-   -I"$ROOT/runtime/include" -I"$ROOT/third_party/libretro" -I"$ROOT/ports/common/libretro-static" \
+   -I"$ROOT/runtime/include" -I"$ROOT/corehost/include" \
    -c "$src" -o "$obj"
  HOST_OBJECTS+=("$obj")
 done
