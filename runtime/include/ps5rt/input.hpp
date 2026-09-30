@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 #include <ps5rt/result.hpp>
@@ -40,9 +41,33 @@ struct ControllerState {
   float r2{};
 };
 
+// USB HID keyboard usage IDs 0..255. Emulator-specific keyboard matrices stay
+// in the emulator; ps5rt only reports host key state.
+struct KeyboardState {
+  bool connected{};
+  std::array<std::uint64_t, 4> pressed{}; // 256 HID usages
+
+  [[nodiscard]] constexpr bool is_pressed(std::uint8_t usage) const noexcept {
+    const auto word = static_cast<std::size_t>(usage >> 6);
+    const auto bit = static_cast<std::uint64_t>(usage & 63u);
+    return (pressed[word] & (std::uint64_t{1} << bit)) != 0;
+  }
+};
+
+struct MouseState {
+  bool connected{};
+  std::int32_t delta_x{};
+  std::int32_t delta_y{};
+  std::int32_t wheel_x{};
+  std::int32_t wheel_y{};
+  std::uint32_t buttons{};
+};
+
 struct InputSnapshot {
   static constexpr std::size_t max_controllers = 4;
   std::array<ControllerState, max_controllers> controllers{};
+  KeyboardState keyboard{};
+  MouseState mouse{};
 };
 
 Result initialize_input() noexcept;
