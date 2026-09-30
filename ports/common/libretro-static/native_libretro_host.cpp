@@ -279,6 +279,19 @@ bool NativeHost::environment(unsigned cmd, void* data) noexcept {
     case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS:
       return true;
 
+    case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE:
+      if (!data) return true;
+      *static_cast<retro_av_enable_flags*>(data) =
+          static_cast<retro_av_enable_flags>(
+              RETRO_AV_ENABLE_VIDEO | RETRO_AV_ENABLE_AUDIO);
+      return true;
+
+    case RETRO_ENVIRONMENT_GET_SAVESTATE_CONTEXT:
+      if (!data) return true;
+      *static_cast<retro_savestate_context*>(data) =
+          RETRO_SAVESTATE_CONTEXT_NORMAL;
+      return true;
+
     case RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION:
       if (!data) return false;
       *static_cast<unsigned*>(data) = 0;
@@ -361,6 +374,8 @@ bool NativeHost::environment(unsigned cmd, void* data) noexcept {
     case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
     case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS:
     case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
+    case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO:
+    case RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS:
     case RETRO_ENVIRONMENT_SET_MEMORY_MAPS:
     case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
     case RETRO_ENVIRONMENT_SET_CONTENT_INFO_OVERRIDE:
@@ -368,6 +383,9 @@ bool NativeHost::environment(unsigned cmd, void* data) noexcept {
       return true;
 
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK:
+    case RETRO_ENVIRONMENT_GET_LED_INTERFACE:
+    case RETRO_ENVIRONMENT_SET_AUDIO_BUFFER_STATUS_CALLBACK:
+    case RETRO_ENVIRONMENT_SET_MINIMUM_AUDIO_LATENCY:
     case RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER:
     case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
     case RETRO_ENVIRONMENT_GET_GAME_INFO_EXT:
