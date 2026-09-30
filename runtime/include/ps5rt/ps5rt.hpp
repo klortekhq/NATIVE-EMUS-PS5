@@ -14,3 +14,4 @@
 #include <ps5rt/tls.hpp>
 #include <ps5rt/vfs.hpp>
 #include <ps5rt/vulkan.hpp>
+#include <ps5rt/video.hpp>
