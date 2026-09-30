@@ -37,9 +37,9 @@
     {
       "workspace": "vita3k",
       "upstream_url": "https://github.com/Vita3K/Vita3K",
-      "upstream_revision": null,
-      "license": null,
-      "pin_status": "repository-verified-revision-pending",
+      "upstream_revision": "df9b18ee645043fca88d17b95b0991bde5977bb1",
+      "license": "GNU GPL v2 license text present in COPYING.txt; third-party inventory pending",
+      "pin_status": "pinned-for-first-ps5-bringup",
       "ps5_scene_references": [
         "https://github.com/mihawk-99/PS5_Dynarmic"
       ]
