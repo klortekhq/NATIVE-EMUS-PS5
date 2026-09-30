@@ -120,6 +120,26 @@ build_variant mastersystem main_mastersystem.cpp mastersystem_genesis_plus_gx_pi
 build_variant gamegear main_gamegear.cpp gamegear_genesis_plus_gx_pie.elf
 build_variant megadrive main_megadrive.cpp megadrive_genesis_plus_gx_pie.elf
 
+for spec in \
+  "Sega SG-1000|sg1000_genesis_plus_gx_pie.elf" \
+  "Sega Master System|mastersystem_genesis_plus_gx_pie.elf" \
+  "Sega Game Gear|gamegear_genesis_plus_gx_pie.elf" \
+  "Mega Drive / Genesis|megadrive_genesis_plus_gx_pie.elf"; do
+  IFS='|' read -r system artifact <<<"$spec"
+  python3 "$ROOT/tools/ps5/write_artifact_manifest.py" \
+    --output-dir "$OUT/artifacts" \
+    --system "$system" \
+    --core "Genesis Plus GX" \
+    --upstream "libretro/Genesis-Plus-GX" \
+    --pin "$PIN" \
+    --cpu-backend "upstream-interpreter" \
+    --graphics-backend "software -> ps5rt VideoOut" \
+    --artifact "$artifact"
+  manifest_base="${artifact%.elf}"
+  mv "$OUT/artifacts/BUILD-MANIFEST.json" \
+     "$OUT/artifacts/${manifest_base}.manifest.json"
+done
+
 find "$OUT/artifacts" -maxdepth 1 -type f ! -name SHA256SUMS -print0 | \
   sort -z | xargs -0 sha256sum > "$OUT/artifacts/SHA256SUMS"
 echo "Genesis Plus GX PS5 cartridge-family builds complete"
