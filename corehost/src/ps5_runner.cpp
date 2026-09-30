@@ -15,6 +15,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 
 extern "C" std::int32_t sceKernelUsleep(std::uint32_t microseconds);
 
@@ -231,7 +232,7 @@ int run_linked_core_ps5(
       const auto& pad = snapshot.controllers[0];
       if (pad.connected &&
           pressed(pad, ps5rt::Button::options) &&
-          pressed(pad, ps5rt::Button::create)) {
+          pressed(pad, ps5rt::Button::touchpad)) {
         quit = true;
       }
     }
