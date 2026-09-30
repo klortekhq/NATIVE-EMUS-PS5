@@ -1,10 +1,8 @@
-#include "../common/libretro-static/linked_core.hpp"
+#include <corehost/linked_core.hpp>
+#include <corehost/ps5_runner.hpp>
 
 int main() {
-  const native_emu::libretro::PortConfig config{
-      "NATIVE SNES - Snes9x",
-      "SNES",
-      "game.sfc",
-  };
-  return native_emu::libretro::run_linked_port(config);
+  return corehost::run_linked_core_ps5(
+      {"NATIVE SNES - Snes9x", "SNES", "game.sfc"},
+      corehost::linked_core_api());
 }
