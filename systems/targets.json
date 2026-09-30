@@ -1,0 +1,391 @@
+{
+  "schema_version": 1,
+  "updated": "2026-09-30",
+  "baseline_m8_count": 43,
+  "targets": [
+    {
+      "id": "nes",
+      "name": "Nintendo Entertainment System",
+      "core": "Mesen 2 / FCEUmm",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "native NES alpha recovered from M7; choose clean long-term core"
+    },
+    {
+      "id": "snes",
+      "name": "Super Nintendo / Super Famicom",
+      "core": "Snes9x / bsnes",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "standalone native port target"
+    },
+    {
+      "id": "gb",
+      "name": "Game Boy",
+      "core": "SameBoy / Gambatte",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "shared GB/GBC port candidate"
+    },
+    {
+      "id": "gbc",
+      "name": "Game Boy Color",
+      "core": "SameBoy / Gambatte",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "shared GB/GBC port candidate"
+    },
+    {
+      "id": "gba",
+      "name": "Game Boy Advance",
+      "core": "mGBA",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "native ARM7TDMI emulation target"
+    },
+    {
+      "id": "virtualboy",
+      "name": "Virtual Boy",
+      "core": "Beetle VB / Mednafen",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "M8 baseline target"
+    },
+    {
+      "id": "n64",
+      "name": "Nintendo 64",
+      "core": "Mupen64Plus",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "existing PS5 scene work; standalone native target"
+    },
+    {
+      "id": "nds",
+      "name": "Nintendo DS",
+      "core": "DeSmuME / melonDS",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "PS5_DeSmuME exists; native standalone extraction target"
+    },
+    {
+      "id": "3ds",
+      "name": "Nintendo 3DS",
+      "core": "Azahar",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "Dynarmic + Vulkan path"
+    },
+    {
+      "id": "gamecube",
+      "name": "Nintendo GameCube",
+      "core": "Dolphin",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "x86-64 JIT + Vulkan"
+    },
+    {
+      "id": "wii",
+      "name": "Nintendo Wii",
+      "core": "Dolphin",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "shared Dolphin core; motion/IR PS5 UX required"
+    },
+    {
+      "id": "wiiu",
+      "name": "Nintendo Wii U",
+      "core": "Cemu",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "PPC recompiler + Vulkan; headless-first"
+    },
+    {
+      "id": "sg1000",
+      "name": "Sega SG-1000",
+      "core": "Genesis Plus GX",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "8-bit Sega family"
+    },
+    {
+      "id": "mastersystem",
+      "name": "Sega Master System",
+      "core": "Genesis Plus GX",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "8-bit Sega family"
+    },
+    {
+      "id": "gamegear",
+      "name": "Sega Game Gear",
+      "core": "Genesis Plus GX",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "8-bit Sega family"
+    },
+    {
+      "id": "megadrive",
+      "name": "Mega Drive / Genesis",
+      "core": "Genesis Plus GX",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "16-bit Sega family"
+    },
+    {
+      "id": "segacd",
+      "name": "Sega CD / Mega-CD",
+      "core": "Genesis Plus GX",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "CD/VFS integration required"
+    },
+    {
+      "id": "sega32x",
+      "name": "Sega 32X",
+      "core": "PicoDrive",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "SH2 dynarec/JIT candidate"
+    },
+    {
+      "id": "saturn",
+      "name": "Sega Saturn",
+      "core": "Beetle Saturn / Mednafen",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "PS5_BeetleSaturn exists; standalone target"
+    },
+    {
+      "id": "dreamcast",
+      "name": "Dreamcast / Naomi / Atomiswave",
+      "core": "Flycast",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "high-priority standalone x86-64 dynarec + Vulkan port"
+    },
+    {
+      "id": "wonderswan",
+      "name": "WonderSwan / WonderSwan Color",
+      "core": "Beetle WonderSwan / Mednafen",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "M8 baseline target"
+    },
+    {
+      "id": "ps1",
+      "name": "PlayStation",
+      "core": "Beetle PSX HW / DuckStation",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "PS5_BeetlePSX exists; standalone native target"
+    },
+    {
+      "id": "ps2",
+      "name": "PlayStation 2",
+      "core": "PCSX2 / PS5SX2",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "native x86-64 recompilers + Vulkan; primary reference"
+    },
+    {
+      "id": "ps3",
+      "name": "PlayStation 3",
+      "core": "RPCS3 / PS5_RPCS3",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "active LLVM/SPU/RADV PS5 research"
+    },
+    {
+      "id": "psp",
+      "name": "PlayStation Portable",
+      "core": "PPSSPP",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "public PS5-specific work exists"
+    },
+    {
+      "id": "vita",
+      "name": "PlayStation Vita",
+      "core": "Vita3K",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "Dynarmic + Vulkan"
+    },
+    {
+      "id": "xbox",
+      "name": "Xbox",
+      "core": "xemu",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "QEMU-derived machine model + Vulkan"
+    },
+    {
+      "id": "xbox360",
+      "name": "Xbox 360",
+      "core": "Xenia",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "x64 backend + Vulkan research"
+    },
+    {
+      "id": "mame",
+      "name": "Arcade / MAME",
+      "core": "MAME",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "PS5_MAME exists; broad preservation target"
+    },
+    {
+      "id": "neogeo",
+      "name": "Neo Geo AES / MVS",
+      "core": "FinalBurn Neo / MAME",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "shared arcade/SNK target"
+    },
+    {
+      "id": "ngp",
+      "name": "Neo Geo Pocket / Color",
+      "core": "Beetle NeoPop",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "M8 baseline target"
+    },
+    {
+      "id": "atari2600",
+      "name": "Atari 2600",
+      "core": "Stella",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "native standalone target"
+    },
+    {
+      "id": "atari5200",
+      "name": "Atari 5200",
+      "core": "Atari800",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "shared Atari 8-bit lineage"
+    },
+    {
+      "id": "atari7800",
+      "name": "Atari 7800",
+      "core": "ProSystem",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "native standalone target"
+    },
+    {
+      "id": "atarilynx",
+      "name": "Atari Lynx",
+      "core": "Beetle Lynx / Handy",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "native standalone target"
+    },
+    {
+      "id": "atarijaguar",
+      "name": "Atari Jaguar",
+      "core": "Virtual Jaguar",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "native standalone target"
+    },
+    {
+      "id": "c64",
+      "name": "Commodore 64",
+      "core": "VICE",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "PS5_VICE exists; standalone target"
+    },
+    {
+      "id": "msx",
+      "name": "MSX / MSX2",
+      "core": "blueMSX",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "native standalone target"
+    },
+    {
+      "id": "zxspectrum",
+      "name": "ZX Spectrum",
+      "core": "Fuse",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "native standalone target"
+    },
+    {
+      "id": "colecovision",
+      "name": "ColecoVision",
+      "core": "Gearcoleco / blueMSX",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "native standalone target"
+    },
+    {
+      "id": "pcengine",
+      "name": "PC Engine / TurboGrafx-16",
+      "core": "Beetle PCE Fast / Mednafen",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "NEC family"
+    },
+    {
+      "id": "pcenginecd",
+      "name": "PC Engine CD / TurboGrafx-CD",
+      "core": "Beetle PCE / Mednafen",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "CD/VFS integration required"
+    },
+    {
+      "id": "supergrafx",
+      "name": "SuperGrafx",
+      "core": "Beetle SuperGrafx / Mednafen",
+      "status": "research",
+      "group": "m8-baseline",
+      "note": "M8 baseline target"
+    },
+    {
+      "id": "switch",
+      "name": "Nintendo Switch",
+      "core": "Eden-derived / ProsperoEden reference",
+      "status": "research",
+      "group": "additional-discussed",
+      "note": "discussed after M8; native Dynarmic + Vulkan/RADV reference"
+    },
+    {
+      "id": "neogeocd",
+      "name": "Neo Geo CD",
+      "core": "NeoCD / FinalBurn Neo",
+      "status": "research",
+      "group": "additional-discussed",
+      "note": "historical discussed target; outside M8 baseline"
+    },
+    {
+      "id": "pcfx",
+      "name": "NEC PC-FX",
+      "core": "Beetle PC-FX / Mednafen",
+      "status": "research",
+      "group": "additional-discussed",
+      "note": "historical discussed target; outside M8 baseline"
+    },
+    {
+      "id": "intellivision",
+      "name": "Intellivision",
+      "core": "FreeIntv",
+      "status": "research",
+      "group": "additional-discussed",
+      "note": "historical discussed target; outside M8 baseline"
+    },
+    {
+      "id": "amiga",
+      "name": "Commodore Amiga",
+      "core": "PUAE",
+      "status": "research",
+      "group": "additional-discussed",
+      "note": "historical discussed target; outside M8 baseline"
+    }
+  ]
+}
