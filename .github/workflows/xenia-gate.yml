@@ -60,11 +60,11 @@ jobs:
         run: |
           set -euo pipefail
           git -C /tmp/xenia submodule update --init --depth 1             third_party/fmt third_party/cpptoml third_party/cxxopts third_party/xbyak third_party/capstone third_party/date
-          /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG             -I/tmp/xenia             -I/tmp/xenia/src             -I"$GITHUB_WORKSPACE/runtime/include"             -c /tmp/xenia/src/xenia/cpu/backend/x64/x64_code_cache.cc             -o /tmp/xenia_x64_code_cache.o
+          /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG -fno-operator-names             -I/tmp/xenia             -I/tmp/xenia/src             -I"$GITHUB_WORKSPACE/runtime/include"             -c /tmp/xenia/src/xenia/cpu/backend/x64/x64_code_cache.cc             -o /tmp/xenia_x64_code_cache.o
           test -s /tmp/xenia_x64_code_cache.o
 
       - name: Cross-compile Xenia x64 backend
         run: |
           set -euo pipefail
-          /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG             -I/tmp/xenia             -I/tmp/xenia/src             -I"$GITHUB_WORKSPACE/runtime/include"             -c /tmp/xenia/src/xenia/cpu/backend/x64/x64_backend.cc             -o /tmp/xenia_x64_backend.o
+          /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG -fno-operator-names             -I/tmp/xenia             -I/tmp/xenia/src             -I"$GITHUB_WORKSPACE/runtime/include"             -c /tmp/xenia/src/xenia/cpu/backend/x64/x64_backend.cc             -o /tmp/xenia_x64_backend.o
           test -s /tmp/xenia_x64_backend.o
