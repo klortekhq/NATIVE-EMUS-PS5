@@ -65,6 +65,6 @@ jobs:
           name: native-beetle-psx-hw-lightrec-x64-ps5-engine
           path: |
             build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
-            build/ps5/beetle-psx/artifacts/ARTIFACT.json
+            build/ps5/beetle-psx/artifacts/BUILD-MANIFEST.json
             build/ps5/beetle-psx/artifacts/SHA256SUMS
           if-no-files-found: error
