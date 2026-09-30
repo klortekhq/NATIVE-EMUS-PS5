@@ -343,6 +343,29 @@ extern "C" int ps5rt_vrange_reserve(std::size_t requested_size,
   return 0;
 }
 
+extern "C" int ps5rt_vrange_reserve_fixed(std::size_t requested_size,
+                                           void* requested_address,
+                                           std::size_t alignment,
+                                           void** out) {
+  if (!out || !requested_address || requested_size == 0) return -1;
+
+  const auto normalized_alignment = normalize_alignment(alignment);
+  const auto size = round_up(requested_size, kPageSize);
+  void* address = requested_address;
+  const int rc = sceKernelReserveVirtualRange(
+      &address, static_cast<unsigned long long>(size),
+      kVirtualMapFixed | kVirtualMapNoOverwrite,
+      static_cast<unsigned long long>(normalized_alignment));
+  if (rc != 0) return rc;
+  if (address != requested_address) {
+    (void)sceKernelMunmap(address, static_cast<unsigned long long>(size));
+    return -1;
+  }
+
+  *out = address;
+  return 0;
+}
+
 extern "C" int ps5rt_vrange_release(void* address, std::size_t requested_size) {
   if (!address || requested_size == 0) return -1;
   const auto size = round_up(requested_size, kPageSize);
