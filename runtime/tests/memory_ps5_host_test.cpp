@@ -1,0 +1,148 @@
+#include <ps5rt/jit.hpp>
+#include <ps5rt/memory.hpp>
+#include <ps5rt/c/exec.h>
+#include <ps5rt/c/shm.h>
+
+#include <cassert>
+#include <cstddef>
+#include <cstdlib>
+#include <unordered_map>
+
+namespace {
+int next_fd = 10;
+long long next_direct = 0x200000;
+std::unordered_map<int, std::size_t> jit_handles;
+std::unordered_map<long long, std::size_t> direct_blocks;
+std::unordered_map<void*, std::size_t> mappings;
+}
+
+extern "C" int sceKernelJitCreateSharedMemory(int, unsigned long long size, int, int* out) {
+  *out = next_fd++;
+  jit_handles[*out] = static_cast<std::size_t>(size);
+  return 0;
+}
+extern "C" int sceKernelJitCreateAliasOfSharedMemory(int source, int, int* out) {
+  auto it = jit_handles.find(source);
+  if (it == jit_handles.end()) return -1;
+  *out = next_fd++;
+  jit_handles[*out] = it->second;
+  return 0;
+}
+extern "C" int sceKernelJitMapSharedMemory(int fd, int, void** out) {
+  auto it = jit_handles.find(fd);
+  if (it == jit_handles.end()) return -1;
+  *out = std::malloc(it->second);
+  if (!*out) return -1;
+  mappings[*out] = it->second;
+  return 0;
+}
+extern "C" int sceKernelClose(int fd) {
+  jit_handles.erase(fd);
+  return 0;
+}
+
+extern "C" int sceKernelMapFlexibleMemory(void** out, std::size_t size, int, int) {
+  if (!*out) *out = std::malloc(size);
+  if (!*out) return -1;
+  mappings[*out] = size;
+  return 0;
+}
+extern "C" int sceKernelMapNamedFlexibleMemory(void** out, std::size_t size, int prot, int flags, const char*) {
+  return sceKernelMapFlexibleMemory(out, size, prot, flags);
+}
+extern "C" int sceKernelReleaseFlexibleMemory(void* p, std::size_t) {
+  auto it = mappings.find(p);
+  if (it != mappings.end()) {
+    std::free(p);
+    mappings.erase(it);
+  }
+  return 0;
+}
+extern "C" int sceKernelAvailableFlexibleMemorySize(unsigned long long* out) {
+  *out = 256ull * 1024 * 1024;
+  return 0;
+}
+
+extern "C" long long sceKernelGetDirectMemorySize(void) {
+  return 2ll * 1024 * 1024 * 1024;
+}
+extern "C" int sceKernelAllocateDirectMemory(long long, long long, unsigned long long size,
+                                              unsigned long long, int, long long* out) {
+  *out = next_direct;
+  next_direct += static_cast<long long>(size);
+  direct_blocks[*out] = static_cast<std::size_t>(size);
+  return 0;
+}
+extern "C" int sceKernelMapDirectMemory(void** out, unsigned long long size, int, int,
+                                         long long, unsigned long long) {
+  if (!*out) *out = std::malloc(static_cast<std::size_t>(size));
+  if (!*out) return -1;
+  mappings[*out] = static_cast<std::size_t>(size);
+  return 0;
+}
+extern "C" int sceKernelReleaseDirectMemory(long long start, unsigned long long) {
+  direct_blocks.erase(start);
+  return 0;
+}
+extern "C" int sceKernelMprotect(const void*, unsigned long long, int) {
+  return 0;
+}
+extern "C" int sceKernelMunmap(void* p, unsigned long long) {
+  auto it = mappings.find(p);
+  if (it != mappings.end()) {
+    std::free(p);
+    mappings.erase(it);
+  }
+  return 0;
+}
+extern "C" int sceKernelReserveVirtualRange(void** out, unsigned long long size, int, unsigned long long) {
+  if (!*out) *out = std::malloc(static_cast<std::size_t>(size));
+  if (!*out) return -1;
+  mappings[*out] = static_cast<std::size_t>(size);
+  return 0;
+}
+
+int main() {
+  {
+    ps5rt::JitRegion region{};
+    ps5rt::JitRequest request{64 * 1024, 16 * 1024, "dual-jit", true};
+    assert(ps5rt::create_jit_region(request, region));
+    assert(region.write_view.address);
+    assert(region.execute_view.address);
+    assert(region.write_view.address != region.execute_view.address);
+    assert(jit_handles.size() == 2);
+    assert(ps5rt::destroy_jit_region(region));
+    assert(jit_handles.empty());
+    assert(mappings.empty());
+  }
+
+  {
+    void* code = ps5rt_exec_allocate(64 * 1024, 0);
+    assert(code);
+    assert(jit_handles.size() == 1);
+    ps5rt_exec_release(code);
+    assert(jit_handles.empty());
+    assert(mappings.empty());
+  }
+
+  {
+    ps5rt_shm shm{};
+    assert(ps5rt_shm_create(3 * 1024 * 1024, &shm) == 0);
+    void* view = nullptr;
+    assert(ps5rt_shm_map(&shm, 0, 0x4000, nullptr,
+                         PS5RT_SHM_READ | PS5RT_SHM_WRITE, 0, &view) == 0);
+    assert(view);
+    assert(ps5rt_shm_unmap(view, 0x4000, 0) == 0);
+    ps5rt_shm_destroy(&shm);
+    assert(shm.handle == 0);
+    assert(direct_blocks.empty());
+  }
+
+  {
+    std::size_t bytes = 0;
+    assert(ps5rt::query_available_memory(ps5rt::MemoryKind::flexible, bytes));
+    assert(bytes == 256ull * 1024 * 1024);
+  }
+
+  return 0;
+}
