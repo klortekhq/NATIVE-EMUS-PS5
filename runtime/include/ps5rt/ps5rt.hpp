@@ -7,5 +7,6 @@
 #include <ps5rt/memory.hpp>
 #include <ps5rt/result.hpp>
 #include <ps5rt/thread.hpp>
+#include <ps5rt/tls.hpp>
 #include <ps5rt/vfs.hpp>
 #include <ps5rt/vulkan.hpp>
