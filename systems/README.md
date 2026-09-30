@@ -48,13 +48,29 @@ This directory is the canonical list of machines NATIVE-EMUS-PS5 intends to pres
 - [PC Engine CD / TurboGrafx-CD](pcenginecd/README.md) — Beetle PCE / Mednafen
 - [SuperGrafx](supergrafx/README.md) — Beetle SuperGrafx / Mednafen
 
-## Additional systems discussed after / outside the M8 baseline
+## Expanded coverage — 17 additional hardware targets
+
+The project baseline is now **60 distinct systems / hardware families**.
 
 - [Nintendo Switch](switch/README.md) — Eden-derived / ProsperoEden reference
 - [Neo Geo CD](neogeocd/README.md) — NeoCD / FinalBurn Neo
 - [NEC PC-FX](pcfx/README.md) — Beetle PC-FX / Mednafen
 - [Intellivision](intellivision/README.md) — FreeIntv
 - [Commodore Amiga](amiga/README.md) — PUAE
+- [3DO Interactive Multiplayer](3do/README.md) — Opera
+- [Atari ST / STE / TT / Falcon](atarist/README.md) — Hatari
+- [DOS / IBM PC compatibles](dos/README.md) — DOSBox Staging
+- [Philips CD-i](cdi/README.md) — SAME CDi / MAME
+- [Magnavox Odyssey2 / Philips Videopac](odyssey2/README.md) — O2EM
+- [Capcom CPS-1](cps1/README.md) — FinalBurn Neo / MAME
+- [Capcom CPS-2](cps2/README.md) — FinalBurn Neo / MAME
+- [Capcom CPS-3](cps3/README.md) — FinalBurn Neo / MAME
+- [Sega Naomi](naomi/README.md) — Flycast
+- [Sammy Atomiswave](atomiswave/README.md) — Flycast
+- [Sega Model 2](model2/README.md) — MAME research
+- [Sega Model 3](model3/README.md) — Supermodel
+
+See [the complete 60-target matrix](../docs/COMPLETE-SYSTEM-MATRIX.md).
 
 ## Meaning of a system target
 
