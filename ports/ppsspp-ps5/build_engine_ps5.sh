@@ -24,7 +24,7 @@ python3 "$ROOT/tools/ps5/apply_ppsspp_native.py" "$SRC"
 PPSSPP_SOURCE_DIR="$SRC" \
   PPSSPP_BUILD_DIR="$OUT/build" \
   PS5_PAYLOAD_SDK="$PS5_PAYLOAD_SDK" \
-  "$ROOT/tools/ps5/build_ppsspp_engine_archives.sh" "$SRC"
+  bash "$ROOT/tools/ps5/build_ppsspp_engine_archives.sh" "$SRC"
 
 BUILD="$OUT/build"
 CORE="$(find "$BUILD" -type f -name 'libCore.a' -print -quit)"
