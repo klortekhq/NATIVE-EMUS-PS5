@@ -34,7 +34,7 @@ extern "C" int sceKernelJitMapSharedMemory(int fd, int, void** out) {
   if (it == jit_handles.end()) return -1;
   *out = std::malloc(it->second);
   if (!*out) return -1;
-  mapping_owned[*out] = (*out == nullptr);
+  mapping_owned[*out] = true;
   mappings[*out] = it->second;
   return 0;
 }
@@ -44,9 +44,10 @@ extern "C" int sceKernelClose(int fd) {
 }
 
 extern "C" int sceKernelMapFlexibleMemory(void** out, std::size_t size, int, int) {
+  const bool owned = (*out == nullptr);
   if (!*out) *out = std::malloc(size);
   if (!*out) return -1;
-  mapping_owned[*out] = (*out == nullptr);
+  mapping_owned[*out] = owned;
   mappings[*out] = size;
   return 0;
 }
@@ -56,7 +57,8 @@ extern "C" int sceKernelMapNamedFlexibleMemory(void** out, std::size_t size, int
 extern "C" int sceKernelReleaseFlexibleMemory(void* p, std::size_t) {
   auto it = mappings.find(p);
   if (it != mappings.end()) {
-    std::free(p);
+    if (mapping_owned[p]) std::free(p);
+    mapping_owned.erase(p);
     mappings.erase(it);
   }
   return 0;
@@ -78,9 +80,10 @@ extern "C" int sceKernelAllocateDirectMemory(long long, long long, unsigned long
 }
 extern "C" int sceKernelMapDirectMemory(void** out, unsigned long long size, int, int,
                                          long long, unsigned long long) {
+  const bool owned = (*out == nullptr);
   if (!*out) *out = std::malloc(static_cast<std::size_t>(size));
   if (!*out) return -1;
-  mapping_owned[*out] = (*out == nullptr);
+  mapping_owned[*out] = owned;
   mappings[*out] = static_cast<std::size_t>(size);
   return 0;
 }
@@ -100,9 +103,10 @@ extern "C" int sceKernelMunmap(void* p, unsigned long long) {
   return 0;
 }
 extern "C" int sceKernelReserveVirtualRange(void** out, unsigned long long size, int, unsigned long long) {
+  const bool owned = (*out == nullptr);
   if (!*out) *out = std::malloc(static_cast<std::size_t>(size));
   if (!*out) return -1;
-  mapping_owned[*out] = (*out == nullptr);
+  mapping_owned[*out] = owned;
   mappings[*out] = static_cast<std::size_t>(size);
   return 0;
 }
