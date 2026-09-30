@@ -18,6 +18,7 @@ void retro_init(void);
 void retro_deinit(void);
 bool retro_load_game(const corehost::lr::GameInfo*);
 void retro_unload_game(void);
+void retro_get_system_av_info(corehost::lr::SystemAvInfo*);
 void retro_run(void);
 void retro_reset(void);
 std::size_t retro_serialize_size(void);
@@ -44,6 +45,7 @@ int main(int argc, char** argv) {
       retro_deinit,
       retro_load_game,
       retro_unload_game,
+      retro_get_system_av_info,
       retro_run,
       retro_reset,
       retro_serialize_size,
@@ -70,6 +72,12 @@ int main(int argc, char** argv) {
   if (!core.initialized()) {
     std::cerr << name << ": lifecycle invariant failed\n";
     return 4;
+  }
+
+  const auto& av = core.av_info();
+  if (av.timing.sample_rate <= 0.0 || av.timing.fps <= 0.0) {
+    std::cerr << name << ": invalid AV timing from core\n";
+    return 5;
   }
 
   core.shutdown();
