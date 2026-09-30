@@ -78,3 +78,41 @@ jobs:
           EOF
           /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG             -I/tmp/llvm-config/include             -I/tmp/llvm/llvm/include             -c /tmp/ps5_llvm_abi_probe.cpp             -o /tmp/ps5_llvm_abi_probe.o
           test -s /tmp/ps5_llvm_abi_probe.o
+
+      - name: Fetch pinned RPCS3 AsmJit dependency
+        run: |
+          set -euo pipefail
+          git -C /tmp/rpcs3 submodule update --init --depth 1 3rdparty/asmjit/asmjit
+          test -f /tmp/rpcs3/3rdparty/asmjit/asmjit/src/asmjit/asmjit.h
+
+      - name: Cross-compile RPCS3 ASMJIT runtime object
+        run: |
+          set -euo pipefail
+          CXX=/opt/ps5-payload-sdk/bin/prospero-clang++
+          flags=(
+            -std=c++20 -O2 -DNDEBUG
+            -DARCH_X64
+            -DRPCS3_LIBRETRO
+            -I/tmp/rpcs3
+            -I/tmp/rpcs3/rpcs3
+            -I/tmp/rpcs3/3rdparty
+            -I/tmp/rpcs3/3rdparty/asmjit/asmjit/src
+          )
+          "$CXX" "${flags[@]}"             -c /tmp/rpcs3/Utilities/JITASM.cpp             -o /tmp/rpcs3_jitasm_ps5.o
+          test -s /tmp/rpcs3_jitasm_ps5.o
+
+      - name: Cross-compile RPCS3 SPU ASMJIT recompiler object
+        run: |
+          set -euo pipefail
+          CXX=/opt/ps5-payload-sdk/bin/prospero-clang++
+          flags=(
+            -std=c++20 -O2 -DNDEBUG
+            -DARCH_X64
+            -DRPCS3_LIBRETRO
+            -I/tmp/rpcs3
+            -I/tmp/rpcs3/rpcs3
+            -I/tmp/rpcs3/3rdparty
+            -I/tmp/rpcs3/3rdparty/asmjit/asmjit/src
+          )
+          "$CXX" "${flags[@]}"             -c /tmp/rpcs3/rpcs3/Emu/Cell/SPUASMJITRecompiler.cpp             -o /tmp/rpcs3_spu_asmjit_ps5.o
+          test -s /tmp/rpcs3_spu_asmjit_ps5.o
