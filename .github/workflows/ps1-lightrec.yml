@@ -62,6 +62,16 @@ jobs:
             -o /tmp/ps1-vulkan-provider-test
           /tmp/ps1-vulkan-provider-test
 
+      - name: Test PS5 VK_KHR_display surface selection
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -I/tmp/beetle-psx/parallel-psx/khronos/include \
+            ports/beetle-psx-ps5/native/display_surface.cpp \
+            ports/beetle-psx-ps5/tests/display_surface_test.cpp \
+            -o /tmp/ps1-display-surface-test
+          /tmp/ps1-display-surface-test
+
       - name: Test native PS1 audio input and rumble bridge
         run: |
           set -euo pipefail
