@@ -90,9 +90,7 @@ fi
 
 COMMON_FLAGS=(
   -std=c++20 -O3 -DNDEBUG -fno-exceptions -pthread
-  -I"$ROOT/runtime/include"
-  -I"$ROOT/third_party/libretro"
-  -I"$ROOT/ports/common/libretro-static"
+  -I"$ROOT/runtime/include" -I"$ROOT/corehost/include"
 )
 
 SOURCES=(
@@ -100,9 +98,12 @@ SOURCES=(
   "$ROOT/runtime/src/ps5/audio.cpp"
   "$ROOT/runtime/src/ps5/input.cpp"
   "$ROOT/runtime/src/ps5/io.cpp"
+  "$ROOT/runtime/src/ps5/vfs.cpp"
+  "$ROOT/corehost/src/static_core.cpp"
+  "$ROOT/corehost/src/ps5rt_bridge.cpp"
+  "$ROOT/corehost/src/linked_core.cpp"
+  "$ROOT/corehost/src/ps5_runner.cpp"
   "$ROOT/runtime/src/ps5/video.cpp"
-  "$ROOT/ports/common/libretro-static/native_libretro_host.cpp"
-  "$ROOT/ports/common/libretro-static/linked_core.cpp"
   "$ROOT/ports/nes-fceumm/main.cpp"
 )
 
