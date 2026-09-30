@@ -37,3 +37,14 @@ jobs:
 
       - name: Verify deterministic PS5 engine transformation
         run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_ppsspp_native.py" /tmp/ppsspp --check
+
+  flycast-transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned Flycast
+        run: |
+          git clone --filter=blob:none https://github.com/flyinghead/flycast.git /tmp/flycast
+          git -C /tmp/flycast checkout --detach e36e9df2dcc1487acdb1dc7725766f1f5ba029b5
+      - name: Verify deterministic PS5 dynarec/vmem transformation
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_flycast_native.py" /tmp/flycast --check
