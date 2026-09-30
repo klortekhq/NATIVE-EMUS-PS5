@@ -264,7 +264,104 @@ def transform(root: pathlib.Path) -> dict[pathlib.Path, str]:
 ''',
         "CMake PS5 vmem source",
     )
+    text = replace_once(
+        text,
+        'elseif(ANDROID)\n\tadd_library(${PROJECT_NAME} SHARED core/emulator.cpp)\n',
+        'elseif(FLYCAST_PS5)\n'
+        '\t# Engine-only gate: compile the real core/rec-x64 without a desktop shell.\n'
+        '\tadd_library(${PROJECT_NAME} STATIC core/emulator.cpp)\n'
+        '\tset_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "flycast_ps5_engine")\n'
+        'elseif(ANDROID)\n\tadd_library(${PROJECT_NAME} SHARED core/emulator.cpp)\n',
+        "CMake PS5 engine-only target",
+    )
+    text = replace_once(
+        text,
+        'if(NOT ANDROID AND NOT IOS)\n\t\tif (NOT NINTENDO_SWITCH)\n',
+        'if(NOT ANDROID AND NOT IOS AND NOT FLYCAST_PS5)\n\t\tif (NOT NINTENDO_SWITCH)\n',
+        "CMake skip desktop SDL/DreamLink",
+    )
+    text = replace_once(
+        text,
+        'if(PKG_CONFIG_FOUND AND NOT ANDROID AND NOT APPLE AND NOT LIBRETRO)\n',
+        'if(PKG_CONFIG_FOUND AND NOT ANDROID AND NOT APPLE AND NOT LIBRETRO AND NOT FLYCAST_PS5)\n',
+        "CMake skip desktop pkgconfig backends",
+    )
+    text = replace_once(
+        text,
+        'if(UNIX AND NOT APPLE AND NOT ANDROID)\n',
+        'if(UNIX AND NOT APPLE AND NOT ANDROID AND NOT FLYCAST_PS5)\n',
+        "CMake skip X11/desktop UNIX block",
+    )
+    text = replace_once(
+        text,
+        '''if(NOT LIBRETRO)
+\ttarget_sources(${PROJECT_NAME} PRIVATE
+\t\t\tcore/linux-dist/evdev.cpp
+''',
+        '''if(NOT LIBRETRO AND NOT FLYCAST_PS5)
+\ttarget_sources(${PROJECT_NAME} PRIVATE
+\t\t\tcore/linux-dist/evdev.cpp
+''',
+        "CMake skip Linux input shell",
+    )
+    text = replace_once(
+        text,
+        '''if(NOT LIBRETRO)
+\ttarget_sources(${PROJECT_NAME} PRIVATE
+\t\t\tcore/deps/rcheevos/src/rc_client_raintegration.c
+''',
+        '''if(NOT LIBRETRO AND NOT FLYCAST_PS5)
+\ttarget_sources(${PROJECT_NAME} PRIVATE
+\t\t\tcore/deps/rcheevos/src/rc_client_raintegration.c
+''',
+        "CMake skip desktop achievements client",
+    )
+    text = replace_once(
+        text,
+        '''\telseif(UNIX)
+\t\tif(NOT BUILD_TESTING)
+\t\t\ttarget_sources(${PROJECT_NAME} PRIVATE
+\t\t\t\t\tcore/linux-dist/main.cpp)
+\t\tendif()
+''',
+        '''\telseif(UNIX AND NOT FLYCAST_PS5)
+\t\tif(NOT BUILD_TESTING)
+\t\t\ttarget_sources(${PROJECT_NAME} PRIVATE
+\t\t\t\t\tcore/linux-dist/main.cpp)
+\t\tendif()
+''',
+        "CMake skip Linux main",
+    )
+    text = replace_once(
+        text,
+        'if(NOT MINIUPNP_FOUND)\n',
+        'if(FLYCAST_PS5)\n'
+        '\ttarget_compile_definitions(${PROJECT_NAME} PRIVATE FEAT_NO_MINIUPNPC)\n'
+        'elseif(NOT MINIUPNP_FOUND)\n',
+        "CMake skip miniupnpc on PS5 engine gate",
+    )
     out[cm] = text
+
+    audio_cm = root / "core/audio/CMakeLists.txt"
+    text = audio_cm.read_text()
+    text = replace_once(
+        text,
+        'if(NOT LIBRETRO)\n',
+        'if(NOT LIBRETRO AND NOT FLYCAST_PS5)\n',
+        "audio skip desktop backends",
+    )
+    out[audio_cm] = text
+
+    oslib_cm = root / "core/oslib/CMakeLists.txt"
+    text = oslib_cm.read_text()
+    text = replace_once(
+        text,
+        'if(NOT LIBRETRO)\n',
+        'if(NOT LIBRETRO AND NOT FLYCAST_PS5)\n',
+        "oslib skip desktop http/os layer",
+    )
+    out[oslib_cm] = text
+
     out[root / "core/ps5/ps5_vmem.cpp"] = PS5_VMEM
     return out
 
