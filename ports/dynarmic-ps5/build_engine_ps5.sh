@@ -73,6 +73,15 @@ grep -q 'ps5rt_exec_allocate' "$SRC/src/dynarmic/backend/x64/block_of_code.cpp" 
 }
 
 cp "$ENGINE" "$OUT/artifacts/libdynarmic_ps5.a"
-sha256sum "$OUT/artifacts/libdynarmic_ps5.a" > "$OUT/artifacts/SHA256SUMS"
+python3 "$ROOT/tools/ps5/write_artifact_manifest.py" \
+  --output-dir "$OUT/artifacts" \
+  --system "Shared ARM guest backend" \
+  --core "Dynarmic" \
+  --upstream "mihawk-99/PS5_Dynarmic" \
+  --pin "$PIN" \
+  --cpu-backend "A32 + A64 -> x86-64 JIT / Xbyak" \
+  --graphics-backend "not-applicable (CPU engine)" \
+  --artifact "libdynarmic_ps5.a"
+sha256sum "$OUT/artifacts/libdynarmic_ps5.a" "$OUT/artifacts/BUILD-MANIFEST.json" > "$OUT/artifacts/SHA256SUMS"
 
 echo "Dynarmic PS5 A32+A64 x86-64 JIT build complete"
