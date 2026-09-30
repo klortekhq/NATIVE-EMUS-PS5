@@ -55,7 +55,7 @@ for dep in boost fmt glm; do
 done
 
 flags=(
-  -std=c++20 -O3 -DNDEBUG
+  -std=c++20 -O3 -DNDEBUG -DENABLE_VULKAN=1
   -march=znver2 -msse4.1 -mavx2 -mbmi -mbmi2 -mno-vzeroupper
   -I"$SRC/src"
   -I"$SRC"
