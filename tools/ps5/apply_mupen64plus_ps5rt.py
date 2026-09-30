@@ -21,7 +21,15 @@ def transform(text: str) -> str:
     for old, new in replacements:
         if old in text:
             text = text.replace(old, new)
-    if "ps5platform/exec.h" in text or "ps5_exec_" in text:
+    # Comments in the donor intentionally mention ps5platform/exec.h when
+    # explaining the original implementation. Validate code-bearing tokens,
+    # not prose, so documentation does not become a false positive.
+    stale = (
+        "#include <ps5platform/exec.h>" in text
+        or "ps5_exec_allocate(" in text
+        or "ps5_exec_release(" in text
+    )
+    if stale:
         raise RuntimeError("PS5 allocator donor symbols remain after transform")
     return text
 
