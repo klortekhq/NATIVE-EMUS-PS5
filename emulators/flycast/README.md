@@ -1,45 +1,64 @@
 # Flycast / Dreamcast · Naomi · Atomiswave
 
-## Why this is a first-class target
+## Status
 
-Flycast is active, standalone-capable, uses Vulkan and has native dynarec paths suitable for an x86-64 host.
+**Pinned source + deterministic PS5 rec-x64/VM transformation.**
 
-## Desired architecture
+Upstream is pinned to `e36e9df2dcc1487acdb1dc7725766f1f5ba029b5`.
+
+## CPU
+
+Final backend: **Flycast rec-x64 / Xbyak SH4 dynarec** on the PS5 Zen 2 CPU.
+
+The PS5 transform enables `FEAT_NO_RWX_PAGES` and maps Flycast's existing dual-address JIT interface directly onto `ps5rt::JitRegion`:
 
 ```text
-SH4 guest
-  -> Flycast x86-64 dynarec
-  -> ps5rt::jit
-  -> Zen 2
-
-PowerVR2
-  -> Flycast Vulkan renderer
-  -> PS5 Mesa/RADV
+Xbyak emitter -> RW alias
+                   |
+                   +-- cc_rx_offset --> RX alias -> Zen 2 execution
 ```
 
-## Keep from upstream
+No interpreter fallback is part of the final architecture.
 
-- SH4 dynarec
-- scheduler
-- Dreamcast/Naomi/Atomiswave machine code
-- Vulkan renderer
-- shader logic
-- save state and VM logic
+## Memory
 
-## Replace/adapt
+`tools/ps5/apply_flycast_native.py` replaces only the platform virtual-memory backend:
 
-- desktop window system
-- SDL/platform input
-- desktop audio
-- filesystem paths
-- JIT allocation
-- process lifecycle
+- SH4 fastmem reservation;
+- mirrored RAM mappings;
+- on-demand FPCB/data pages;
+- JIT RW/RX aliases;
+- JIT lifecycle.
 
-## Next milestone
+The SH4 compiler, block manager, Xbyak emitter and guest timing remain upstream Flycast code.
 
-A headless PS5 build that reaches Dreamcast BIOS with:
+## Graphics
 
-- x86-64 dynarec enabled
-- Vulkan device creation
-- AudioOut initialized
-- DualSense mapped
+Target renderer remains:
+
+```text
+PowerVR2 -> Flycast Vulkan -> PS5 Mesa/RADV
+```
+
+No OpenGL compatibility wrapper is the intended final renderer.
+
+## Systems from the same engine
+
+- Dreamcast
+- Sega Naomi
+- Sammy Atomiswave
+
+They share the native engine but keep separate compatibility targets and test suites.
+
+## Current gates
+
+- [x] rec-x64/Xbyak path identified and pinned
+- [x] Flycast dual RW/RX ABI matched to ps5rt
+- [x] SH4 fastmem/mirror adapter written
+- [x] deterministic PS5 source transform
+- [ ] prospero-clang cross-compile of transformed engine
+- [ ] SH4 fastmem initialization on physical PS5
+- [ ] Vulkan device/context on PS5 RADV
+- [ ] Dreamcast BIOS boot
+- [ ] Naomi boot
+- [ ] Atomiswave boot
