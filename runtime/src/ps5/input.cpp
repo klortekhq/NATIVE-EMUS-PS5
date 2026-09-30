@@ -1,18 +1,25 @@
 #include <ps5rt/input.hpp>
 
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 extern "C" {
-std::int32_t scePadInit();
-std::int32_t scePadOpen(std::int32_t user_id, std::int32_t port_type, std::int32_t index,
-                        const void* params);
-std::int32_t scePadRead(std::int32_t handle, void* samples, std::int32_t capacity);
-std::int32_t scePadClose(std::int32_t handle);
 std::int32_t sceUserServiceInitialize(const void* params);
 std::int32_t sceUserServiceGetInitialUser(std::int32_t* user_id);
-std::int32_t sceUserServiceTerminate();
-std::int32_t sceKernelUsleep(std::uint32_t microseconds);
+std::int32_t sceUserServiceGetLoginUserIdList(std::int32_t* user_ids);
+
+std::int32_t scePadInit();
+std::int32_t scePadOpen(std::int32_t user_id, std::int32_t port_type,
+                        std::int32_t index, const void* params);
+std::int32_t scePadGetHandle(std::int32_t user_id, std::int32_t port_type,
+                             std::int32_t index);
+std::int32_t scePadClose(std::int32_t handle);
+std::int32_t scePadReadState(std::int32_t handle, void* state);
+std::int32_t scePadSetVibration(std::int32_t handle, const void* params);
 }
 
 namespace ps5rt {
@@ -34,39 +41,32 @@ constexpr std::uint32_t kSquare = 0x008000u;
 constexpr std::uint32_t kTouchpad = 0x100000u;
 constexpr std::uint32_t kIntercepted = 0x80000000u;
 
-struct PadSample {
-  std::uint32_t buttons;
-  std::uint8_t left_x;
-  std::uint8_t left_y;
-  std::uint8_t right_x;
-  std::uint8_t right_y;
-  std::uint8_t left_trigger;
-  std::uint8_t right_trigger;
-  std::uint8_t reserved_to_connected[66];
-  std::int32_t connected;
-  std::uint64_t timestamp_us;
-  std::uint8_t extension[16];
-  std::uint8_t connected_count;
-  std::uint8_t remaining[15];
+constexpr std::uint32_t kPadAlreadyOpened = 0x80920004u;
+constexpr std::size_t kPadStateBytes = 1024;
+constexpr std::size_t kConnectedOffset = 76;
+constexpr std::size_t kTimestampOffset = 80;
+constexpr std::size_t kMinimumStateBytes = 88;
+
+struct Slot {
+  std::int32_t user{-1};
+  std::int32_t handle{-1};
+  bool owned{};
+  bool signed_in{};
+  bool vibrating{};
 };
 
-static_assert(sizeof(PadSample) == 120);
-static_assert(offsetof(PadSample, connected) == 0x4c);
-static_assert(offsetof(PadSample, timestamp_us) == 0x50);
+std::array<Slot, InputSnapshot::max_controllers> g_slots{};
+std::int32_t g_initial_user{-1};
+bool g_initialized{};
 
-std::int32_t g_handle = -1;
-bool g_owns_user_service = false;
-
-float axis(std::uint8_t v) noexcept {
-  const int offset = static_cast<int>(v) - 128;
-  const int denom = offset < 0 ? 128 : 127;
-  float result = static_cast<float>(offset) / static_cast<float>(denom);
-  if (result < -1.0f) result = -1.0f;
-  if (result > 1.0f) result = 1.0f;
-  return result;
+float axis(std::uint8_t raw) noexcept {
+  const int delta = static_cast<int>(raw) - 128;
+  const int denominator = delta < 0 ? 128 : 127;
+  return std::clamp(static_cast<float>(delta) / static_cast<float>(denominator),
+                    -1.0f, 1.0f);
 }
 
-std::uint32_t buttons(std::uint32_t raw) noexcept {
+std::uint32_t translate_buttons(std::uint32_t raw) noexcept {
   std::uint32_t out = 0;
   if (raw & kUp) out |= static_cast<std::uint32_t>(Button::up);
   if (raw & kDown) out |= static_cast<std::uint32_t>(Button::down);
@@ -85,72 +85,184 @@ std::uint32_t buttons(std::uint32_t raw) noexcept {
   return out;
 }
 
+void stop_vibration(Slot& slot) noexcept {
+  if (!slot.vibrating || slot.handle < 0) return;
+  const std::array<std::uint8_t, 2> zero{};
+  if (scePadSetVibration(slot.handle, zero.data()) >= 0)
+    slot.vibrating = false;
+}
+
+void close_slot(Slot& slot) noexcept {
+  stop_vibration(slot);
+  if (slot.owned && slot.handle >= 0)
+    (void)scePadClose(slot.handle);
+  slot = {};
+}
+
+bool contains_user(const std::array<std::int32_t, 4>& users,
+                   std::int32_t user) noexcept {
+  return std::find(users.begin(), users.end(), user) != users.end();
+}
+
+Result refresh_slots() noexcept {
+  std::array<std::int32_t, 4> users{-1, -1, -1, -1};
+  const auto rc = sceUserServiceGetLoginUserIdList(users.data());
+  if (rc < 0) {
+    for (auto& slot : g_slots) {
+      stop_vibration(slot);
+      slot.signed_in = false;
+    }
+    return {ErrorCode::system_error, rc, "sceUserServiceGetLoginUserIdList failed"};
+  }
+
+  const auto first = std::find(users.begin(), users.end(), g_initial_user);
+  if (first != users.end() && first != users.begin())
+    std::iter_swap(users.begin(), first);
+
+  for (auto& slot : g_slots) {
+    if (slot.handle < 0) continue;
+    slot.signed_in = contains_user(users, slot.user);
+    if (!slot.signed_in)
+      close_slot(slot);
+  }
+
+  for (const auto user : users) {
+    if (user < 0) continue;
+
+    const bool already_assigned = std::any_of(
+        g_slots.begin(), g_slots.end(),
+        [user](const Slot& slot) { return slot.handle >= 0 && slot.user == user; });
+    if (already_assigned) continue;
+
+    auto free_slot = std::find_if(
+        g_slots.begin(), g_slots.end(),
+        [](const Slot& slot) { return slot.handle < 0; });
+    if (free_slot == g_slots.end()) break;
+
+    std::int32_t handle = scePadOpen(user, 0, 0, nullptr);
+    bool owned = true;
+    if (static_cast<std::uint32_t>(handle) == kPadAlreadyOpened) {
+      handle = scePadGetHandle(user, 0, 0);
+      owned = false;
+    }
+    if (handle < 0) continue;
+
+    free_slot->user = user;
+    free_slot->handle = handle;
+    free_slot->owned = owned;
+    free_slot->signed_in = true;
+  }
+
+  return Result::success();
+}
+
+bool decode_state(const std::array<std::uint8_t, kPadStateBytes>& bytes,
+                  ControllerState& out) noexcept {
+  static_assert(kMinimumStateBytes <= kPadStateBytes);
+
+  std::uint32_t raw_buttons = 0;
+  std::memcpy(&raw_buttons, bytes.data(), sizeof(raw_buttons));
+
+  if (bytes[kConnectedOffset] == 0 || (raw_buttons & kIntercepted) != 0)
+    return false;
+
+  out.connected = true;
+  out.buttons = translate_buttons(raw_buttons);
+  out.left = {axis(bytes[4]), axis(bytes[5])};
+  out.right = {axis(bytes[6]), axis(bytes[7])};
+  out.l2 = static_cast<float>(bytes[8]) / 255.0f;
+  out.r2 = static_cast<float>(bytes[9]) / 255.0f;
+  return true;
+}
+
+std::uint8_t rumble_byte(float value) noexcept {
+  value = std::clamp(value, 0.0f, 1.0f);
+  return static_cast<std::uint8_t>(std::lround(value * 255.0f));
+}
+
 } // namespace
 
 Result initialize_input() noexcept {
   shutdown_input();
-  g_owns_user_service = (sceUserServiceInitialize(nullptr) == 0);
 
-  std::int32_t user = -1;
-  std::int32_t rc = sceUserServiceGetInitialUser(&user);
+  // UserService is process-wide. Initialization is intentionally idempotent;
+  // another PS5 subsystem may already own it.
+  (void)sceUserServiceInitialize(nullptr);
+
+  auto rc = sceUserServiceGetInitialUser(&g_initial_user);
   if (rc < 0)
     return {ErrorCode::system_error, rc, "sceUserServiceGetInitialUser failed"};
+
   rc = scePadInit();
   if (rc < 0)
     return {ErrorCode::system_error, rc, "scePadInit failed"};
 
-  for (int attempt = 0; attempt < 10; ++attempt) {
-    g_handle = scePadOpen(user, 0, 0, nullptr);
-    if (g_handle >= 0)
-      return Result::success();
-    (void)sceKernelUsleep(100000);
+  g_initialized = true;
+  const auto refreshed = refresh_slots();
+  if (!refreshed) {
+    shutdown_input();
+    return refreshed;
   }
-  return {ErrorCode::system_error, g_handle, "scePadOpen failed"};
+  return Result::success();
 }
 
 Result poll_input(InputSnapshot& out) noexcept {
   out = {};
-  if (g_handle < 0)
-    return {ErrorCode::system_error, g_handle, "input not initialized"};
+  if (!g_initialized)
+    return {ErrorCode::system_error, 0, "input not initialized"};
 
-  PadSample samples[64]{};
-  const std::int32_t count = scePadRead(g_handle, samples, 64);
-  if (count <= 0)
-    return Result::success();
-  if (count > 64)
-    return {ErrorCode::system_error, count, "scePadRead returned invalid count"};
+  const auto refreshed = refresh_slots();
+  if (!refreshed)
+    return refreshed;
 
-  const PadSample* newest = nullptr;
-  for (std::int32_t i = 0; i < count; ++i) {
-    if (!newest || samples[i].timestamp_us > newest->timestamp_us)
-      newest = &samples[i];
+  for (std::size_t i = 0; i < g_slots.size(); ++i) {
+    auto& slot = g_slots[i];
+    if (slot.handle < 0 || !slot.signed_in) continue;
+
+    alignas(16) std::array<std::uint8_t, kPadStateBytes> bytes{};
+    const auto rc = scePadReadState(slot.handle, bytes.data());
+    if (rc < 0) {
+      stop_vibration(slot);
+      continue;
+    }
+
+    auto& controller = out.controllers[i];
+    controller.user_id = static_cast<std::uint32_t>(slot.user);
+    if (!decode_state(bytes, controller)) {
+      stop_vibration(slot);
+      controller = {};
+    }
   }
-  if (!newest || !newest->connected || (newest->buttons & kIntercepted))
-    return Result::success();
 
-  auto& pad = out.controllers[0];
-  pad.connected = true;
-  pad.buttons = buttons(newest->buttons);
-  pad.left = {axis(newest->left_x), axis(newest->left_y)};
-  pad.right = {axis(newest->right_x), axis(newest->right_y)};
-  pad.l2 = static_cast<float>(newest->left_trigger) / 255.0f;
-  pad.r2 = static_cast<float>(newest->right_trigger) / 255.0f;
   return Result::success();
 }
 
-Result set_rumble(std::size_t, float, float) noexcept {
-  return {ErrorCode::unsupported, 0, "rumble backend not yet migrated"};
+Result set_rumble(std::size_t controller, float low, float high) noexcept {
+  if (!g_initialized || controller >= g_slots.size())
+    return {ErrorCode::invalid_argument, 0, "invalid controller"};
+
+  auto& slot = g_slots[controller];
+  if (slot.handle < 0 || !slot.signed_in)
+    return {ErrorCode::system_error, 0, "controller is not connected"};
+
+  const std::array<std::uint8_t, 2> params{
+      rumble_byte(low), rumble_byte(high)};
+  const auto rc = scePadSetVibration(slot.handle, params.data());
+  if (rc < 0)
+    return {ErrorCode::system_error, rc, "scePadSetVibration failed"};
+
+  slot.vibrating = params[0] != 0 || params[1] != 0;
+  return Result::success();
 }
 
 void shutdown_input() noexcept {
-  if (g_handle >= 0) {
-    (void)scePadClose(g_handle);
-    g_handle = -1;
-  }
-  if (g_owns_user_service) {
-    (void)sceUserServiceTerminate();
-    g_owns_user_service = false;
-  }
+  for (auto& slot : g_slots)
+    close_slot(slot);
+  g_initial_user = -1;
+  g_initialized = false;
+
+  // Do not terminate UserService here. It is process-wide and may be shared
+  // with VideoOut, account-aware storage, or another emulator subsystem.
 }
 
 } // namespace ps5rt
