@@ -7,12 +7,43 @@ import argparse, pathlib, subprocess
 EXPECTED="95a5c3ee250f80c3b9d139658649d9ffb6db3eec"
 HEADER=pathlib.Path("src/xenia/cpu/backend/x64/x64_code_cache.h")
 SOURCE=pathlib.Path("src/xenia/cpu/backend/x64/x64_code_cache.cc")
+PLATFORM=pathlib.Path("src/xenia/base/platform.h")
+BACKEND=pathlib.Path("src/xenia/cpu/backend/x64/x64_backend.cc")
 
 def replace_once(text:str,old:str,new:str,label:str)->str:
     count=text.count(old)
     if count!=1:
         raise RuntimeError(f"{label}: expected one exact match, found {count}")
     return text.replace(old,new,1)
+
+def transform_platform(text:str)->str:
+    return replace_once(
+        text,
+        """#elif defined(__ANDROID__)
+#define XE_PLATFORM_ANDROID 1
+#define XE_PLATFORM_LINUX 1
+#elif defined(__gnu_linux__)
+""",
+        """#elif defined(__ANDROID__)
+#define XE_PLATFORM_ANDROID 1
+#define XE_PLATFORM_LINUX 1
+#elif defined(__PROSPERO__)
+#define XE_PLATFORM_PS5 1
+#elif defined(__gnu_linux__)
+""",
+        "PS5 platform identity",
+    )
+
+
+def transform_backend(text:str)->str:
+    count=text.count("#if XE_PLATFORM_LINUX\n")
+    if count != 2:
+        raise RuntimeError(f"SysV thunk guards: expected 2 Linux guards, found {count}")
+    return text.replace(
+        "#if XE_PLATFORM_LINUX\n",
+        "#if XE_PLATFORM_LINUX || XE_PLATFORM_PS5\n",
+    )
+
 
 def transform_header(text:str)->str:
     text=replace_once(
@@ -172,6 +203,8 @@ def main()->int:
     if subprocess.run(["git","-C",str(root),"diff","--quiet"]).returncode:
         raise SystemExit("Xenia checkout has local modifications")
     try:
+        p=transform_platform((root/PLATFORM).read_text())
+        b=transform_backend((root/BACKEND).read_text())
         h=transform_header((root/HEADER).read_text())
         s=transform_source((root/SOURCE).read_text())
     except RuntimeError as exc:
@@ -182,11 +215,17 @@ def main()->int:
             raise SystemExit(f"Xenia fixed-address ABI changed: missing {needle}")
 
     if a.check:
+        if "#define XE_PLATFORM_PS5 1" not in p:
+            raise SystemExit("Xenia PS5 platform identity missing")
+        if "#if XE_PLATFORM_LINUX || XE_PLATFORM_PS5" not in b:
+            raise SystemExit("Xenia PS5 SysV thunk guard missing")
         if "require_fixed_execute = true" not in s or "require_fixed_write = true" not in s:
             raise SystemExit("PS5 fixed JIT mapping missing")
         print(f"Xenia {EXPECTED}: fixed x64 JIT transform matched")
         return 0
 
+    (root/PLATFORM).write_text(p)
+    (root/BACKEND).write_text(b)
     (root/HEADER).write_text(h)
     (root/SOURCE).write_text(s)
     (root/".native-emus-ps5-xenia").write_text(EXPECTED+"\n")

@@ -11,6 +11,7 @@ FILES = (
     pathlib.Path("mupen64plus-core/src/device/r4300/new_dynarec/new_dynarec.c"),
     pathlib.Path("mupen64plus-rsp-paraLLEl/jit_allocator.cpp"),
 )
+MAKEFILE = pathlib.Path("Makefile")
 
 def transform(text: str) -> str:
     replacements = (
@@ -32,6 +33,25 @@ def transform(text: str) -> str:
     if stale:
         raise RuntimeError("PS5 allocator donor symbols remain after transform")
     return text
+
+def transform_makefile(text: str) -> str:
+    old = """ifeq ($(platform), ps5)
+   TARGET := $(TARGET_NAME)_libretro.so
+"""
+    new = """ifeq ($(platform), ps5)
+   ifeq ($(STATIC_LINKING), 1)
+      TARGET := $(TARGET_NAME)_libretro.a
+   else
+      TARGET := $(TARGET_NAME)_libretro.so
+   endif
+"""
+    count = text.count(old)
+    if count != 1:
+        raise RuntimeError(
+            f"PS5 target naming: expected one exact Makefile block, found {count}"
+        )
+    return text.replace(old, new, 1)
+
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -59,8 +79,17 @@ def main() -> int:
         outputs[path] = after
         changed += 1
 
+    makefile = root / MAKEFILE
+    try:
+        makefile_after = transform_makefile(makefile.read_text())
+    except RuntimeError as exc:
+        raise SystemExit(str(exc))
+    outputs[makefile] = makefile_after
+
     if args.check:
-        print(f"Mupen64Plus {EXPECTED}: {changed} JIT allocator files retarget cleanly")
+        print(
+            f"Mupen64Plus {EXPECTED}: {changed} JIT allocators + static PS5 archive naming matched"
+        )
         return 0
 
     for path, text in outputs.items():
