@@ -22,10 +22,11 @@ git -C "$SRC" submodule update --init --recursive --depth 1
 python3 "$ROOT/tools/ps5/apply_ppsspp_native.py" "$SRC"
 
 PPSSPP_SOURCE_DIR="$SRC" \
+  PPSSPP_BUILD_DIR="$OUT/build" \
   PS5_PAYLOAD_SDK="$PS5_PAYLOAD_SDK" \
   "$ROOT/tools/ps5/build_ppsspp_engine_archives.sh" "$SRC"
 
-BUILD="$ROOT/build/ps5/ppsspp-engine"
+BUILD="$OUT/build"
 CORE="$(find "$BUILD" -type f -name 'libCore.a' -print -quit)"
 COMMON="$(find "$BUILD" -type f -name 'libCommon.a' -print -quit)"
 
