@@ -42,3 +42,12 @@ GXM
 ## Next milestone
 
 Compile Vita3K core for PS5 with Dynarmic using ps5rt::jit and create a Vulkan device without desktop window dependencies.
+
+
+## Shared Dynarmic PS5 gate
+
+- [x] PS5 Xbyak executable-code allocator identified in Mihawk's fork
+- [x] allocator retargeted to shared `ps5rt_exec_*`
+- [x] final CPU policy: Dynarmic x86-64 JIT, not full interpretation
+- [ ] Vita3K core cross-compile against the shared allocator
+- [ ] physical PS5 JIT/fastmem validation
