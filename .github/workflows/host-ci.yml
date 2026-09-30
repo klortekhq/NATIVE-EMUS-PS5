@@ -85,9 +85,32 @@ jobs:
           git -C /tmp/freeintv checkout --detach ef3e0fe322bec62a7f916c0bb0834c08c348d0b4
       - name: Build FreeIntv static core
         run: make -C /tmp/freeintv platform=unix STATIC_LINKING=1 -j2
+      - name: Build FreeIntv static support
+        run: |
+          set -euo pipefail
+          LRC=/tmp/freeintv/src/deps/libretro-common
+          mkdir -p /tmp/freeintv-support
+          sources=(
+            "$LRC/file/file_path.c"
+            "$LRC/file/file_path_io.c"
+            "$LRC/compat/compat_posix_string.c"
+            "$LRC/compat/compat_snprintf.c"
+            "$LRC/compat/compat_strl.c"
+            "$LRC/compat/compat_strcasestr.c"
+            "$LRC/compat/fopen_utf8.c"
+            "$LRC/encodings/encoding_utf.c"
+            "$LRC/string/stdstring.c"
+            "$LRC/streams/file_stream.c"
+            "$LRC/time/rtime.c"
+            "$LRC/vfs/vfs_implementation.c"
+          )
+          for src in "${sources[@]}"; do
+            obj="/tmp/freeintv-support/$(echo "${src#$LRC/}" | tr '/.' '__').o"
+            cc -O2 -DNDEBUG -fPIC -I"$LRC/include" -I/tmp/freeintv/src -c "$src" -o "$obj"
+          done
       - name: Link core directly into corehost smoke
         run: |
-          c++ -std=c++20 -Icorehost/include             corehost/tests/real_core_lifecycle.cpp             build-freeintv/corehost/libcorehost.a             /tmp/freeintv/freeintv_libretro.a -lm             -o /tmp/freeintv-corehost-smoke
+          c++ -std=c++20 -Icorehost/include             corehost/tests/real_core_lifecycle.cpp             build-freeintv/corehost/libcorehost.a             /tmp/freeintv/freeintv_libretro.a             /tmp/freeintv-support/*.o -lm             -o /tmp/freeintv-corehost-smoke
           /tmp/freeintv-corehost-smoke FreeIntv
 
   o2em-corehost:
@@ -104,9 +127,41 @@ jobs:
           git -C /tmp/o2em checkout --detach 679d6fec04963f6e70a7ec217e3d0ebb1fe472fc
       - name: Build O2EM static core
         run: make -C /tmp/o2em platform=unix STATIC_LINKING=1 -j2
+      - name: Build O2EM static support
+        run: |
+          set -euo pipefail
+          LRC=/tmp/o2em/libretro-common
+          mkdir -p /tmp/o2em-support
+          sources=(
+            "$LRC/compat/compat_posix_string.c"
+            "$LRC/compat/compat_snprintf.c"
+            "$LRC/compat/compat_strcasestr.c"
+            "$LRC/compat/compat_strl.c"
+            "$LRC/compat/fopen_utf8.c"
+            "$LRC/encodings/encoding_crc32.c"
+            "$LRC/encodings/encoding_utf.c"
+            "$LRC/file/file_path.c"
+            "$LRC/file/file_path_io.c"
+            "$LRC/streams/file_stream.c"
+            "$LRC/time/rtime.c"
+            "$LRC/vfs/vfs_implementation.c"
+            "$LRC/audio/conversion/float_to_s16.c"
+            "$LRC/audio/conversion/s16_to_float.c"
+            "$LRC/audio/resampler/audio_resampler.c"
+            "$LRC/audio/resampler/drivers/sinc_resampler.c"
+            "$LRC/features/features_cpu.c"
+            "$LRC/file/config_file.c"
+            "$LRC/file/config_file_userdata.c"
+            "$LRC/formats/wav/rwav.c"
+            "$LRC/memmap/memalign.c"
+          )
+          for src in "${sources[@]}"; do
+            obj="/tmp/o2em-support/$(echo "${src#$LRC/}" | tr '/.' '__').o"
+            cc -O2 -DNDEBUG -fPIC -I"$LRC/include" -I/tmp/o2em -I/tmp/o2em/src -c "$src" -o "$obj"
+          done
       - name: Link core directly into corehost smoke
         run: |
-          c++ -std=c++20 -Icorehost/include             corehost/tests/real_core_lifecycle.cpp             build-o2em/corehost/libcorehost.a             /tmp/o2em/o2em_libretro.a -lm             -o /tmp/o2em-corehost-smoke
+          c++ -std=c++20 -Icorehost/include             corehost/tests/real_core_lifecycle.cpp             build-o2em/corehost/libcorehost.a             /tmp/o2em/o2em_libretro.a             /tmp/o2em-support/*.o -lm             -o /tmp/o2em-corehost-smoke
           /tmp/o2em-corehost-smoke O2EM
 
   mupen64plus-transform:
