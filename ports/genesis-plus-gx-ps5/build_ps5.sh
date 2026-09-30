@@ -79,6 +79,7 @@ HOST_SOURCES=(
   "$ROOT/runtime/src/ps5/app.cpp"
   "$ROOT/runtime/src/ps5/audio.cpp"
   "$ROOT/runtime/src/ps5/input.cpp"
+  "$ROOT/runtime/src/ps5/input_hid.cpp"
   "$ROOT/runtime/src/ps5/io.cpp"
   "$ROOT/runtime/src/ps5/vfs.cpp"
   "$ROOT/corehost/src/static_core.cpp"
