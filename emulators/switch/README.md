@@ -30,5 +30,5 @@ Classify ProsperoEden platform work into generic ps5rt modules vs emulator-speci
 - [x] PS5 Xbyak executable-code allocator identified in Mihawk's fork
 - [x] allocator retargeted to shared `ps5rt_exec_*`
 - [x] final CPU policy: Dynarmic x86-64 JIT, not full interpretation
-- [ ] Switch-family core cross-compile against the shared allocator
+- [x] Shared Dynarmic A32+A64 x86-64 JIT archive cross-builds on PS5\n- [ ] Switch-family core cross-compile against the shared allocator
 - [ ] physical PS5 JIT/fastmem validation
