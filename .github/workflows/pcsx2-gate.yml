@@ -1,0 +1,41 @@
+name: pcsx2-ps5-recompiler-gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ports/pcsx2-ps5/**'
+      - '.github/workflows/pcsx2-gate.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: pcsx2-ps5-recompiler-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  recompilers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Cross-build PCSX2 native recompilers
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/pcsx2-ps5/build_recompiler_ps5.sh
+
+      - name: Upload PCSX2 PS5 recompiler archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-pcsx2-ee-iop-vif-microvu-ps5
+          path: |
+            build/ps5/pcsx2/artifacts/libpcsx2_ps5_recompilers.a
+            build/ps5/pcsx2/artifacts/SHA256SUMS
+          if-no-files-found: error
