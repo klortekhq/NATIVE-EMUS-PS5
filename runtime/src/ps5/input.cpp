@@ -25,7 +25,6 @@ std::int32_t scePadSetVibration(std::int32_t handle, const void* params);
 namespace ps5rt {
 namespace {
 
-constexpr std::uint32_t kCreate = 0x000001u;
 constexpr std::uint32_t kL3 = 0x000002u;
 constexpr std::uint32_t kR3 = 0x000004u;
 constexpr std::uint32_t kOptions = 0x000008u;
@@ -79,7 +78,6 @@ std::uint32_t translate_buttons(std::uint32_t raw) noexcept {
   if (raw & kTriangle) out |= static_cast<std::uint32_t>(Button::triangle);
   if (raw & kL1) out |= static_cast<std::uint32_t>(Button::l1);
   if (raw & kR1) out |= static_cast<std::uint32_t>(Button::r1);
-  if (raw & kCreate) out |= static_cast<std::uint32_t>(Button::create);
   if (raw & kL3) out |= static_cast<std::uint32_t>(Button::l3);
   if (raw & kR3) out |= static_cast<std::uint32_t>(Button::r3);
   if (raw & kOptions) out |= static_cast<std::uint32_t>(Button::options);
