@@ -142,6 +142,16 @@ else
   echo "PS5_NATIVE_TOOL not set; linked PS5 PIE is ready for title conversion."
 fi
 
+python3 "$ROOT/tools/ps5/write_artifact_manifest.py" \
+  --output-dir "$OUT/artifacts" \
+  --system "Nintendo Entertainment System" \
+  --core "FCEUmm" \
+  --upstream "libretro/libretro-fceumm" \
+  --pin "$PIN" \
+  --cpu-backend "upstream-interpreter" \
+  --graphics-backend "software -> ps5rt VideoOut" \
+  --artifact "$PIE"
+
 find "$OUT/artifacts" -maxdepth 1 -type f ! -name SHA256SUMS -print0 | \
   sort -z | xargs -0 sha256sum > "$OUT/artifacts/SHA256SUMS"
 echo "done"
