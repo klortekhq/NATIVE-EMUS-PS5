@@ -1,5 +1,9 @@
 # Arcade hardware family
 
+## Progress: **10%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 Arcade is tracked both as a broad MAME target and as first-class board families.
 
 ## Explicit board targets

@@ -1,5 +1,9 @@
 # Azahar / Nintendo 3DS
 
+## Progress: **30%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 ## Key dependency
 
 Dynarmic is the central reason this target aligns with the shared PS5 runtime.
