@@ -110,6 +110,8 @@ done
 
 PIE="$OUT/artifacts/freeintv_pie.elf"
 "$CXX" -o "$PIE" "${OBJECTS[@]}" "$CORE_LIB" "${SUPPORT_OBJECTS[@]}" \
+  -Wl,--version-script="$ROOT/tools/ps5/app-hidden.map" \
+  -Wl,--exclude-libs,ALL \
   -pthread -lm \
   -lSceAudioOut -lScePad -lSceUserService -lSceVideoOut -lSceSystemService
 
