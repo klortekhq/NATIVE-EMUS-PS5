@@ -60,11 +60,9 @@ endif
     text = replace_once(
         text,
         """#ifdef HAVE_LIGHTREC
-
 #include <lightrec-config.h>
 """,
         """#ifdef HAVE_LIGHTREC
-
 #include <lightrec-config.h>
 #if defined(__PROSPERO__)
 #include <ps5rt/c/exec.h>
