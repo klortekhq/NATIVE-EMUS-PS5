@@ -47,6 +47,43 @@ make -C "$CORE" platform=unix STATIC_LINKING=1 \
 
 [[ -s "$CORE_LIB" ]] || { echo "O2EM static archive was not produced" >&2; exit 3; }
 
+# STATIC_LINKING excludes libretro-common frontend helpers. O2EM also uses
+# its vendored WAV/resampler path for The Voice support, so compile the exact
+# support set from the pinned checkout rather than disabling functionality.
+LRC="$CORE/libretro-common"
+SUPPORT_SOURCES=(
+  "$LRC/compat/compat_posix_string.c"
+  "$LRC/compat/compat_snprintf.c"
+  "$LRC/compat/compat_strcasestr.c"
+  "$LRC/compat/compat_strl.c"
+  "$LRC/compat/fopen_utf8.c"
+  "$LRC/encodings/encoding_crc32.c"
+  "$LRC/encodings/encoding_utf.c"
+  "$LRC/file/file_path.c"
+  "$LRC/file/file_path_io.c"
+  "$LRC/streams/file_stream.c"
+  "$LRC/time/rtime.c"
+  "$LRC/vfs/vfs_implementation.c"
+  "$LRC/audio/conversion/float_to_s16.c"
+  "$LRC/audio/conversion/s16_to_float.c"
+  "$LRC/audio/resampler/audio_resampler.c"
+  "$LRC/audio/resampler/drivers/sinc_resampler.c"
+  "$LRC/features/features_cpu.c"
+  "$LRC/file/config_file.c"
+  "$LRC/file/config_file_userdata.c"
+  "$LRC/formats/wav/rwav.c"
+  "$LRC/memmap/memalign.c"
+)
+SUPPORT_OBJECTS=()
+for src in "${SUPPORT_SOURCES[@]}"; do
+  rel="${src#$LRC/}"
+  obj="$OUT/obj/o2em_lrc_${rel//\//_}.o"
+  "$CC" -O2 -DNDEBUG -fPIC \
+    -I"$LRC/include" -I"$CORE" -I"$CORE/src" \
+    -c "$src" -o "$obj"
+  SUPPORT_OBJECTS+=("$obj")
+done
+
 if command -v nm >/dev/null 2>&1; then
   for sym in retro_init retro_deinit retro_get_system_info retro_get_system_av_info retro_load_game retro_run retro_unload_game; do
     nm "$CORE_LIB" 2>/dev/null | grep -q "[[:space:]]$sym$" || {
@@ -81,7 +118,7 @@ for src in "${SOURCES[@]}"; do
 done
 
 PIE="$OUT/artifacts/o2em_pie.elf"
-"$CXX" -o "$PIE" "${OBJECTS[@]}" "$CORE_LIB" \
+"$CXX" -o "$PIE" "${OBJECTS[@]}" "$CORE_LIB" "${SUPPORT_OBJECTS[@]}" \
   -pthread -lm \
   -lSceAudioOut -lScePad -lSceUserService -lSceVideoOut -lSceSystemService
 
