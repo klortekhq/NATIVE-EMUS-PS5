@@ -1,5 +1,9 @@
 # Genesis Plus GX
 
+## Progress: **50%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 **Systems:** SG-1000 / Master System / Game Gear / Mega Drive / Sega CD  
 **Repository state:** Port research / native PS5 integration plan
 

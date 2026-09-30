@@ -1,5 +1,9 @@
 # Flycast / Dreamcast · Naomi · Atomiswave
 
+## Progress: **35%**
+
+> Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
+
 ## Status
 
 **Pinned source + deterministic PS5 rec-x64/VM transformation.**
