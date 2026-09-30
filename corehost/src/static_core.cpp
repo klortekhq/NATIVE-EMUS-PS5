@@ -342,7 +342,7 @@ bool StaticCore::environment(unsigned cmd, void* data) {
       return false;
 
     default:
-      return false;
+      return hooks_.environment ? hooks_.environment(cmd, data) : false;
   }
 }
 
