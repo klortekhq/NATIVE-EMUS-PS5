@@ -23,6 +23,14 @@ std::int32_t scePadSetVibration(std::int32_t handle, const void* params);
 }
 
 namespace ps5rt {
+namespace detail {
+// Optional PS5 keyboard/mouse backend. Weak references keep the gamepad-only
+// runtime usable on builds that deliberately omit dynamic HID support.
+bool hid_initialize(std::int32_t user) noexcept __attribute__((weak));
+void hid_poll(InputSnapshot& out) noexcept __attribute__((weak));
+void hid_shutdown() noexcept __attribute__((weak));
+} // namespace detail
+
 namespace {
 
 constexpr std::uint32_t kL3 = 0x000002u;
@@ -198,6 +206,9 @@ Result initialize_input() noexcept {
     return {ErrorCode::system_error, rc, "scePadInit failed"};
 
   g_initialized = true;
+  if (detail::hid_initialize)
+    (void)detail::hid_initialize(g_initial_user);
+
   const auto refreshed = refresh_slots();
   if (!refreshed) {
     shutdown_input();
@@ -234,6 +245,9 @@ Result poll_input(InputSnapshot& out) noexcept {
     }
   }
 
+  if (detail::hid_poll)
+    detail::hid_poll(out);
+
   return Result::success();
 }
 
@@ -256,6 +270,9 @@ Result set_rumble(std::size_t controller, float low, float high) noexcept {
 }
 
 void shutdown_input() noexcept {
+  if (detail::hid_shutdown)
+    detail::hid_shutdown();
+
   for (auto& slot : g_slots)
     close_slot(slot);
   g_initial_user = -1;
