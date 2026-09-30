@@ -25,6 +25,21 @@ Concrete codebase workspaces live under [`emulators/`](emulators/README.md), whi
 
 See the [complete 60-target system matrix](docs/COMPLETE-SYSTEM-MATRIX.md) and the [porting matrix](docs/PORTING-MATRIX.md) for CPU/JIT/GPU requirements and current PS5 references.
 
+## First native cross-builds
+
+The first repository-native PS5 ports now complete the full public-SDK cross-build pipeline:
+
+- **NES — FCEUmm**
+- **SNES — Snes9x**
+- **SG-1000 — Genesis Plus GX**
+- **Master System — Genesis Plus GX**
+- **Game Gear — Genesis Plus GX**
+- **Mega Drive / Genesis — Genesis Plus GX**
+
+These builds statically link their emulator core into a PS5-targeted ELF and use the shared native `ps5rt` VideoOut, AudioOut, DualSense and storage host. They do **not** require a RetroArch executable or Linux/Wine layer.
+
+Status: **cross-built; physical PS5 validation pending**.
+
 ## Current focus
 
 | Platform | Upstream / reference | Native CPU path | Graphics path | Current project status |
@@ -92,6 +107,7 @@ See [docs/SCENE-REFERENCES.md](docs/SCENE-REFERENCES.md) for the engineering map
 
 - **Research** — architecture/source review only.
 - **Scaffold** — PS5 build/platform skeleton exists.
+- **Cross-built** — the emulator core and PS5 host compile/link into a PS5-targeted binary in reproducible CI; physical console validation is still pending.
 - **Booting** — emulator reaches its own startup/BIOS/UI on PS5.
 - **In-game** — at least one title reaches gameplay.
 - **Playable** — sustained play with working input/audio/rendering.
