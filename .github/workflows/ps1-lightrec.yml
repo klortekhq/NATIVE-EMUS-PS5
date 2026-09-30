@@ -1,0 +1,70 @@
+name: ps1-lightrec
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/**'
+      - 'tools/ps5/apply_beetle_psx_ps5.py'
+      - 'ports/beetle-psx-ps5/**'
+      - '.github/workflows/ps1-lightrec.yml'
+  pull_request:
+    paths:
+      - 'runtime/**'
+      - 'tools/ps5/apply_beetle_psx_ps5.py'
+      - 'ports/beetle-psx-ps5/**'
+      - '.github/workflows/ps1-lightrec.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ps1-lightrec-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned PS5 Beetle PSX donor
+        run: |
+          git clone --filter=blob:none https://github.com/mihawk-99/PS5_BeetlePSX.git /tmp/beetle-psx
+          git -C /tmp/beetle-psx checkout --detach e43b3980e031c47066917c941be6ace6f51ed24f
+      - name: Validate deterministic Lightrec transform
+        run: |
+          set -euo pipefail
+          python3 tools/ps5/apply_beetle_psx_ps5.py /tmp/beetle-psx --check
+          python3 tools/ps5/apply_beetle_psx_ps5.py /tmp/beetle-psx
+          grep -q 'HAVE_LIGHTREC = 1' /tmp/beetle-psx/Makefile
+          grep -q 'ps5rt_exec_allocate' /tmp/beetle-psx/libretro.c
+          grep -q 'ps5rt_exec_release' /tmp/beetle-psx/libretro.c
+          grep -q 'defined(__PROSPERO__)' /tmp/beetle-psx/libretro.c
+
+  cross-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+          test -x /opt/ps5-payload-sdk/bin/prospero-ranlib
+
+      - name: Cross-build Beetle PSX HW Lightrec x86-64 engine
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/beetle-psx-ps5/build_engine_ps5.sh
+
+      - name: Upload engine evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-beetle-psx-hw-lightrec-x64-ps5-engine
+          path: |
+            build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
+            build/ps5/beetle-psx/artifacts/ARTIFACT.json
+            build/ps5/beetle-psx/artifacts/SHA256SUMS
+          if-no-files-found: error
