@@ -48,3 +48,14 @@ jobs:
           git -C /tmp/flycast checkout --detach e36e9df2dcc1487acdb1dc7725766f1f5ba029b5
       - name: Verify deterministic PS5 dynarec/vmem transformation
         run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_flycast_native.py" /tmp/flycast --check
+
+  dynarmic-transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch PS5 Dynarmic donor
+        run: |
+          git clone --filter=blob:none https://github.com/mihawk-99/PS5_Dynarmic.git /tmp/dynarmic
+          git -C /tmp/dynarmic checkout --detach 1df2a07e9a86afef73d511a931f40bedb40b30c4
+      - name: Verify ps5rt allocator transformation
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_dynarmic_ps5rt.py" /tmp/dynarmic --check
