@@ -98,7 +98,7 @@ struct AudioDevice::Impl {
       pthread_join(thread, nullptr);
       thread_ready = false;
     }
-    if (port > 0) {
+    if (port >= 0) {
       (void)sceAudioOutOutput(port, nullptr);
       (void)sceAudioOutClose(port);
       port = -1;
@@ -221,7 +221,7 @@ Result AudioDevice::open(const AudioSpec& requested) noexcept {
   impl_->cond_ready = true;
 
   impl_->port = sceAudioOutOpen(0xff, 0, 0, kGrain, kRate, 1);
-  if (impl_->port <= 0) {
+  if (impl_->port < 0) {
     const auto rc = impl_->port;
     impl_->reset();
     return error(ErrorCode::system_error, rc, "sceAudioOutOpen failed");
@@ -245,7 +245,7 @@ Result AudioDevice::open(const AudioSpec& requested) noexcept {
 }
 
 Result AudioDevice::write(std::span<const std::byte> bytes) noexcept {
-  if (!impl_ || impl_->port <= 0)
+  if (!impl_ || impl_->port < 0)
     return error(ErrorCode::system_error, 0, "AudioDevice is not open");
 
   if (impl_->requested.format == SampleFormat::s16) {
@@ -278,7 +278,7 @@ Result AudioDevice::set_paused(bool paused) noexcept {
   }
   pthread_cond_broadcast(&impl_->changed);
   pthread_mutex_unlock(&impl_->mutex);
-  if (paused && impl_->port > 0)
+  if (paused && impl_->port >= 0)
     (void)sceAudioOutOutput(impl_->port, nullptr);
   return impl_->failed
       ? error(ErrorCode::system_error, 0, "AudioOut worker failed")
@@ -291,7 +291,7 @@ void AudioDevice::close() noexcept {
 }
 
 bool AudioDevice::is_open() const noexcept {
-  return impl_ && impl_->port > 0;
+  return impl_ && impl_->port >= 0;
 }
 
 AudioSpec AudioDevice::spec() const noexcept {

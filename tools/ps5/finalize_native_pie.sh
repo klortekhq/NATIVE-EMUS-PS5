@@ -31,7 +31,7 @@ git -C "$DONOR" checkout --detach "$PIN"
 (
   cd "$DONOR"
   bash tools/setup-native-dependencies.sh --skip-sdk >/dev/null
-  bash tools/build-host-tools.sh
+  USE_CCACHE=0 bash tools/build-host-tools.sh
 )
 
 TOOL="$DONOR/build/host/ps5-native-tool"
