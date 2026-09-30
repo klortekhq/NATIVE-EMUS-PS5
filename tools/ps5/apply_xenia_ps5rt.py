@@ -9,6 +9,7 @@ HEADER=pathlib.Path("src/xenia/cpu/backend/x64/x64_code_cache.h")
 SOURCE=pathlib.Path("src/xenia/cpu/backend/x64/x64_code_cache.cc")
 PLATFORM=pathlib.Path("src/xenia/base/platform.h")
 BACKEND=pathlib.Path("src/xenia/cpu/backend/x64/x64_backend.cc")
+ATOMIC=pathlib.Path("src/xenia/base/atomic.h")
 
 def replace_once(text:str,old:str,new:str,label:str)->str:
     count=text.count(old)
@@ -44,6 +45,15 @@ def transform_backend(text:str)->str:
         "#if XE_PLATFORM_LINUX || XE_PLATFORM_PS5\n",
     )
 
+
+
+def transform_atomic(text:str)->str:
+    return replace_once(
+        text,
+        "#elif XE_PLATFORM_LINUX || XE_PLATFORM_MAC\n",
+        "#elif XE_PLATFORM_LINUX || XE_PLATFORM_MAC || XE_PLATFORM_PS5\n",
+        "PS5 atomic compiler builtins",
+    )
 
 def transform_header(text:str)->str:
     text=replace_once(
@@ -205,6 +215,7 @@ def main()->int:
     try:
         p=transform_platform((root/PLATFORM).read_text())
         b=transform_backend((root/BACKEND).read_text())
+        a_atomic=transform_atomic((root/ATOMIC).read_text())
         h=transform_header((root/HEADER).read_text())
         s=transform_source((root/SOURCE).read_text())
     except RuntimeError as exc:
@@ -219,6 +230,8 @@ def main()->int:
             raise SystemExit("Xenia PS5 platform identity missing")
         if "#if XE_PLATFORM_LINUX || XE_PLATFORM_PS5" not in b:
             raise SystemExit("Xenia PS5 SysV thunk guard missing")
+        if "XE_PLATFORM_MAC || XE_PLATFORM_PS5" not in a_atomic:
+            raise SystemExit("PS5 atomic compiler builtins missing")
         if "require_fixed_execute = true" not in s or "require_fixed_write = true" not in s:
             raise SystemExit("PS5 fixed JIT mapping missing")
         print(f"Xenia {EXPECTED}: fixed x64 JIT transform matched")
@@ -226,6 +239,7 @@ def main()->int:
 
     (root/PLATFORM).write_text(p)
     (root/BACKEND).write_text(b)
+    (root/ATOMIC).write_text(a_atomic)
     (root/HEADER).write_text(h)
     (root/SOURCE).write_text(s)
     (root/".native-emus-ps5-xenia").write_text(EXPECTED+"\n")
