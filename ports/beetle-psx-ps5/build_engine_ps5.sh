@@ -46,7 +46,7 @@ make -C "$SRC" -j"${JOBS:-2}" \
 
 CONTENTS="$("$AR" t "$ENGINE")"
 
-for object in lightrec.c.o recompiler.c.o lightning.c.o jit_memory.c.o; do
+for object in lightrec.o recompiler.o lightning.o jit_memory.o; do
   grep -Eq "(^|/)$object$" <<<"$CONTENTS" || {
     echo "required Lightrec/GNU Lightning object missing: $object" >&2
     exit 4
