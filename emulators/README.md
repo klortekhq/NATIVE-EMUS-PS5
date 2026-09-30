@@ -38,6 +38,15 @@ These directories track the concrete upstream cores/codebases being adapted or e
 - [vita3k](vita3k/README.md)
 - [xemu](xemu/README.md)
 - [xenia](xenia/README.md)
+- [3do / Opera](3do/README.md)
+- [arcade board families](arcade/README.md)
+- [Atari ST / Hatari](atarist/README.md)
+- [CD-i / SAME CDi](cdi/README.md)
+- [DOSBox Staging](dosbox/README.md)
+- [Model 2 research](model2/README.md)
+- [Supermodel / Model 3](model3/README.md)
+- [Odyssey2 / O2EM](odyssey2/README.md)
+- [PC-FX](pcfx/README.md)
 
 ## Systems versus emulators
 
