@@ -89,7 +89,7 @@ if command -v nm >/dev/null 2>&1; then
 fi
 
 COMMON_FLAGS=(
-  -std=c++20 -O3 -DNDEBUG -fno-exceptions -pthread
+  -std=c++20 -O3 -DNDEBUG -fno-exceptions -fvisibility=hidden -pthread
   -I"$ROOT/runtime/include" -I"$ROOT/corehost/include"
 )
 
@@ -118,6 +118,8 @@ done
 
 PIE="$OUT/artifacts/nes_fceumm_pie.elf"
 "$CXX" -o "$PIE" "${OBJECTS[@]}" "$CORE_LIB" "${LRC_OBJECTS[@]}" \
+  -Wl,--version-script="$ROOT/tools/ps5/app-hidden.map" \
+  -Wl,--exclude-libs,ALL \
   -pthread -lm \
   -lSceAudioOut -lScePad -lSceUserService -lSceVideoOut -lSceSystemService
 
