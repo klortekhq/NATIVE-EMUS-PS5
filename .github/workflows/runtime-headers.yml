@@ -312,6 +312,13 @@ jobs:
           test -x /opt/ps5-payload-sdk/bin/prospero-clang++
           test -x /opt/ps5-payload-sdk/bin/prospero-ar
 
+      - name: Install Dynarmic header-only Boost dependency
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libboost-dev
+          test -d /usr/include/boost
+
       - name: Cross-build Dynarmic A32+A64 x64 JIT
         env:
           PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
