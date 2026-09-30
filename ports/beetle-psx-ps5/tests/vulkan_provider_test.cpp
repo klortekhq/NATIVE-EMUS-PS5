@@ -24,7 +24,7 @@ VkQueue fake_queue() {
   return reinterpret_cast<VkQueue>(static_cast<uintptr_t>(0x4000));
 }
 VkSurfaceKHR fake_surface() {
-  return static_cast<VkSurfaceKHR>(0x5000);
+  return reinterpret_cast<VkSurfaceKHR>(static_cast<uintptr_t>(0x5000));
 }
 
 int create_instance_calls{};
