@@ -48,6 +48,37 @@ make -C "$CORE" -f Makefile.libretro \
 
 [[ -s "$CORE_LIB" ]] || { echo "FCEUmm static archive was not produced" >&2; exit 3; }
 
+# FCEUmm deliberately excludes these libretro-common sources when
+# STATIC_LINKING=1 because the frontend is expected to provide them.
+# We use the exact vendored copy from the pinned core checkout.
+LRC="$CORE/src/drivers/libretro/libretro-common"
+LRC_SOURCES=(
+  "$LRC/compat/compat_posix_string.c"
+  "$LRC/compat/compat_snprintf.c"
+  "$LRC/compat/compat_strcasestr.c"
+  "$LRC/compat/compat_strl.c"
+  "$LRC/compat/fopen_utf8.c"
+  "$LRC/encodings/encoding_utf.c"
+  "$LRC/file/file_path.c"
+  "$LRC/file/file_path_io.c"
+  "$LRC/streams/file_stream.c"
+  "$LRC/streams/file_stream_transforms.c"
+  "$LRC/string/stdstring.c"
+  "$LRC/time/rtime.c"
+  "$LRC/vfs/vfs_implementation.c"
+)
+LRC_OBJECTS=()
+for src in "${LRC_SOURCES[@]}"; do
+  rel="${src#$LRC/}"
+  obj="$OUT/obj/lrc_${rel//\//_}.o"
+  "$CC" -O2 -DNDEBUG -fPIC \
+    -I"$LRC/include" \
+    -I"$CORE/src/drivers/libretro" \
+    -I"$CORE/src" \
+    -c "$src" -o "$obj"
+  LRC_OBJECTS+=("$obj")
+done
+
 if command -v nm >/dev/null 2>&1; then
   for sym in retro_init retro_deinit retro_load_game retro_run retro_unload_game; do
     nm "$CORE_LIB" 2>/dev/null | grep -q "[[:space:]]$sym$" || {
@@ -84,7 +115,7 @@ for src in "${SOURCES[@]}"; do
 done
 
 PIE="$OUT/artifacts/nes_fceumm_pie.elf"
-"$CXX" -o "$PIE" "${OBJECTS[@]}" "$CORE_LIB" \
+"$CXX" -o "$PIE" "${OBJECTS[@]}" "$CORE_LIB" "${LRC_OBJECTS[@]}" \
   -pthread -lm \
   -lSceAudioOut -lScePad -lSceUserService -lSceVideoOut -lSceSystemService
 
