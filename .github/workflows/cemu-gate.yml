@@ -1,0 +1,46 @@
+name: cemu-ps5-x64-recompiler-gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ports/cemu-ps5/**'
+      - '.github/workflows/cemu-gate.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: cemu-ps5-x64-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ppc-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Install header-only Cemu build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libboost-dev libfmt-dev libglm-dev
+
+      - name: Cross-build Cemu PPC x64 recompiler
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/cemu-ps5/build_recompiler_ps5.sh
+
+      - name: Upload Cemu PS5 x64 recompiler
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-cemu-ppc-x64-ps5-engine
+          path: |
+            build/ps5/cemu/artifacts/libcemu_ppc_x64_ps5.a
+            build/ps5/cemu/artifacts/SHA256SUMS
+          if-no-files-found: error
