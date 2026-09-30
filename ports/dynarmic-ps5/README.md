@@ -25,3 +25,12 @@ The build gate rejects an archive that lacks the x64 A32/A64 JIT objects.
 `mihawk-99/PS5_Dynarmic@1df2a07e9a86afef73d511a931f40bedb40b30c4`
 
 The PS5 allocator delta is transformed from the donor-specific `ps5_exec_*` API to the common `ps5rt_exec_*` ABI before compilation.
+
+
+## CI-verified state
+
+**PS5 cross-build: green.**
+
+Workflow run `36760157664` successfully produced and uploaded `libdynarmic_ps5.a` with the A32 and A64 x86-64 JIT objects present. This moves the shared ARM backend from transform-only research to a reproducible PS5 engine build.
+
+Hardware execution/fastmem validation on a jailbroken PS5 is still a separate gate.
