@@ -1,0 +1,211 @@
+# NATIVE-EMUS-PS5: PPSSPP v1.20.4 engine-only PS5 port
+# Base commit: fa50bb1976065c4f8b1b47af227d367fe9771555
+# Keeps PPSSPP's native x86-64 MIPS JIT and Vulkan engine.
+# Deliberately excludes libretro/frontend glue.
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -308,7 +308,7 @@ elseif(NOT OPENGL_LIBRARIES AND USING_GLES2)
+ 	set(OPENGL_LIBRARIES GLESv2 EGL)
+ endif()
+ 
+-if(NOT OPENGL_LIBRARIES)
++if(NOT OPENGL_LIBRARIES AND NOT PPSSPP_PS5)
+@@ -974,6 +974,12 @@ endif()
+ target_compile_definitions(Common PRIVATE Z7_CRC_NUM_TABLES=1)
++
++if(PPSSPP_PS5)
++	file(GLOB PS5_GL_SOURCES ${CMAKE_SOURCE_DIR}/Common/GPU/OpenGL/*.cpp ${CMAKE_SOURCE_DIR}/Common/GPU/OpenGL/*.c)
++	set_source_files_properties(${PS5_GL_SOURCES} TARGET_DIRECTORY Common PROPERTIES HEADER_FILE_ONLY TRUE)
++endif()
+@@ -1743,7 +1749,7 @@ if(ANDROID)
+ 	target_link_libraries(native log EGL OpenSLES)
+ elseif(WIN32)
+ 	target_link_libraries(native ws2_32 winmm)
+-elseif(${CMAKE_SYSTEM_NAME} MATCHES "^(DragonFly|FreeBSD|NetBSD)$")
++elseif(${CMAKE_SYSTEM_NAME} MATCHES "^(DragonFly|FreeBSD|NetBSD)$" AND NOT PPSSPP_PS5)
+ 	target_link_libraries(native execinfo)
+ endif()
+@@ -1985,7 +1991,10 @@ set(GPU_D3D11
+ )
+-set(GPU_IMPLS ${GPU_GLES} ${GPU_VULKAN})
++set(GPU_IMPLS ${GPU_VULKAN})
++if(NOT PPSSPP_PS5)
++	list(APPEND GPU_IMPLS ${GPU_GLES})
++endif()
+ if(WIN32)
+ 	list(APPEND GPU_IMPLS ${GPU_D3D11})
+ endif()
+
+diff --git a/Common/CPUDetect.cpp b/Common/CPUDetect.cpp
+--- a/Common/CPUDetect.cpp
++++ b/Common/CPUDetect.cpp
+@@ -30,6 +30,8 @@
+ #include <fcntl.h>
+ #elif PPSSPP_PLATFORM(MAC)
+ #include <sys/sysctl.h>
++#elif PPSSPP_PLATFORM(PS5)
++#include <unistd.h>
+ #endif
+@@ -465,6 +467,25 @@ void CPUInfo::Detect() {
+ 			logical_cpu_count = num / std::max(num_cores, 1);
+ 		}
+ 	}
++#elif PPSSPP_PLATFORM(PS5)
++	{
++		long online = sysconf(_SC_NPROCESSORS_ONLN);
++		if (online > 0) {
++			num_cores = (int)online;
++			if (max_ex_fn >= 0x80000008) {
++				do_cpuid(cpu_id, 0x80000008);
++				const int physical = (cpu_id[2] & 0xFF) + 1;
++				if (physical > 0 && physical <= online)
++					num_cores = physical;
++			}
++			logical_cpu_count = (int)(online / std::max(num_cores, 1));
++		}
++	}
+ #endif
+
+diff --git a/Common/MemArena.h b/Common/MemArena.h
+--- a/Common/MemArena.h
++++ b/Common/MemArena.h
+@@ -25,8 +25,13 @@
+ #include <mach/mach.h>
+ #endif
+ 
++#include "ppsspp_config.h"
+ #include "Common/CommonTypes.h"
++#if PPSSPP_PLATFORM(PS5)
++#include <ps5rt/c/shm.h>
++#endif
+@@ -55,4 +60,8 @@ class MemArena {
+ #else
+ 	int fd = -1;
+ #endif
++#if PPSSPP_PLATFORM(PS5)
++	ps5rt_shm shm_{};
++#endif
+ };
+
+diff --git a/Common/MemArenaPosix.cpp b/Common/MemArenaPosix.cpp
+--- a/Common/MemArenaPosix.cpp
++++ b/Common/MemArenaPosix.cpp
+@@ -51,7 +51,22 @@ bool MemArena::NeedsProbing() {
+ 	return false;
+ }
++#if PPSSPP_PLATFORM(PS5)
++static void *ps5_reserved = nullptr;
++static const size_t ps5_reserved_bytes = 0x100000000ULL;
++static bool ps5_in_reserved(const void *view, size_t size) {
++	const uintptr_t at = (uintptr_t)view, base = (uintptr_t)ps5_reserved;
++	return ps5_reserved && at >= base && at + size <= base + ps5_reserved_bytes;
++}
++#endif
+ 
+ bool MemArena::GrabMemSpace(size_t size) {
++#if PPSSPP_PLATFORM(PS5)
++	const int result = ps5rt_shm_create(size, &shm_);
++	if (result != 0) return false;
++	return true;
++#endif
+@@ -104,6 +119,10 @@ bool MemArena::GrabMemSpace(size_t size) {
+ }
+ void MemArena::ReleaseSpace() {
++#if PPSSPP_PLATFORM(PS5)
++	ps5rt_shm_destroy(&shm_);
++	return;
++#endif
+@@ -111,6 +130,14 @@ void MemArena::ReleaseSpace() {
+ void *MemArena::CreateView(s64 offset, size_t size, void *base)
+ {
++#if PPSSPP_PLATFORM(PS5)
++	void *view = nullptr;
++	const int result = ps5rt_shm_map(&shm_, (size_t)offset, size, base,
++		PS5RT_SHM_READ | PS5RT_SHM_WRITE, base ? PS5RT_SHM_FIXED : 0, &view);
++	return result == 0 ? view : nullptr;
++#endif
+@@ -130,6 +157,33 @@ void *MemArena::CreateView(s64 offset, void* view, size_t size) {
+ }
+ void MemArena::ReleaseView(s64 offset, void* view, size_t size) {
++#if PPSSPP_PLATFORM(PS5)
++	(void)offset;
++	ps5rt_shm_unmap(view, size, ps5_in_reserved(view, size) ? PS5RT_SHM_KEEP_RESERVED : 0);
++	return;
++#endif
+@@ -139,6 +193,25 @@ void *MemArena::ReleaseView(s64 offset, void* view, size_t size) {
+ u8* MemArena::Find4GBBase() {
++#if PPSSPP_PLATFORM(PS5)
++	if (!ps5_reserved) {
++		void *const hint = (void *)0x600000000ULL;
++		void *address = nullptr;
++		int result = ps5rt_vrange_reserve(ps5_reserved_bytes, hint, 0x10000, &address);
++		if (result == 0 && address != hint) {
++			ps5rt_vrange_release(address, ps5_reserved_bytes);
++			ps5rt_vrange_release(hint, ps5_reserved_bytes);
++			result = ps5rt_vrange_reserve(ps5_reserved_bytes, hint, 0x10000, &address);
++		}
++		if (result != 0) return nullptr;
++		ps5_reserved = address;
++	}
++	return static_cast<u8 *>(ps5_reserved);
++#endif
+
+diff --git a/Common/MemoryUtil.cpp b/Common/MemoryUtil.cpp
+--- a/Common/MemoryUtil.cpp
++++ b/Common/MemoryUtil.cpp
+@@ -43,6 +43,9 @@
+ #ifndef _WIN32
+ #include <unistd.h>
++#if PPSSPP_PLATFORM(PS5)
++#include <ps5rt/c/exec.h>
++#endif
+ #endif
+@@ -189,7 +192,16 @@ void *AllocateExecutableMemory(size_t size) {
+ 	if (PlatformIsWXExclusive())
+ 		prot = PROT_READ | PROT_WRITE;
++#if PPSSPP_PLATFORM(PS5)
++	(void)map_hint;
++	void *ptr = ps5rt_exec_allocate(size, (uintptr_t)&AllocateExecutableMemory);
++	if (!ptr)
++		ptr = MAP_FAILED;
++#else
+ 	void* ptr = mmap(map_hint, size, prot, MAP_ANON | MAP_PRIVATE, -1, 0);
++#endif
+@@ -276,6 +288,12 @@ void FreeMemoryPages(void *ptr, size_t size) {
+ }
+ void FreeExecutableMemory(void *ptr, size_t size) {
++#if PPSSPP_PLATFORM(PS5)
++	(void)size;
++	if (ptr) { ps5rt_exec_release(ptr); return; }
++#endif
+ 	FreeMemoryPages(ptr, size);
+ }
+
+diff --git a/Common/Thread/ThreadUtil.cpp b/Common/Thread/ThreadUtil.cpp
+--- a/Common/Thread/ThreadUtil.cpp
++++ b/Common/Thread/ThreadUtil.cpp
+@@ -143,7 +143,7 @@ void SetCurrentThreadName(const char *threadName) {
+ 	pthread_setname_np(pthread_self(), threadName);
+ #elif defined(__APPLE__)
+ 	pthread_setname_np(threadName);
+-#elif defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
++#elif (defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)) && !PPSSPP_PLATFORM(PS5)
+ 	pthread_set_name_np(pthread_self(), threadName);
+
+diff --git a/ppsspp_config.h b/ppsspp_config.h
+--- a/ppsspp_config.h
++++ b/ppsspp_config.h
+@@ -124,10 +124,15 @@
+     #define PPSSPP_PLATFORM_LINUX 1
+ #elif defined(__OpenBSD__)
+     #define PPSSPP_PLATFORM_OPENBSD 1
++#elif defined(__PROSPERO__)
++    #define PPSSPP_PLATFORM_PS5 1
+ #endif
+ 
+-#if !PPSSPP_PLATFORM(WINDOWS) || ((!PPSSPP_ARCH(ARM) && !PPSSPP_ARCH(ARM64)) && !PPSSPP_PLATFORM(UWP))
++#if (!PPSSPP_PLATFORM(WINDOWS) || ((!PPSSPP_ARCH(ARM) && !PPSSPP_ARCH(ARM64)) && !PPSSPP_PLATFORM(UWP))) && !PPSSPP_PLATFORM(PS5)
+ #define PPSSPP_API_ANY_GL 1
+ #endif
