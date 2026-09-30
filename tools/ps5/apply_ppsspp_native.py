@@ -73,6 +73,12 @@ def transform(root: pathlib.Path) -> dict[pathlib.Path, str]:
     )
     text = replace_once(
         text,
+        "elseif(LIBRETRO)\nelse()\n",
+        "elseif(LIBRETRO OR PPSSPP_PS5)\nelse()\n",
+        "CMake PS5 skip SDL native shell",
+    )
+    text = replace_once(
+        text,
         "target_compile_definitions(Common PRIVATE Z7_CRC_NUM_TABLES=1)\n",
         """target_compile_definitions(Common PRIVATE Z7_CRC_NUM_TABLES=1)
 
