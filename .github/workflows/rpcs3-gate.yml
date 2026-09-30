@@ -116,3 +116,63 @@ jobs:
           )
           "$CXX" "${flags[@]}"             -c /tmp/rpcs3/rpcs3/Emu/Cell/SPUASMJITRecompiler.cpp             -o /tmp/rpcs3_spu_asmjit_ps5.o
           test -s /tmp/rpcs3_spu_asmjit_ps5.o
+
+      - name: Cross-compile RPCS3 PPU LLVM translator object
+        run: |
+          set -euo pipefail
+          CXX=/opt/ps5-payload-sdk/bin/prospero-clang++
+          flags=(
+            -std=c++20 -O2 -DNDEBUG
+            -DARCH_X64
+            -DLLVM_AVAILABLE
+            -DRPCS3_LIBRETRO
+            -I/tmp/rpcs3
+            -I/tmp/rpcs3/rpcs3
+            -I/tmp/rpcs3/3rdparty
+            -I/tmp/rpcs3/3rdparty/asmjit/asmjit/src
+            -I/tmp/llvm-config/include
+            -I/tmp/llvm/llvm/include
+          )
+          "$CXX" "${flags[@]}"             -c /tmp/rpcs3/rpcs3/Emu/Cell/PPUTranslator.cpp             -o /tmp/rpcs3_ppu_llvm_ps5.o
+          test -s /tmp/rpcs3_ppu_llvm_ps5.o
+
+      - name: Cross-compile RPCS3 SPU LLVM recompiler object
+        run: |
+          set -euo pipefail
+          CXX=/opt/ps5-payload-sdk/bin/prospero-clang++
+          flags=(
+            -std=c++20 -O2 -DNDEBUG
+            -DARCH_X64
+            -DLLVM_AVAILABLE
+            -DRPCS3_LIBRETRO
+            -I/tmp/rpcs3
+            -I/tmp/rpcs3/rpcs3
+            -I/tmp/rpcs3/3rdparty
+            -I/tmp/rpcs3/3rdparty/asmjit/asmjit/src
+            -I/tmp/llvm-config/include
+            -I/tmp/llvm/llvm/include
+          )
+          "$CXX" "${flags[@]}"             -c /tmp/rpcs3/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp             -o /tmp/rpcs3_spu_llvm_ps5.o
+          test -s /tmp/rpcs3_spu_llvm_ps5.o
+
+      - name: Archive compiled RPCS3 PS5 CPU engines
+        run: |
+          set -euo pipefail
+          AR=/opt/ps5-payload-sdk/bin/prospero-ar
+          objects=(
+            /tmp/rpcs3_jitasm_ps5.o
+            /tmp/rpcs3_spu_asmjit_ps5.o
+            /tmp/rpcs3_ppu_llvm_ps5.o
+            /tmp/rpcs3_spu_llvm_ps5.o
+          )
+          for obj in "${objects[@]}"; do test -s "$obj"; done
+          "$AR" rcs /tmp/librpcs3_ps5_cpu_engines.a "${objects[@]}"
+          test -s /tmp/librpcs3_ps5_cpu_engines.a
+          "$AR" t /tmp/librpcs3_ps5_cpu_engines.a
+
+      - name: Upload RPCS3 PS5 CPU engine objects
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-rpcs3-ppu-spu-jit-ps5-engine
+          path: /tmp/librpcs3_ps5_cpu_engines.a
+          if-no-files-found: error
