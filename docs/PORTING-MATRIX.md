@@ -54,6 +54,18 @@ This matrix is a technical routing table. The "track" column groups similar engi
 | NEC PC-FX | Beetle PC-FX | interpreter | software | B complex-retro | Mednafen patterns |
 | Intellivision | FreeIntv | interpreter | software | A portable | — |
 | Commodore Amiga | PUAE | 68k emulation/JIT depending build | software | B complex-retro | shared runtime |
+| 3DO | Opera | ARM60 emulation | software | B complex-retro + optical VFS | ps5rt::media / VFS |
+| Atari ST / STE / TT / Falcon | Hatari | 68k emulation | software | B complex-retro | keyboard/mouse + VFS |
+| DOS / IBM PC | DOSBox Staging | interpreter/dynamic x86 core | software | B JIT + desktop I/O | keyboard/mouse + JIT |
+| Philips CD-i | SAME CDi / MAME | 68000-family emulation | software | B complex-retro + optical VFS | ps5rt::media |
+| Odyssey2 / Videopac | O2EM | interpreter | software | A portable | keyboard/keypad input |
+| CPS-1 | FinalBurn Neo / MAME | interpreter | software | A arcade | shared arcade engine |
+| CPS-2 | FinalBurn Neo / MAME | interpreter | software | A arcade | shared arcade engine |
+| CPS-3 | FinalBurn Neo / MAME | interpreter | software | A arcade | shared arcade engine |
+| Sega Naomi | Flycast | x86-64 SH4 dynarec | Vulkan | C modern arcade | Flycast + PS5 RADV |
+| Sammy Atomiswave | Flycast | x86-64 SH4 dynarec | Vulkan | C modern arcade | Flycast + PS5 RADV |
+| Sega Model 2 | MAME research | i960 + device emulation | software/custom 3D | D machine-model | MAME driver research |
+| Sega Model 3 | Supermodel | PowerPC emulation | OpenGL today; PS5 renderer work needed | D GPU-heavy | standalone native port research |
 
 ## Track A — portable cores
 
