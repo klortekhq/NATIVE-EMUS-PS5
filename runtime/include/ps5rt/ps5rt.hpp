@@ -15,3 +15,5 @@
 #include <ps5rt/vfs.hpp>
 #include <ps5rt/vulkan.hpp>
 #include <ps5rt/video.hpp>
+
+#include <ps5rt/c/vmem.h>
