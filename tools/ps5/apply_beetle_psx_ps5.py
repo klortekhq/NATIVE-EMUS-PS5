@@ -71,6 +71,47 @@ endif
         "ps5rt executable-memory include",
     )
 
+    # The donor's generic lightrec_init_mmap() still references the desktop
+    # SHM/memfd setup even though PS5 never calls that path after this transform.
+    # Stub it on Prospero so enabling HAVE_LIGHTREC does not drag the desktop
+    # mmap allocator into the PS5 compile.
+    text = replace_once(
+        text,
+        """int lightrec_init_mmap(void)
+{
+\tint ret = 0;
+""",
+        """int lightrec_init_mmap(void)
+{
+#if defined(__PROSPERO__)
+\treturn 0;
+#else
+\tint ret = 0;
+""",
+        "PS5 lightrec_init_mmap stub",
+    )
+    text = replace_once(
+        text,
+        """#ifdef HAVE_WIN_SHM
+\tCloseHandle(memfd);
+#endif
+\treturn ret;
+}
+
+void lightrec_free_mmap(void)
+""",
+        """#ifdef HAVE_WIN_SHM
+\tCloseHandle(memfd);
+#endif
+\treturn ret;
+#endif
+}
+
+void lightrec_free_mmap(void)
+""",
+        "PS5 lightrec_init_mmap stub end",
+    )
+
     old_init = """#ifdef HAVE_LIGHTREC
    /* try hugetlb then fallback if mmap fails */
    hugetlb = true;
@@ -114,7 +155,7 @@ endif
    if (!lightrec_codebuffer)
    {
       log_cb(RETRO_LOG_ERROR,
-            "PS5 Lightrec: executable code-buffer allocation failed (%u bytes)\n",
+            "PS5 Lightrec: executable code-buffer allocation failed (%u bytes)\\n",
             (unsigned)LIGHTREC_CODEBUFFER_SIZE);
       return;
    }
