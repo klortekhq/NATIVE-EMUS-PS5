@@ -23,9 +23,20 @@ git -C "$SRC" submodule update --init --recursive --depth 1
 
 python3 "$ROOT/tools/ps5/apply_dynarmic_ps5rt.py" "$SRC"
 
+# Dynarmic's Boost dependency is header-only. Stage only Boost headers outside
+# the PS5 sysroot so the cross compiler never sees host libc/libstdc++ headers.
+BOOST_SOURCE="${BOOST_INCLUDE_DIR:-/usr/include}"
+if [[ ! -d "$BOOST_SOURCE/boost" ]]; then
+  echo "Boost headers not found at $BOOST_SOURCE/boost; set BOOST_INCLUDE_DIR" >&2
+  exit 8
+fi
+mkdir -p "$OUT/boost/include"
+cp -a "$BOOST_SOURCE/boost" "$OUT/boost/include/boost"
+
 "$CMAKE" -S "$SRC" -B "$OUT/build" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -march=znver2 -msse4.1 -mavx2 -mno-vzeroupper -I$ROOT/runtime/include" \
+  -DBoost_INCLUDE_DIR="$OUT/boost/include" \
   -DDYNARMIC_FRONTENDS="A32;A64" \
   -DDYNARMIC_TESTS=OFF \
   -DDYNARMIC_TESTS_USE_UNICORN=OFF \
