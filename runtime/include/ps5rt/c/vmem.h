@@ -12,6 +12,17 @@ enum {
   PS5RT_VMEM_EXEC  = 1u << 2,
 };
 
+// Reserve an address range without committing physical pages. The hint form
+// may fall back to another address if the requested range is unavailable.
+int ps5rt_vrange_reserve(size_t size, void* hint, size_t alignment, void** out);
+
+// Strict fixed-address reservation. Success guarantees *out == address.
+int ps5rt_vrange_reserve_fixed(
+    size_t size, void* address, size_t alignment, void** out);
+
+// Release a previously reserved virtual range.
+int ps5rt_vrange_release(void* address, size_t size);
+
 // Commit flexible-memory pages at an address that is already part of a
 // reserved virtual range. The mapping is fixed: success guarantees the same
 // address.
