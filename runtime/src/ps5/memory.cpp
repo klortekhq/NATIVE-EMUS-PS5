@@ -3,6 +3,7 @@
 
 #include <ps5rt/c/exec.h>
 #include <ps5rt/c/shm.h>
+#include <ps5rt/c/vmem.h>
 
 #include <algorithm>
 #include <cstddef>
@@ -312,6 +313,63 @@ extern "C" int ps5rt_vrange_release(void* address, std::size_t requested_size) {
   if (!address || requested_size == 0) return -1;
   const auto size = round_up(requested_size, kPageSize);
   return sceKernelMunmap(address, static_cast<unsigned long long>(size));
+}
+
+
+extern "C" int ps5rt_vmem_commit(void* address,
+                                  std::size_t requested_size,
+                                  unsigned flags) {
+  if (!address || requested_size == 0) return -1;
+  const auto size = round_up(requested_size, kPageSize);
+
+  int protection = 0;
+  if (flags & PS5RT_VMEM_READ) protection |= kProtRead;
+  if (flags & PS5RT_VMEM_WRITE) protection |= kProtWrite;
+  if (flags & PS5RT_VMEM_EXEC) protection |= kProtExec;
+  if (protection == 0) return -1;
+
+  void* mapped = address;
+  int rc = sceKernelMapFlexibleMemory(
+      &mapped, size, protection, kFlexibleMapFixed);
+  if (rc != 0) return rc;
+  if (mapped != address) {
+    (void)sceKernelReleaseFlexibleMemory(mapped, size);
+    return -1;
+  }
+  return 0;
+}
+
+extern "C" int ps5rt_vmem_decommit(void* address,
+                                    std::size_t requested_size) {
+  if (!address || requested_size == 0) return -1;
+  const auto size = round_up(requested_size, kPageSize);
+
+  int rc = sceKernelReleaseFlexibleMemory(address, size);
+  if (rc != 0) return rc;
+
+  void* reserved = address;
+  rc = sceKernelReserveVirtualRange(
+      &reserved, size, kVirtualMapFixed, kPageSize);
+  if (rc != 0) return rc;
+  if (reserved != address) {
+    (void)sceKernelMunmap(reserved, size);
+    return -1;
+  }
+  return 0;
+}
+
+extern "C" int ps5rt_vmem_protect(void* address,
+                                   std::size_t requested_size,
+                                   unsigned flags) {
+  if (!address || requested_size == 0) return -1;
+  const auto size = round_up(requested_size, kPageSize);
+
+  int protection = 0;
+  if (flags & PS5RT_VMEM_READ) protection |= kProtRead;
+  if (flags & PS5RT_VMEM_WRITE) protection |= kProtWrite;
+  if (flags & PS5RT_VMEM_EXEC) protection |= kProtExec;
+
+  return sceKernelMprotect(address, size, protection);
 }
 
 namespace ps5rt {
