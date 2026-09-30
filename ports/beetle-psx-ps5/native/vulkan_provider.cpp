@@ -345,13 +345,21 @@ void VulkanProvider::wait_sync_index(void* handle) {
 }
 
 void VulkanProvider::lock_queue(void* handle) {
-  if (auto* self = static_cast<VulkanProvider*>(handle))
-    self->queue_mutex_.lock();
+  if (auto* self = static_cast<VulkanProvider*>(handle)) {
+    if (self->presentation_.lock_queue)
+      self->presentation_.lock_queue();
+    else
+      self->queue_mutex_.lock();
+  }
 }
 
 void VulkanProvider::unlock_queue(void* handle) {
-  if (auto* self = static_cast<VulkanProvider*>(handle))
-    self->queue_mutex_.unlock();
+  if (auto* self = static_cast<VulkanProvider*>(handle)) {
+    if (self->presentation_.unlock_queue)
+      self->presentation_.unlock_queue();
+    else
+      self->queue_mutex_.unlock();
+  }
 }
 
 void VulkanProvider::set_signal_semaphore(
