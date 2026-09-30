@@ -15,8 +15,8 @@ This matrix is a technical routing table. The "track" column groups similar engi
 | N64 | Mupen64Plus | x86-64 dynarec | Vulkan-capable plugin path | B JIT | mihawk-99/PS5_Mupen64Plus |
 | Nintendo DS | DeSmuME | JIT optional | software/OpenGL-derived paths | B JIT | mihawk-99/PS5_DeSmuME |
 | Nintendo 3DS | Azahar | Dynarmic x86-64 | Vulkan | C modern | mihawk-99/PS5_Azahar + PS5_Dynarmic |
-| GameCube | Dolphin | x86-64 JIT | Vulkan | C modern | PS5_RetroArch Dolphin work |
-| Wii | Dolphin | x86-64 JIT | Vulkan | C modern | PS5_RetroArch Dolphin work |
+| GameCube | Dolphin | x86-64 JIT | Vulkan | C modern | PS5_RetroArch Dolphin work + Phi1ow/mkwii-ps5 platform research |
+| Wii | Dolphin | x86-64 JIT | Vulkan | C modern | PS5_RetroArch Dolphin work + Phi1ow/mkwii-ps5 platform research |
 | Wii U | Cemu | PPC recompiler | Vulkan | C modern | shared RADV/JIT runtime |
 | SG-1000 | Genesis Plus GX | interpreter | software | A portable | — |
 | Master System | Genesis Plus GX | interpreter | software | A portable | — |
