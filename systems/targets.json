@@ -7,17 +7,17 @@
       "id": "nes",
       "name": "Nintendo Entertainment System",
       "core": "Mesen 2 / FCEUmm",
-      "status": "research",
+      "status": "cross-built",
       "group": "m8-baseline",
-      "note": "native NES alpha recovered from M7; choose clean long-term core"
+      "note": "FCEUmm static native PS5 PIE cross-built; hardware validation pending"
     },
     {
       "id": "snes",
       "name": "Super Nintendo / Super Famicom",
       "core": "Snes9x / bsnes",
-      "status": "research",
+      "status": "cross-built",
       "group": "m8-baseline",
-      "note": "standalone native port target"
+      "note": "Snes9x static native PS5 PIE cross-built; hardware validation pending"
     },
     {
       "id": "gb",
@@ -103,33 +103,33 @@
       "id": "sg1000",
       "name": "Sega SG-1000",
       "core": "Genesis Plus GX",
-      "status": "research",
+      "status": "cross-built",
       "group": "m8-baseline",
-      "note": "8-bit Sega family"
+      "note": "Genesis Plus GX static native PS5 PIE cross-built; hardware validation pending"
     },
     {
       "id": "mastersystem",
       "name": "Sega Master System",
       "core": "Genesis Plus GX",
-      "status": "research",
+      "status": "cross-built",
       "group": "m8-baseline",
-      "note": "8-bit Sega family"
+      "note": "Genesis Plus GX static native PS5 PIE cross-built; hardware validation pending"
     },
     {
       "id": "gamegear",
       "name": "Sega Game Gear",
       "core": "Genesis Plus GX",
-      "status": "research",
+      "status": "cross-built",
       "group": "m8-baseline",
-      "note": "8-bit Sega family"
+      "note": "Genesis Plus GX static native PS5 PIE cross-built; hardware validation pending"
     },
     {
       "id": "megadrive",
       "name": "Mega Drive / Genesis",
       "core": "Genesis Plus GX",
-      "status": "research",
+      "status": "cross-built",
       "group": "m8-baseline",
-      "note": "16-bit Sega family"
+      "note": "Genesis Plus GX static native PS5 PIE cross-built; hardware validation pending"
     },
     {
       "id": "segacd",
