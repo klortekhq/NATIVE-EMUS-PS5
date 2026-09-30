@@ -94,14 +94,16 @@ These are especially useful for hardening AudioOut, DualSense, VFS, packaging an
 7. **xemu/Xenia/MAME/Jaguar/Amiga:** maintain dedicated deeper-host tracks.
 
 
-### PlayStation / PS1 — 30%
+### PlayStation / PS1 — 60%
 
 - Selected core: Beetle PSX HW.
 - Required CPU backend: Lightrec + GNU Lightning x86-64.
 - PS5 donor pinned at `mihawk-99/PS5_BeetlePSX@e43b3980e031c47066917c941be6ace6f51ed24f`.
 - Deterministic transform is green in host CI.
 - Transform re-enables Lightrec on PS5 and supplies its TLSF code pool through `ps5rt_exec_allocate()`.
-- Native PS5 engine cross-build is the current gate.
-- Vulkan/RADV, native app shell and physical-console validation remain after the CPU/JIT gate.
+- Native PS5 engine cross-build is **green** (workflow 36781556800, artifact 11127512766).
+- Binary inspection confirms `lightrec.o`, `recompiler.o`, `lightning.o`, `jit_memory.o`, `lightrec_execute`, `_jit_set_code`, and references to `ps5rt_exec_allocate/release`.
+- Engine SHA-256: `b709412d7cc3dbe815fcde63dc6daddfdf994fe96998a12ed148cc857df2deb2`.
+- Vulkan/RADV standalone host, native service adapters, media/package and physical-console validation remain.
 
 See `systems/ps1/README.md` for the weighted percentage.
