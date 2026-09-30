@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "reviewed": "2026-09-30",
+  "beetle_psx": {
+    "repository": "mihawk-99/PS5_BeetlePSX",
+    "revision": "e43b3980e031c47066917c941be6ace6f51ed24f",
+    "license_observed": "COPYING contains GPL version 2 text; exact or-later status requires distribution review"
+  },
+  "ps5_vulkan": {
+    "repository": "mihawk-99/PS5_Vulkan",
+    "revision": "d609d712453561efc0fd78b8eb46602d49461229",
+    "license": "GPL-3.0-or-later",
+    "delivery": "RADV linked into title; VK_KHR_display / VideoOut"
+  },
+  "ps5_mesa": {
+    "repository": "mihawk-99/PS5_Mesa",
+    "revision": "0b2d6d1a61d9bbf89cf8beb88a696144f67c61f8",
+    "source": "PS5_Vulkan tools/build-radv.sh pin"
+  },
+  "ps5_payload_sdk_fork": {
+    "repository": "mihawk-99/PS5_PayloadSDK",
+    "revision": "95c08f27386fc698f6bbe21dde3030140a41d10b",
+    "source": "PS5_Vulkan tools/setup-native-dependencies.sh pin"
+  },
+  "policy": {
+    "radv_threaded_recording_default": false,
+    "distribution_license_gate": true
+  }
+}
