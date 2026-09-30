@@ -45,6 +45,12 @@ if(PS5RT_BUILD_PS5_BACKEND)
       SceVideoOut
       SceSystemService
   )
+  option(PS5RT_BUILD_PS5_PROBES "Build native PS5 runtime probes" OFF)
+  if(PS5RT_BUILD_PS5_PROBES)
+    add_executable(ps5rt-jit-alias-probe probes/jit_alias_probe.cpp)
+    target_link_libraries(ps5rt-jit-alias-probe PRIVATE ps5rt::ps5)
+    target_compile_features(ps5rt-jit-alias-probe PRIVATE cxx_std_20)
+  endif()
 endif()
 
 option(PS5RT_BUILD_HOST_PLATFORM_TESTS "Build host tests for PS5 platform logic with mocked SCE calls" OFF)
