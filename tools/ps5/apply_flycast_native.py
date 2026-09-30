@@ -362,6 +362,20 @@ def transform(root: pathlib.Path) -> dict[pathlib.Path, str]:
     )
     out[oslib_cm] = text
 
+    # libzip's feature probes select strncpy_s on some cross configurations.
+    # The public PS5 libc exposes ordinary C string routines but not Annex K.
+    # Keep libzip semantics identical here: copy exactly len bytes, then append
+    # '/' and NUL in the already-sized len+2 allocation.
+    zip_dir_add = root / "core/deps/libzip/lib/zip_dir_add.c"
+    text = zip_dir_add.read_text()
+    text = replace_once(
+        text,
+        "        (void)strncpy_s(s, len + 2, name, len);\n",
+        "        memcpy(s, name, len); /* PS5: no strncpy_s in public libc */\n",
+        "libzip secure CRT compatibility",
+    )
+    out[zip_dir_add] = text
+
     out[root / "core/ps5/ps5_vmem.cpp"] = PS5_VMEM
     return out
 
