@@ -82,7 +82,8 @@ InputState translate_ps5rt_input(
       // B=south, A=east, Y=west, X=north.
       if (pressed(pad.buttons, ps5rt::Button::cross))    out.joypad_mask |= lr_button(0);
       if (pressed(pad.buttons, ps5rt::Button::square))   out.joypad_mask |= lr_button(1);
-      if (pressed(pad.buttons, ps5rt::Button::create))   out.joypad_mask |= lr_button(2);
+      // Touchpad click is the verified PS5 control used as RetroPad Select.
+      if (pressed(pad.buttons, ps5rt::Button::touchpad)) out.joypad_mask |= lr_button(2);
       if (pressed(pad.buttons, ps5rt::Button::options))  out.joypad_mask |= lr_button(3);
       if (pressed(pad.buttons, ps5rt::Button::up))       out.joypad_mask |= lr_button(4);
       if (pressed(pad.buttons, ps5rt::Button::down))     out.joypad_mask |= lr_button(5);
