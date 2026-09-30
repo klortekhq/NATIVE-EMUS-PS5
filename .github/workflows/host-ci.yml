@@ -16,7 +16,7 @@ jobs:
         run: >
           cmake -S . -B build-host -G Ninja
           -DNATIVE_EMUS_BUILD_HEADER_TESTS=ON
-          -DCOREHOST_BUILD_TESTS=ON
+          -DCOREHOST_BUILD_TESTS=ON\n          -DPS5RT_BUILD_HOST_PLATFORM_TESTS=ON
 
       - name: Build
         run: cmake --build build-host --parallel 2
