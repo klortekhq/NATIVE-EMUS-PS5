@@ -74,13 +74,15 @@ HOST_SOURCES=(
 HOST_OBJECTS=()
 for src in "${HOST_SOURCES[@]}"; do
  rel="${src#$ROOT/}"; obj="$OUT/obj/${rel//\//_}.o"
- "$CXX" -std=c++20 -O3 -DNDEBUG -fno-exceptions -pthread \
+ "$CXX" -std=c++20 -O3 -DNDEBUG -fno-exceptions -fvisibility=hidden -pthread \
    -I"$ROOT/runtime/include" -I"$ROOT/corehost/include" \
    -c "$src" -o "$obj"
  HOST_OBJECTS+=("$obj")
 done
 PIE="$OUT/artifacts/snes9x_pie.elf"
 "$CXX" -o "$PIE" "${HOST_OBJECTS[@]}" "$CORE_LIB" "${LRC_OBJECTS[@]}" \
+ -Wl,--version-script="$ROOT/tools/ps5/app-hidden.map" \
+ -Wl,--exclude-libs,ALL \
  -pthread -lm -lSceAudioOut -lScePad -lSceUserService -lSceVideoOut -lSceSystemService
 [[ -s "$PIE" ]] || exit 5
 if [[ -n "${PS5_NATIVE_TOOL:-}" ]]; then

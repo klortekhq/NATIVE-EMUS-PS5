@@ -102,7 +102,7 @@ OBJECTS=()
 for src in "${SOURCES[@]}"; do
   rel="${src#$ROOT/}"
   obj="$OUT/obj/${rel//\//_}.o"
-  "$CXX" -std=c++20 -O3 -DNDEBUG -fno-exceptions -pthread \
+  "$CXX" -std=c++20 -O3 -DNDEBUG -fno-exceptions -fvisibility=hidden -pthread \
     -I"$ROOT/runtime/include" -I"$ROOT/corehost/include" \
     -c "$src" -o "$obj"
   OBJECTS+=("$obj")

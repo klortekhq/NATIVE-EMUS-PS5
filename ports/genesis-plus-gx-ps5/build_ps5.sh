@@ -92,7 +92,7 @@ HOST_OBJECTS=()
 for src in "${HOST_SOURCES[@]}"; do
   rel="${src#$ROOT/}"
   obj="$OUT/obj/${rel//\//_}.o"
-  "$CXX" -std=c++20 -O3 -DNDEBUG -fno-exceptions -pthread \
+  "$CXX" -std=c++20 -O3 -DNDEBUG -fno-exceptions -fvisibility=hidden -pthread \
     -I"$ROOT/runtime/include" -I"$ROOT/corehost/include" \
     -c "$src" -o "$obj"
   HOST_OBJECTS+=("$obj")
@@ -103,13 +103,15 @@ build_variant() {
   local source="$2"
   local output="$3"
   local main_obj="$OUT/obj/main_${key}.o"
-  "$CXX" -std=c++20 -O3 -DNDEBUG -fno-exceptions -pthread \
+  "$CXX" -std=c++20 -O3 -DNDEBUG -fno-exceptions -fvisibility=hidden -pthread \
     -I"$ROOT/runtime/include" -I"$ROOT/corehost/include" \
     -c "$ROOT/ports/genesis-plus-gx-ps5/$source" -o "$main_obj"
 
   local pie="$OUT/artifacts/$output"
   "$CXX" -o "$pie" \
     "${HOST_OBJECTS[@]}" "$main_obj" "$CORE_LIB" "${LRC_OBJECTS[@]}" \
+    -Wl,--version-script="$ROOT/tools/ps5/app-hidden.map" \
+    -Wl,--exclude-libs,ALL \
     -pthread -lm \
     -lSceAudioOut -lScePad -lSceUserService -lSceVideoOut -lSceSystemService
   [[ -s "$pie" ]] || { echo "missing output: $pie" >&2; exit 5; }
