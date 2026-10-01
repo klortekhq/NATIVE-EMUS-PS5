@@ -1,9 +1,13 @@
 # RPCS3 PS5 — LLVM recompiler engine gate
 
-Pinned donor sources:
+Pinned canonical CPU stack:
 
-- RPCS3: `mihawk-99/PS5_RPCS3@2ada8e453c592d8764d2801a667f3da415794918`
-- LLVM: `mihawk-99/PS5_LLVM@98b45cc22e98844b7d49bbedefdfee04a740650a`
+- RPCS3: `RPCS3/rpcs3@83b1e072990e839903c67401d1a6d7d1910a5824`
+- LLVM submodule: `llvm/llvm-project@ca7933e47d3a3451d81e72ac174dcb5aa28b59d1`
+- AsmJit submodule: `asmjit/asmjit@416f7356967c1f66784dc1580fe157f9406d8bff`
+
+Historical Mihawk PS5 pins remain recorded in `upstreams/scene-cache.json`
+for provenance, but the CPU gate no longer depends on those unavailable repos.
 
 ## CPU rule
 
@@ -27,7 +31,13 @@ The interpreter is not the intended final backend.
 
 `tools/ps5/verify_rpcs3_ps5_sources.py` verifies the exact RPCS3/LLVM pins, the PPU and SPU recompiler sources, the static `rpcs3_emu` engine boundary, and the two PS5 LLVM ABI alignment fixes.
 
-Next gate: cross-build `rpcs3_emu` with the pinned PS5 LLVM fork, then connect Vulkan/RADV.
+Current gate: cross-compile the real PPU LLVM translator and SPU LLVM/AsmJit
+recompilers from the canonical stack with the public Prospero compiler. The
+workflow generates every required LLVM TableGen header from the exact same LLVM
+revision and applies the independently reproduced SCE alignment shim.
+
+After the CPU object/archive gate is green, connect executable-memory runtime
+services and then Vulkan/RADV.
 
 
 ## Verified PS5 compiler gates
