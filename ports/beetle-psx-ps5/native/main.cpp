@@ -142,6 +142,13 @@ int main(int argc, char** argv) {
   core.set_option("beetle_psx_hw_renderer", "hardware_vk");
   core.set_option("beetle_psx_hw_cpu_dynarec", "execute");
 
+  // Firmware policy: preserve upstream's region-aware BIOS search and keep the
+  // real boot path enabled. If no user-supplied regional BIOS is present,
+  // Beetle may use its own OpenBIOS fallback; no firmware is bundled here.
+  core.set_option("beetle_psx_hw_region", "auto");
+  core.set_option("beetle_psx_hw_skip_bios", "disabled");
+  core.set_option("beetle_psx_hw_override_bios", "disabled");
+
   if (!core.initialize(error)) {
     ps5rt::shutdown_app();
     return fail(error, 5);
