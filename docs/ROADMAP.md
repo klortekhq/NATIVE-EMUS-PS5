@@ -78,7 +78,7 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [ ] track PS5_RPCS3 delta
 - [ ] track PS5_LLVM ABI patches
 - [ ] track PS5_Mesa RSX optimizations
-- [ ] document PPU/SPU JIT memory requirements
+- [x] document PPU/SPU JIT memory requirements
 - [ ] isolate Qt/desktop frontend
 - [ ] validate headless/native title bootstrap
 - [ ] reproducible build notes
