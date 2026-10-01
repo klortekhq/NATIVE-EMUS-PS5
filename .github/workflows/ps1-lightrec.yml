@@ -148,6 +148,17 @@ jobs:
           PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
         run: bash ports/beetle-psx-ps5/build_engine_ps5.sh
 
+      - name: Validate standalone RADV link script contract
+        run: |
+          set -euo pipefail
+          bash -n ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'prospero-lld' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'radv_link_recipe' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'radv_linker_script' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'radv_link_inputs' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'radv_link_flags' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'libSceAgcDriver' ports/beetle-psx-ps5/build_app_ps5.sh
+
       - name: Upload engine evidence
         uses: actions/upload-artifact@v4
         with:
