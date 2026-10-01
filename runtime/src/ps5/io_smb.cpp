@@ -2,8 +2,15 @@
 
 #include <ps5rt/io.hpp>
 
-#include <smb2/libsmb2.h>
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wzero-length-array"
+#endif
 #include <smb2/smb2.h>
+#include <smb2/libsmb2.h>
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 #include <algorithm>
 #include <cctype>
