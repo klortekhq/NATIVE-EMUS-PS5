@@ -64,6 +64,9 @@ jobs:
           grep -q 'cedb774b27d089fa81f46add28d0a8c13ff0f7d2' tools/ps5/prepare_radv_source_stack.sh
           grep -q '95c08f27386fc698f6bbe21dde3030140a41d10b' tools/ps5/prepare_radv_source_stack.sh
 
+      - name: Test verified offline RADV source overrides
+        run: python3 tools/ps5/tests/test_prepare_radv_sources.py
+
       - name: Test immutable PS1 RADV bundle receipt
         run: python3 tools/ps5/tests/test_radv_bundle.py
 
