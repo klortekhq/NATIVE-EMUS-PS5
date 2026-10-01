@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch pinned PS5 Beetle PSX donor
+      - name: Fetch pinned public Beetle PSX upstream
         run: |
           git clone --filter=blob:none https://github.com/libretro/beetle-psx-libretro.git /tmp/beetle-psx
           git -C /tmp/beetle-psx checkout --detach ed87921996c67658d7a70814f73034bbca08786a
@@ -114,6 +114,19 @@ jobs:
             ports/beetle-psx-ps5/tests/runtime_io_test.cpp \
             -o /tmp/ps1-runtime-io-test
           /tmp/ps1-runtime-io-test
+
+      - name: Compile standalone native PS1 shell
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -I/tmp/beetle-psx/libretro-common/include \
+            -I/tmp/beetle-psx/parallel-psx/khronos/include \
+            -Icorehost/include \
+            -Iruntime/include \
+            -Iports/beetle-psx-ps5/native \
+            -c ports/beetle-psx-ps5/native/main.cpp \
+            -o /tmp/ps1-native-main.o
+          test -s /tmp/ps1-native-main.o
 
   cross-build:
     runs-on: ubuntu-latest
