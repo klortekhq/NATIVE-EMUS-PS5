@@ -55,6 +55,23 @@ if(PS5RT_BUILD_PS5_BACKEND)
   add_library(ps5rt::ps5 ALIAS ps5rt_ps5)
   target_link_libraries(ps5rt_ps5 PUBLIC ps5rt::ps5rt ps5rt::common)
   target_compile_features(ps5rt_ps5 PUBLIC cxx_std_20)
+  option(PS5RT_ENABLE_SMB "Enable the read-only SMB2/SMB3 ps5rt backend" OFF)
+  set(PS5RT_LIBSMB2_INCLUDE_DIR "" CACHE PATH "Directory containing smb2/libsmb2.h")
+  set(PS5RT_LIBSMB2_LIBRARY "" CACHE FILEPATH "Path to static libsmb2.a")
+
+  if(PS5RT_ENABLE_SMB)
+    if(NOT EXISTS "${PS5RT_LIBSMB2_INCLUDE_DIR}/smb2/libsmb2.h")
+      message(FATAL_ERROR "PS5RT_ENABLE_SMB requires PS5RT_LIBSMB2_INCLUDE_DIR")
+    endif()
+    if(NOT EXISTS "${PS5RT_LIBSMB2_LIBRARY}")
+      message(FATAL_ERROR "PS5RT_ENABLE_SMB requires PS5RT_LIBSMB2_LIBRARY")
+    endif()
+    target_sources(ps5rt_ps5 PRIVATE src/ps5/io_smb.cpp)
+    target_include_directories(ps5rt_ps5 PRIVATE "${PS5RT_LIBSMB2_INCLUDE_DIR}")
+    target_link_libraries(ps5rt_ps5 PRIVATE "${PS5RT_LIBSMB2_LIBRARY}" SceNet)
+    target_compile_definitions(ps5rt_ps5 PRIVATE PS5RT_HAS_SMB=1)
+  endif()
+
   target_link_libraries(ps5rt_ps5
     PRIVATE
       SceAudioOut
