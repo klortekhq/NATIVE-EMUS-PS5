@@ -6,12 +6,18 @@ on:
     paths:
       - 'runtime/**'
       - 'tools/ps5/apply_beetle_psx_ps5.py'
+      - 'tools/ps5/tests/test_radv_bundle.py'
+      - 'tools/ps5/freeze_radv_bundle.py'
+      - 'tools/ps5/validate_radv_bundle.py'
       - 'ports/beetle-psx-ps5/**'
       - '.github/workflows/ps1-lightrec.yml'
   pull_request:
     paths:
       - 'runtime/**'
       - 'tools/ps5/apply_beetle_psx_ps5.py'
+      - 'tools/ps5/tests/test_radv_bundle.py'
+      - 'tools/ps5/freeze_radv_bundle.py'
+      - 'tools/ps5/validate_radv_bundle.py'
       - 'ports/beetle-psx-ps5/**'
       - '.github/workflows/ps1-lightrec.yml'
   workflow_dispatch:
@@ -45,6 +51,9 @@ jobs:
           grep -q 'PS5 Vulkan loader is frontend-supplied' /tmp/beetle-psx/rhi/rhi_lib_vulkan.c
           echo "GNU Lightning must not own mmap on PS5: PASS"
           echo "PS5 Vulkan core must not use dlopen: PASS"
+
+      - name: Test immutable PS1 RADV bundle receipt
+        run: python3 tools/ps5/tests/test_radv_bundle.py
 
       - name: Test Vulkan hardware-context lifecycle
         run: |
