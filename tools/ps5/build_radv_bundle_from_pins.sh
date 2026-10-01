@@ -70,10 +70,13 @@ mkdir -p \
   "$BUNDLE/lib" \
   "$BUNDLE/tools" \
   "$BUNDLE/tooling/native" \
+  "$BUNDLE/tooling/psbc" \
   "$BUNDLE/vendor/ps5/sdk/stubs"
 
 cp "$ARCHIVE" "$BUNDLE/lib/libvulkan_radeon.ps5.a"
 cp "$VULKAN/tools/radv-link.sh" "$BUNDLE/tools/radv-link.sh"
+cp "$VULKAN/tooling/native/ps5-pie.ld" "$BUNDLE/tooling/native/ps5-pie.ld"
+cp "$VULKAN/tooling/psbc/ps5-pie-unwind.ld" "$BUNDLE/tooling/psbc/ps5-pie-unwind.ld"
 cp "$VULKAN/tooling/native/app_crt.cpp" "$BUNDLE/tooling/native/app_crt.cpp"
 cp "$VULKAN/tooling/native/app_cpp_runtime.cpp" "$BUNDLE/tooling/native/app_cpp_runtime.cpp"
 cp "$VULKAN/vendor/ps5/sdk/stubs/agc_canary_link_stub.c" \

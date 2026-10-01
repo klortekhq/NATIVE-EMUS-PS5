@@ -11,6 +11,8 @@ from pathlib import Path
 REQUIRED_FILES = (
     "lib/libvulkan_radeon.ps5.a",
     "tools/radv-link.sh",
+    "tooling/native/ps5-pie.ld",
+    "tooling/psbc/ps5-pie-unwind.ld",
     "tooling/native/app_crt.cpp",
     "tooling/native/app_cpp_runtime.cpp",
     "vendor/ps5/sdk/stubs/agc_canary_link_stub.c",
