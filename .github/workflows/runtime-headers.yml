@@ -120,16 +120,26 @@ jobs:
       - name: Validate PS1 RADV bundle receipts
         run: python3 tools/ps5/tests/test_radv_bundle.py
 
-      - name: Compile PS5 backend translation units
+      - name: Compile PS5 base backend translation units
         run: |
+          set -euo pipefail
           mkdir -p build/smoke
           CXXFLAGS="-std=c++20 -Wall -Wextra -Wpedantic"
           INC="-Iruntime/include"
-          for src in runtime/src/ps5/*.cpp; do
+          for src in \
+            runtime/src/ps5/app.cpp \
+            runtime/src/ps5/audio.cpp \
+            runtime/src/ps5/input.cpp \
+            runtime/src/ps5/input_hid.cpp \
+            runtime/src/ps5/log.cpp \
+            runtime/src/ps5/memory.cpp \
+            runtime/src/ps5/vfs.cpp \
+            runtime/src/ps5/video.cpp; do
             obj="build/smoke/$(basename "${src%.cpp}").o"
             echo "compile $src -> $obj"
             g++ $CXXFLAGS $INC -c "$src" -o "$obj"
           done
+          echo "Optional io_smb.cpp and io_emu_server.cpp are compiled in their dependency-aware gates."
 
   ps5-cross-build-nes:
     runs-on: ubuntu-latest
