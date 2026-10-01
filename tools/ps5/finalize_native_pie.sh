@@ -2,8 +2,15 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-PIE="${1:?usage: finalize_native_pie.sh <pie.elf> <output-dir>}"
-OUT="${2:?usage: finalize_native_pie.sh <pie.elf> <output-dir>}"
+PIE="${1:?usage: finalize_native_pie.sh <pie.elf> <output-dir> [extra-stub.so ...]}"
+OUT="${2:?usage: finalize_native_pie.sh <pie.elf> <output-dir> [extra-stub.so ...]}"
+shift 2
+
+EXTRA_STUB_ARGS=()
+for stub in "$@"; do
+  [[ -s "$stub" ]] || { echo "extra native stub missing: $stub" >&2; exit 2; }
+  EXTRA_STUB_ARGS+=(--stub "$stub")
+done
 
 : "${PS5_PAYLOAD_SDK:?Set PS5_PAYLOAD_SDK to the public ps5-payload SDK root}"
 
@@ -40,7 +47,12 @@ TOOL="$DONOR/build/host/ps5-native-tool"
 PS5_ELF="$OUT/eboot.elf"
 FSELF="$OUT/eboot.bin"
 
-"$TOOL" link   --in "$PIE"   --out "$PS5_ELF"   --stub-dir "$PS5_PAYLOAD_SDK/target/lib"   --file-name eboot.elf
+"$TOOL" link \
+  --in "$PIE" \
+  --out "$PS5_ELF" \
+  --stub-dir "$PS5_PAYLOAD_SDK/target/lib" \
+  "${EXTRA_STUB_ARGS[@]}" \
+  --file-name eboot.elf
 
 "$TOOL" self --sign --in "$PS5_ELF" --out "$FSELF"
 "$TOOL" self --inspect --file "$FSELF"
