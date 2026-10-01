@@ -317,6 +317,52 @@ jobs:
             build/ps5/flycast/artifacts/SHA256SUMS
           if-no-files-found: error
 
+  ps5-cross-build-runtime-jit-probes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-cmake
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build native ps5rt JIT probes
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          set -euo pipefail
+          /opt/ps5-payload-sdk/bin/prospero-cmake \
+            -S runtime \
+            -B build/ps5/runtime-probes \
+            -G Ninja \
+            -DPS5RT_BUILD_PS5_BACKEND=ON \
+            -DPS5RT_BUILD_PS5_PROBES=ON \
+            -DPS5RT_ENABLE_SMB=OFF \
+            -DPS5RT_ENABLE_EMU_SERVER=OFF
+          /opt/ps5-payload-sdk/bin/prospero-cmake \
+            --build build/ps5/runtime-probes \
+            --target ps5rt-jit-alias-probe ps5rt-flycast-jit-probe \
+            --parallel 2
+          test -s build/ps5/runtime-probes/ps5rt-jit-alias-probe
+          test -s build/ps5/runtime-probes/ps5rt-flycast-jit-probe
+          mkdir -p build/ps5/runtime-probes/artifacts
+          cp build/ps5/runtime-probes/ps5rt-jit-alias-probe \
+             build/ps5/runtime-probes/ps5rt-flycast-jit-probe \
+             build/ps5/runtime-probes/artifacts/
+          sha256sum build/ps5/runtime-probes/artifacts/* > \
+            build/ps5/runtime-probes/artifacts/SHA256SUMS
+
+      - name: Upload native ps5rt JIT probes
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ps5rt-jit-probes
+          path: build/ps5/runtime-probes/artifacts/*
+          if-no-files-found: error
+
   ps5-cross-build-dynarmic-engine:
     runs-on: ubuntu-latest
     steps:
