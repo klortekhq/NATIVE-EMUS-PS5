@@ -12,6 +12,7 @@ struct PortConfig {
   std::string bios_override{"disabled"};
   std::string skip_bios{"disabled"};
   std::string internal_resolution{"1x(native)"};
+  std::string server_token{};
 };
 
 // Missing files are not an error: defaults are intentionally valid.
