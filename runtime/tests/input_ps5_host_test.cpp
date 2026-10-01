@@ -65,7 +65,7 @@ extern "C" std::int32_t scePadSetVibration(std::int32_t handle, const void* ptr)
 
 int main() {
   set_connected(states[0], 0x004000u, 255, 0); // user 20
-  set_connected(states[1], 0x001000u);         // initial user 10
+  set_connected(states[1], 0x001001u);         // initial user 10: triangle + Create
 
   assert(ps5rt::initialize_input());
 
@@ -73,6 +73,9 @@ int main() {
   assert(ps5rt::poll_input(snapshot));
   assert(snapshot.controllers[0].connected);
   assert(snapshot.controllers[0].user_id == 10);
+  assert(
+      snapshot.controllers[0].buttons &
+      static_cast<std::uint32_t>(ps5rt::Button::create));
   assert(snapshot.controllers[1].connected);
   assert(snapshot.controllers[1].user_id == 20);
 
