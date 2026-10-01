@@ -165,14 +165,14 @@ int main(int argc, char** argv) {
 
   if (!core.load_path(prepared.core_path, error)) {
     ps5rt::shutdown_app();
-    return fail(error, 9);
+    return fail(error, 8);
   }
 
   native_emus::ps1::SaveRamStore save_ram(prepared.save_ram_path);
   if (!save_ram.load(core, error)) {
     core.unload();
     ps5rt::shutdown_app();
-    return fail(error, 8);
+    return fail(error, 9);
   }
 
   native_emus::ps1::VulkanProvider provider(
