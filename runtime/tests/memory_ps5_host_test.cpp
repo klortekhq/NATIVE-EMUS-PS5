@@ -243,6 +243,32 @@ int main() {
   }
 
   {
+    ps5rt_sparse_arena arena{};
+    constexpr std::size_t half = 512ull * 1024;
+    assert(ps5rt_sparse_arena_create(
+               2 * half, nullptr, 0x4000, &arena) == 0);
+    assert(ps5rt_sparse_arena_commit(
+               &arena, 0, half,
+               PS5RT_SPARSE_READ | PS5RT_SPARSE_WRITE | PS5RT_SPARSE_EXEC) == 0);
+    assert(ps5rt_sparse_arena_commit(
+               &arena, half, half,
+               PS5RT_SPARSE_READ | PS5RT_SPARSE_WRITE | PS5RT_SPARSE_EXEC) == 0);
+    assert(arena.committed == 2 * half);
+
+    // Dynarmic-style W^X flips cover the whole committed prefix even when it
+    // was backed by multiple incremental direct-memory chunks.
+    assert(ps5rt_sparse_arena_protect(
+               &arena, 0, 2 * half,
+               PS5RT_SPARSE_READ | PS5RT_SPARSE_EXEC) == 0);
+    assert(ps5rt_sparse_arena_protect(
+               &arena, 0, 2 * half,
+               PS5RT_SPARSE_READ | PS5RT_SPARSE_WRITE) == 0);
+
+    ps5rt_sparse_arena_destroy(&arena);
+    assert(!arena.base && direct_blocks.empty());
+  }
+
+  {
     std::size_t bytes = 0;
     assert(ps5rt::query_available_memory(ps5rt::MemoryKind::flexible, bytes));
     assert(bytes == 256ull * 1024 * 1024);
