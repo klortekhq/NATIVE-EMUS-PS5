@@ -322,7 +322,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Probe exact historical PS5 Dynarmic donor
+        id: donor
+        shell: bash
+        run: |
+          set -euo pipefail
+          if GIT_TERMINAL_PROMPT=0 git ls-remote --exit-code https://github.com/mihawk-99/PS5_Dynarmic.git 1df2a07e9a86afef73d511a931f40bedb40b30c4 >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=PS5_Dynarmic provenance unavailable::Exact historical donor is not publicly retrievable. Cross-build is blocked; host-ci still validates the frozen ps5rt transform contract."
+          fi
+
       - name: Install public PS5 SDK bundle
+        if: steps.donor.outputs.available == 'true'
         run: |
           set -euo pipefail
           wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
@@ -332,6 +345,7 @@ jobs:
           test -x /opt/ps5-payload-sdk/bin/prospero-ar
 
       - name: Install Dynarmic header-only Boost dependency
+        if: steps.donor.outputs.available == 'true'
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -339,11 +353,13 @@ jobs:
           test -d /usr/include/boost
 
       - name: Cross-build Dynarmic A32+A64 x64 JIT
+        if: steps.donor.outputs.available == 'true'
         env:
           PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
         run: bash ports/dynarmic-ps5/build_engine_ps5.sh
 
       - name: Upload Dynarmic PS5 JIT engine
+        if: steps.donor.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: native-dynarmic-a32-a64-x64-ps5-engine
@@ -424,7 +440,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Probe exact historical PS5 Mupen64Plus donor
+        id: donor
+        shell: bash
+        run: |
+          set -euo pipefail
+          if GIT_TERMINAL_PROMPT=0 git ls-remote --exit-code https://github.com/mihawk-99/PS5_Mupen64Plus.git 98ec1019d191fc3c0e1c2d031f2574e95bd8d30d >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=PS5_Mupen64Plus provenance unavailable::Exact historical donor is not publicly retrievable. Cross-build is blocked; host-ci still validates the frozen ps5rt transform contract."
+          fi
+
       - name: Install public PS5 SDK bundle
+        if: steps.donor.outputs.available == 'true'
         run: |
           set -euo pipefail
           wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
@@ -435,17 +464,20 @@ jobs:
           test -x /opt/ps5-payload-sdk/bin/prospero-ranlib
 
       - name: Install N64 assembler dependency
+        if: steps.donor.outputs.available == 'true'
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends nasm
 
       - name: Cross-build Mupen64Plus R4300 + RSP x64 JIT engine
+        if: steps.donor.outputs.available == 'true'
         env:
           PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
         run: bash ports/mupen64plus-ps5/build_engine_ps5.sh
 
       - name: Upload Mupen64Plus PS5 JIT engine
+        if: steps.donor.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: native-mupen64plus-r4300-rsp-x64-ps5-engine
