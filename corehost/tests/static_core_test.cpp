@@ -1,7 +1,9 @@
 #include <corehost/static_core.hpp>
+#include <ps5rt/input.hpp>
 #include <cassert>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace corehost;
@@ -10,6 +12,7 @@ namespace mock {
 lr::Environment env{}; lr::VideoRefresh video{}; lr::AudioSample audio{}; lr::AudioBatch batch{}; lr::InputPoll poll{}; lr::InputState input{};
 bool init_called=false, load_called=false, unload_called=false, deinit_called=false;
 std::uint8_t sram[8]{};
+std::vector<std::pair<unsigned, unsigned>> controller_calls;
 void set_env(lr::Environment v){env=v;} void set_video(lr::VideoRefresh v){video=v;} void set_audio(lr::AudioSample v){audio=v;} void set_batch(lr::AudioBatch v){batch=v;} void set_poll(lr::InputPoll v){poll=v;} void set_input(lr::InputState v){input=v;}
 void init(){
   init_called=true;
@@ -21,7 +24,7 @@ void init(){
 }
 void deinit(){deinit_called=true;}
 void info(lr::SystemInfo* out){ assert(out); *out={"Mock","1","rom",false,false}; }
-void controller(unsigned,unsigned){}
+void controller(unsigned port,unsigned device){controller_calls.emplace_back(port,device);}
 bool load(const lr::GameInfo* info){load_called=info&&info->path&&info->data&&info->size==4; return load_called;}
 void unload(){unload_called=true;}
 void av(lr::SystemAvInfo* out){ assert(out); out->geometry={320,240,640,480,4.0f/3.0f}; out->timing={60.0,44100.0}; }
@@ -54,9 +57,9 @@ int main(){
     *static_cast<unsigned*>(data)=0x505331u;
     return true;
   };
-  hooks.input=[](unsigned){
+  hooks.input=[](unsigned port){
     InputState s{};
-    s.joypad_mask=1u<<8;
+    s.joypad_mask=1u<<(8u+port);
     s.left_x=123;
     s.keyboard[32u >> 6u] |= (std::uint64_t{1} << (32u & 63u));
     s.mouse_x=7; s.mouse_y=-4; s.mouse_wheel_y=1; s.mouse_buttons=1u<<0;
@@ -65,6 +68,11 @@ int main(){
 
   StaticCore core("mock",api,{"/system","/save"},hooks);
   std::string err; assert(core.initialize(err)); assert(mock::init_called); assert(logs==1);
+  assert(mock::controller_calls.size()==ps5rt::max_local_players);
+  for (std::size_t port=0; port<ps5rt::max_local_players; ++port) {
+    assert(mock::controller_calls[port].first==port);
+    assert(mock::controller_calls[port].second==lr::device_joypad);
+  }
   assert(std::string(core.system_info().library_name)=="Mock");
   assert(core.av_info().timing.sample_rate==44100.0);
   unsigned custom_env_value=0;
@@ -97,6 +105,9 @@ int main(){
   assert(core.memory_size(lr::memory_save_ram)==sizeof(mock::sram));
   core.run_frame(); assert(frames==1&&audio_frames==2);
   assert(mock::input(0,lr::device_joypad,0,8)==1);
+  assert(mock::input(1,lr::device_joypad,0,9)==1);
+  assert(mock::input(2,lr::device_joypad,0,10)==1);
+  assert(mock::input(3,lr::device_joypad,0,11)==1);
   assert(mock::input(0,lr::device_analog,lr::analog_left,lr::analog_x)==123);
   assert(mock::input(0,lr::device_keyboard,0,32)==1);
   assert(mock::input(0,lr::device_mouse,0,lr::mouse_x)==7);

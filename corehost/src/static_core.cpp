@@ -1,6 +1,8 @@
 #include <corehost/static_core.hpp>
 #include <corehost/vfs.hpp>
 
+#include <ps5rt/input.hpp>
+
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
@@ -111,8 +113,10 @@ bool StaticCore::initialize(std::string& error) {
   api_.get_system_info(&system_info_);
   api_.init();
 
-  if (api_.set_controller_port_device)
-    api_.set_controller_port_device(0, lr::device_joypad);
+  if (api_.set_controller_port_device) {
+    for (std::size_t port = 0; port < ps5rt::max_local_players; ++port)
+      api_.set_controller_port_device(static_cast<unsigned>(port), lr::device_joypad);
+  }
 
   api_.get_system_av_info(&av_info_);
   initialized_ = true;

@@ -43,6 +43,15 @@ int main() {
   assert(state.mouse_wheel_y == 1);
   assert(state.mouse_buttons == 1);
 
+  // Libretro local port 1 receives the second signed-in controller rather
+  // than mirroring player 1's pad state.
+  snapshot.controllers[1].connected = true;
+  snapshot.controllers[1].buttons =
+      static_cast<std::uint32_t>(ps5rt::Button::circle);
+  const auto player_two = corehost::translate_ps5rt_input(snapshot, 1);
+  assert(player_two.joypad_mask & (1u << 8));
+  assert(!(player_two.joypad_mask & (1u << 0)));
+
   assert(corehost::translate_pixel_format(corehost::lr::PixelFormat::rgb565) ==
          ps5rt::PixelFormat::rgb565);
   return 0;

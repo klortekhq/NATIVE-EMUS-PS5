@@ -90,6 +90,13 @@ separate session-layer mapping and do not consume local controller indices.
 Each core must still declare its actual player/port limit and adapt only the
 slots its system supports.
 
+The shared libretro `StaticCore` adapter activates four joypad ports and routes
+each port to its corresponding local controller snapshot. This makes PLAYER1
+through PLAYER4 inputs available to cores that implement those ports; an
+emulator that supports fewer players still controls its own actual limit. Host
+tests cover the port contract, while simultaneous-controller behavior on
+physical PS5 hardware remains a separate validation gate.
+
 ### Optical media
 
 `ps5rt::media` provides a host-side disc source contract for systems that need random-access optical media without forcing a single generic disc parser onto every emulator.
