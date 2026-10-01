@@ -50,4 +50,14 @@ Verified in that run:
 - content/save persistence tests;
 - standalone shell compilation.
 
-The next engineering gate is the complete **RADV-linked native PS5 ELF**, followed by title conversion and physical-console validation.
+The 2026-10-01 hardening pass additionally supplies:
+
+- immutable RADV bundle freeze/validation tooling;
+- 2048/2336/2352 + mixed-mode optical-sector contracts;
+- explicit region-aware BIOS boot defaults with OpenBIOS fallback left upstream;
+- one shared FSELF finalizer path with PS1's AGC stubs;
+- a repaired dedicated `ps1-lightrec` workflow.
+
+The next scoring gate remains the complete **RADV-linked native PS5 ELF**,
+followed by FSELF validation and physical-console validation. Progress therefore
+remains **78%**.
