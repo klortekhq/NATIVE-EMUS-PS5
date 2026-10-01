@@ -94,8 +94,15 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [ ] reproducible full-engine build notes
 
 ### Vita3K / Azahar
-- [ ] pin upstreams
-- [ ] converge on PS5_Dynarmic executable cache
+- [x] pin canonical Vita3K upstream + exact Vita3K Dynarmic
+- [x] pin canonical Azahar upstream + exact Azahar Dynarmic
+- [x] keep emulator-specific Dynarmic revisions while sharing ps5rt JIT contracts
+- [x] Vita3K A32 x86-64 Dynarmic engine cross-build
+- [x] Azahar A32 sparse x86-64 Dynarmic engine cross-build
+- [x] sparse W^X protection across multiple committed chunks
+- [ ] physical PS5 JIT / sparse-memory validation
+- [ ] Azahar core cross-compile against pinned CPU engine
+- [ ] Vita3K core cross-compile against pinned CPU engine
 - [ ] Vulkan bring-up
 - [ ] native audio/input/VFS
 - [ ] first guest boot
