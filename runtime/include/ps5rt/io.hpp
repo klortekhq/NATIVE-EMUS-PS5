@@ -35,6 +35,22 @@ protected:
 
 using RandomAccessReaderPtr = std::unique_ptr<RandomAccessReader>;
 
+using RandomAccessOpenFn = Result(*)(
+    std::string_view uri,
+    OpenMode mode,
+    RandomAccessReaderPtr& out) noexcept;
+
+// Register a URI backend such as "smb" or "nfs". The scheme is stored by
+// value; the callback must remain valid until unregistered. Built-in local
+// file:// and usb:// handling does not use this registry.
+Result register_random_access_backend(
+    std::string_view scheme,
+    RandomAccessOpenFn opener) noexcept;
+
+Result unregister_random_access_backend(
+    std::string_view scheme,
+    RandomAccessOpenFn opener) noexcept;
+
 // URI examples:
 //   file:///data/roms/game.iso
 //   usb:///mnt/usb0/game.chd
