@@ -70,6 +70,27 @@ bool starts_with_ci(std::string_view text, std::string_view prefix) noexcept {
   return true;
 }
 
+bool query_unreserved(unsigned char ch) noexcept {
+  return
+      (ch >= 'a' && ch <= 'z') ||
+      (ch >= 'A' && ch <= 'Z') ||
+      (ch >= '0' && ch <= '9') ||
+      ch == '-' || ch == '.' || ch == '_' || ch == '~';
+}
+
+void append_query_encoded(std::string_view value, std::string& out) {
+  static constexpr char kHex[] = "0123456789ABCDEF";
+  for (const unsigned char ch : value) {
+    if (query_unreserved(ch)) {
+      out.push_back(static_cast<char>(ch));
+      continue;
+    }
+    out.push_back('%');
+    out.push_back(kHex[(ch >> 4u) & 0x0fu]);
+    out.push_back(kHex[ch & 0x0fu]);
+  }
+}
+
 std::string header_value(
     const char* headers,
     std::size_t size,
@@ -134,10 +155,12 @@ bool emus_to_http(std::string_view uri, std::string& out) {
   if (authority.find_first_of(" \t\r\n?#") != std::string_view::npos)
     return false;
 
+  std::string_view metadata{};
   if (metadata_slash != std::string_view::npos) {
-    const auto metadata = resource.substr(metadata_slash + 1);
-    if (metadata.empty() ||
-        metadata.find_first_of("\r\n?#") != std::string_view::npos)
+    metadata = resource.substr(metadata_slash + 1);
+    if (metadata.empty() || metadata.size() > 4096 ||
+        metadata.find('\0') != std::string_view::npos ||
+        metadata.find_first_of("\r\n") != std::string_view::npos)
       return false;
   }
 
@@ -145,6 +168,16 @@ bool emus_to_http(std::string_view uri, std::string& out) {
   out.append(authority);
   out.append("/api/v1/files/");
   out.append(id);
+
+  // The optional suffix is a virtual path anchored at the catalog entry's
+  // directory. Forward it as an encoded query value so descriptor formats
+  // (CUE/CCD/TOC/M3U) can open relative sidecars without exposing NAS paths.
+  // Keeping it out of the HTTP path also preserves ../ segments until the
+  // server can validate and resolve them inside the configured library.
+  if (!metadata.empty()) {
+    out.append("?path=");
+    append_query_encoded(metadata, out);
+  }
   return true;
 }
 
