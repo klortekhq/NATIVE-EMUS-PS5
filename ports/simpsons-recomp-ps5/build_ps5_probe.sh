@@ -37,10 +37,8 @@ fi
 export PS5_PAYLOAD_SDK="$SDK"
 export NATIVE_EMUS_ROOT="$ROOT"
 
-# Prove what platform identity the public compiler actually exposes. The
-# ReXGlue source also has an explicit compile definition, so this is a
-# diagnostic rather than a hidden assumption.
-echo | "$SDK/bin/prospero-clang++" -dM -E -x c++ - |   grep -E '__PROSPERO__|__FreeBSD__|__x86_64__' | sort
+# The public SDK wrapper injects crt1.o even for preprocessing-only
+# invocations. Real target compilation below is the authoritative platform gate.
 
 cmake -S "$SRC/simpsons" -B "$BUILD" -G Ninja   -DCMAKE_TOOLCHAIN_FILE="$ROOT/tooling/simpsons/ps5-toolchain.cmake"   -DREXSDK_DIR="$SRC/tools/rexglue-sdk"   -DCMAKE_BUILD_TYPE=Release   -DREXGLUE_BUILD_TESTS=OFF   -DREXGLUE_ENABLE_TRACY=OFF   -DREXGLUE_ENABLE_FIDELITYFX=OFF   -DREXGLUE_ENABLE_PERF_COUNTERS=OFF
 
