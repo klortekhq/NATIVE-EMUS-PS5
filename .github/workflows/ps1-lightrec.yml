@@ -206,6 +206,19 @@ jobs:
             -o /tmp/ps5rt-io-smb.o
           test -s /tmp/ps5rt-io-smb.o
 
+      - name: Compile native EMUS server backend
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          set -euo pipefail
+          /opt/ps5-payload-sdk/bin/prospero-clang++ \
+            --sysroot=/opt/ps5-payload-sdk/target \
+            -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -Iruntime/include \
+            -c runtime/src/ps5/io_emu_server.cpp \
+            -o /tmp/ps5rt-io-emu-server.o
+          test -s /tmp/ps5rt-io-emu-server.o
+
       - name: Cross-build Beetle PSX HW Lightrec x86-64 engine
         env:
           PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
