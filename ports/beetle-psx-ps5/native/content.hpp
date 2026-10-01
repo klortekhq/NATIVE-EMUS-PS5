@@ -6,6 +6,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <corehost/static_core.hpp>
 
@@ -22,6 +23,7 @@ struct ContentLayout {
 struct PreparedContent {
   std::string core_path;
   std::filesystem::path save_ram_path;
+  std::vector<std::filesystem::path> playlist_entries{};
   bool local_file{};
 };
 
