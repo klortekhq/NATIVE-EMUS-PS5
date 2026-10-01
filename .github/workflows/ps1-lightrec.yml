@@ -10,6 +10,7 @@ on:
       - 'tools/ps5/freeze_radv_bundle.py'
       - 'tools/ps5/validate_radv_bundle.py'
       - 'tools/ps5/prepare_radv_source_stack.sh'
+      - 'tools/ps5/build_radv_bundle_from_pins.sh'
       - 'ports/beetle-psx-ps5/**'
       - '.github/workflows/ps1-lightrec.yml'
   pull_request:
@@ -58,6 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           bash -n tools/ps5/prepare_radv_source_stack.sh
+          bash -n tools/ps5/build_radv_bundle_from_pins.sh
           grep -q '71026e7ec1951fe72ae5b9118ff0905216a4c220' tools/ps5/prepare_radv_source_stack.sh
           grep -q 'cedb774b27d089fa81f46add28d0a8c13ff0f7d2' tools/ps5/prepare_radv_source_stack.sh
           grep -q '95c08f27386fc698f6bbe21dde3030140a41d10b' tools/ps5/prepare_radv_source_stack.sh
