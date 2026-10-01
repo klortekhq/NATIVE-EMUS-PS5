@@ -23,6 +23,27 @@ int present_calls{};
 std::uint32_t next_buttons =
     static_cast<std::uint32_t>(ps5rt::Button::cross) |
     static_cast<std::uint32_t>(ps5rt::Button::options);
+bool disk_ejected{};
+unsigned disk_index{};
+unsigned disk_count{3};
+int disk_eject_calls{};
+int disk_index_calls{};
+
+bool disk_set_eject(bool ejected) {
+  disk_ejected = ejected;
+  ++disk_eject_calls;
+  return true;
+}
+bool disk_get_eject() { return disk_ejected; }
+unsigned disk_get_index() { return disk_index; }
+bool disk_set_index(unsigned index) {
+  if (index >= disk_count)
+    return false;
+  disk_index = index;
+  ++disk_index_calls;
+  return true;
+}
+unsigned disk_get_count() { return disk_count; }
 }
 
 namespace ps5rt {
@@ -148,6 +169,41 @@ int main() {
   assert(last_high > 0.49f && last_high < 0.51f);
   assert(rumble_calls == 2);
 
+  unsigned disk_version = 0;
+  assert(hooks.environment(
+      RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION,
+      &disk_version));
+  assert(disk_version == 1);
+
+  retro_disk_control_ext_callback disk_iface{
+      disk_set_eject,
+      disk_get_eject,
+      disk_get_index,
+      disk_set_index,
+      disk_get_count,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+  };
+  assert(hooks.environment(
+      RETRO_ENVIRONMENT_SET_DISK_CONTROL_EXT_INTERFACE,
+      &disk_iface));
+
+  std::string disk_error;
+  assert(io.change_disc(1, disk_error));
+  assert(disk_index == 1);
+  assert(!disk_ejected);
+  assert(disk_eject_calls == 2);
+  assert(disk_index_calls == 1);
+
+  assert(io.change_disc(-1, disk_error));
+  assert(disk_index == 0);
+  assert(!disk_ejected);
+  assert(disk_eject_calls == 4);
+  assert(disk_index_calls == 2);
+
   // Host hotkeys are rising-edge triggered: holding a combo must not perform
   // repeated state writes/loads every emulated frame.
   next_buttons =
@@ -176,6 +232,26 @@ int main() {
   (void)hooks.input(0);
   assert(io.consume_load_state_requested());
   assert(!io.consume_load_state_requested());
+
+  next_buttons = static_cast<std::uint32_t>(ps5rt::Button::options);
+  (void)hooks.input(0);
+
+  next_buttons =
+      static_cast<std::uint32_t>(ps5rt::Button::touchpad) |
+      static_cast<std::uint32_t>(ps5rt::Button::r1);
+  (void)hooks.input(0);
+  assert(io.consume_disc_delta_requested() == 1);
+  assert(io.consume_disc_delta_requested() == 0);
+  (void)hooks.input(0); // held
+  assert(io.consume_disc_delta_requested() == 0);
+
+  next_buttons = static_cast<std::uint32_t>(ps5rt::Button::touchpad);
+  (void)hooks.input(0);
+  next_buttons =
+      static_cast<std::uint32_t>(ps5rt::Button::touchpad) |
+      static_cast<std::uint32_t>(ps5rt::Button::l1);
+  (void)hooks.input(0);
+  assert(io.consume_disc_delta_requested() == -1);
 
   next_buttons = static_cast<std::uint32_t>(ps5rt::Button::options);
   (void)hooks.input(0);
