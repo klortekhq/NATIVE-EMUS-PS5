@@ -57,7 +57,19 @@
       "upstream_revision": "c717fcab1ccc3e0b0b97499a4d9b04a77084e347",
       "license": "MPL-2.0 text present in LICENSE.txt; third-party inventory pending",
       "pin_status": "pinned-for-first-ps5-bringup",
-      "ps5_scene_references": []
+      "ps5_scene_references": [
+        "https://github.com/premohq/PS5CEMU"
+      ],
+      "scene_reference_pins": [
+        {
+          "repository": "https://github.com/premohq/PS5CEMU",
+          "revision": "65de61fa2843d69b384fede0205189ea0b54001a",
+          "branch": "PS5-Cemu",
+          "license": "GPL-3.0-or-later for PS5CEMU-owned code; derived Cemu files retain MPL-2.0; third-party components retain their own licenses",
+          "role": "PS5 Cemu platform donor/reference only; canonical Cemu remains the source base",
+          "hardware_status": "complete-app-build-claimed-by-upstream; no physical-console validation in upstream README at audited revision"
+        }
+      ]
     },
     {
       "workspace": "xemu",

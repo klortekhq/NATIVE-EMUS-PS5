@@ -305,3 +305,27 @@ Policy:
 This is intentionally broader than emulator forks: Vulkan, native-title
 tooling, SDK/linker work, controller protocols, packaging and hardware-tested
 platform code can all remove duplicated PS5 reverse-engineering work.
+
+## premohq / PS5CEMU
+
+Repository: https://github.com/premohq/PS5CEMU
+
+Pinned reference revision:
+`65de61fa2843d69b384fede0205189ea0b54001a`.
+
+Why it matters:
+
+- direct native Cemu/PS5 platform work;
+- x64 Espresso recompiler/JIT-memory integration;
+- PS5 RADV + `VK_KHR_display`;
+- AudioOut and DualSense integration;
+- headless launcher/core split;
+- native app link/package pipeline.
+
+License/status caution:
+
+- PS5CEMU-owned code is GPL-3.0-or-later; Cemu-derived files retain MPL-2.0;
+- keep it as a reviewed donor/reference unless a compatible per-file reuse
+  decision is made;
+- its audited README says the complete app build had not yet been run on
+  hardware, so do not treat it as physical-validation evidence.

@@ -286,3 +286,23 @@ The exact file placement should follow upstream Cemu conventions once the first 
 Cemu's hardest PS5 problem is **not** its CPU architecture: it already has an x64 backend.
 
 The main work is host-memory behavior + disentangling desktop window/UI startup + validating the mature Vulkan renderer against PS5 RADV.
+
+## 11. PS5CEMU comparison target
+
+`premohq/PS5CEMU@65de61fa2843d69b384fede0205189ea0b54001a`
+is now tracked as a concrete scene reference.
+
+Before implementing a PS5 Cemu subsystem from scratch, compare its clean
+platform boundary against this reference, especially:
+
+- `MemMapper` and executable/JIT memory;
+- headless Cemu startup without wxWidgets;
+- PS5 AudioOut;
+- native DualSense provider and player mapping;
+- Vulkan/RADV loading and `VK_KHR_display` presentation;
+- launcher/core separation;
+- native-title link and packaging inputs.
+
+The reference does not replace our architecture or canonical Cemu pin. Prefer
+small, reviewed platform fixes that can be reconciled with our newer Cemu
+revision and existing shared PS5 runtime.
