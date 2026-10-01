@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
-  "reviewed": "2026-09-30",
+  "reviewed": "2026-10-01",
   "beetle_psx": {
-    "repository": "mihawk-99/PS5_BeetlePSX",
-    "revision": "e43b3980e031c47066917c941be6ace6f51ed24f",
-    "license_observed": "COPYING contains GPL version 2 text; exact or-later status requires distribution review"
+    "repository": "libretro/beetle-psx-libretro",
+    "revision": "ed87921996c67658d7a70814f73034bbca08786a",
+    "role": "canonical public upstream; deterministic PS5 transform applied by NATIVE-EMUS-PS5",
+    "historical_ps5_donor": "mihawk-99/PS5_BeetlePSX@e43b3980e031c47066917c941be6ace6f51ed24f (no longer required/publicly cloneable as observed 2026-10-01)"
   },
   "ps5_vulkan": {
     "repository": "mihawk-99/PS5_Vulkan",
@@ -24,6 +25,8 @@
   },
   "policy": {
     "radv_threaded_recording_default": false,
-    "distribution_license_gate": true
+    "distribution_license_gate": true,
+    "current_beetle_upstream_only": true,
+    "ps5_vulkan_upgrade_requires_gate": true
   }
 }
