@@ -29,3 +29,29 @@ bash ports/snes9x-ps5/build_ps5.sh
 ```
 
 Status is **hardware-validation pending** until a generated PS5 binary is tested on console.
+
+
+## Verified native-title evidence
+
+Workflow `36858894742` completed the full public native-title pipeline:
+
+1. cross-build Snes9x + shared `corehost/ps5rt` into the intermediate PIE;
+2. verify the dynamic symbol table contains imports only;
+3. convert the PIE with the pinned BlackBear native-title tooling;
+4. produce and inspect `eboot.elf` + signed `eboot.bin`;
+5. upload the hashes and final native files.
+
+Artifact:
+
+- name: `native-snes-snes9x-ps5-fself`
+- artifact ID: `11161130046`
+- artifact ZIP SHA-256:
+  `62b139f01a772649d8749e122c786cbd4faef290c7dd4aed1f1325822e97e4df`
+
+The successful finalization uses the verified BlackBear page-separated PIE
+layout plus the exact linker-visible boundary symbols required by the public
+`ps5-payload-dev/sdk` linker contract (image/text, dynamic, EH-frame and BSS
+bounds).
+
+This is reproducible native-title evidence, not physical-console boot evidence;
+hardware validation remains pending.
