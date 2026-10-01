@@ -23,11 +23,15 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 
 ### Memory / JIT
 - [x] public memory/JIT API contract
-- [ ] flexible-memory implementation
-- [ ] pooled/direct-memory implementation
-- [ ] JIT shared-memory implementation
-- [ ] dual mapping where useful
-- [ ] instruction-cache flush implementation
+- [x] flexible-memory implementation
+- [x] direct-memory implementation
+- [ ] pooled-memory implementation
+- [x] JIT shared-memory implementation
+- [x] dual RW/RX mapping
+- [x] instruction-cache flush implementation
+- [x] large virtual-range reservation
+- [x] sparse fixed-address direct-memory arena
+- [ ] physical-PS5 sparse-arena validation
 - [ ] address-space diagnostics
 - [ ] configurable JIT cache sizing
 
@@ -75,13 +79,19 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [ ] Naomi/Atomiswave follow-up
 
 ### RPCS3
-- [ ] track PS5_RPCS3 delta
-- [ ] track PS5_LLVM ABI patches
-- [ ] track PS5_Mesa RSX optimizations
+- [x] pin canonical RPCS3 + LLVM + AsmJit CPU stack
+- [x] preserve historical PS5_RPCS3 / PS5_LLVM / PS5_Mesa provenance
+- [x] reproduce SCE LLVM alignment defect
+- [x] apply deterministic SCE-only alignment shim
+- [x] cross-build real JITASM + SPU AsmJit + PPU LLVM + SPU LLVM engine objects
 - [x] document PPU/SPU JIT memory requirements
+- [x] implement and cross-build 2 GiB sparse-JIT arena probe
+- [ ] execute sparse-JIT arena probe on physical PS5
+- [ ] route canonical RPCS3 JITASM/JITLLVM arenas through ps5rt
+- [ ] audit current public PS5 Vulkan/RADV references for RSX
 - [ ] isolate Qt/desktop frontend
 - [ ] validate headless/native title bootstrap
-- [ ] reproducible build notes
+- [ ] reproducible full-engine build notes
 
 ### Vita3K / Azahar
 - [ ] pin upstreams
