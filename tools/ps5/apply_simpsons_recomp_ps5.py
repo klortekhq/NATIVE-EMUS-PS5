@@ -562,7 +562,7 @@ REXCVAR_DEFINE_BOOL(vulkan_log_debug_messages, true, "UI/Vulkan", "Log Vulkan de
     )
     text = replace_once(
         text,
-        """  bool functions_loaded = true;
+        r"""  bool functions_loaded = true;
   if (!vulkan_instance->loader_.Load(platform::lib_names::kVulkanLoader)) {
     REXLOG_ERROR("Failed to load {}", platform::lib_names::kVulkanLoader);
     return nullptr;
@@ -573,7 +573,7 @@ REXCVAR_DEFINE_BOOL(vulkan_log_debug_messages, true, "UI/Vulkan", "Log Vulkan de
   XE_VULKAN_LOAD_LOADER_FUNCTION(vkDestroyInstance);
 #undef XE_VULKAN_LOAD_LOADER_FUNCTION
 """,
-        """  bool functions_loaded = true;
+        r"""  bool functions_loaded = true;
 #if REX_PLATFORM_PS5
   // PS5 Vulkan is linked into the title; runtime dlopen is neither needed nor
   // desirable. From here on ReXGlue still resolves every entry point through
