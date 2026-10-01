@@ -1,6 +1,6 @@
 # PlayStation 1 emulator workspace
 
-## Progress: **80%**
+## Progress: **83%**
 
 Selected implementation: **Beetle PSX HW + Lightrec**.
 
@@ -61,4 +61,8 @@ The 2026-10-01 hardening pass additionally supplies:
 - a repaired dedicated `ps1-lightrec` workflow.
 
 The next scoring gate remains the complete **RADV-linked native PS5 ELF**,
-followed by FSELF validation and physical-console validation. The media/VFS/save gate has therefore advanced and progress is now **80%**. The Vulkan/title-link gates remain unchanged until a complete pinned RADV-linked PS5 title is produced.
+followed by FSELF validation and physical-console validation. The media/VFS/save gate has therefore advanced and progress is now **83%**. The Vulkan/title-link gates remain unchanged until a complete pinned RADV-linked PS5 title is produced.
+
+Latest evidence: workflow **36835002466** succeeded, including save-state and
+disk-control tests plus the native Lightrec x86-64 PS5 engine cross-build
+(artifact **11148931941**).
