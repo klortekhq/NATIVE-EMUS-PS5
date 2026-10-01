@@ -94,7 +94,7 @@ These are especially useful for hardening AudioOut, DualSense, VFS, packaging an
 7. **xemu/Xenia/MAME/Jaguar/Amiga:** maintain dedicated deeper-host tracks.
 
 
-### PlayStation / PS1 — 80%
+### PlayStation / PS1 — 83%
 
 - Selected core: Beetle PSX HW.
 - Required CPU backend: Lightrec + GNU Lightning x86-64.
@@ -102,9 +102,9 @@ These are especially useful for hardening AudioOut, DualSense, VFS, packaging an
 - Canonical source is `libretro/beetle-psx-libretro@ed87921996c67658d7a70814f73034bbca08786a`; Mihawk's older PS5_BeetlePSX is historical feasibility evidence only.
 - Deterministic transform is green from public upstream; workflow 36833195325 also validates local multi-disc M3U and per-track native sector widths.
 - Transform re-enables Lightrec on PS5 and supplies its TLSF code pool through `ps5rt_exec_allocate()`.
-- Native PS5 Lightrec x86-64 engine cross-build is **green**; current public-upstream workflow 36833195325 completed successfully.
+- Native PS5 Lightrec x86-64 engine cross-build is **green**; workflow 36835002466 completed successfully and uploaded artifact 11148931941.
 - Binary inspection confirms `lightrec.o`, `recompiler.o`, `lightning.o`, `jit_memory.o`, `lightrec_execute`, `_jit_set_code`, and references to `ps5rt_exec_allocate/release`.
 - Engine SHA-256: `b709412d7cc3dbe815fcde63dc6daddfdf994fe96998a12ed148cc857df2deb2`.
-- Vulkan host/native service adapters and local media handling are implemented; complete pinned RADV title link, packaging evidence and physical-console validation remain.
+- Vulkan host/native service adapters, local media, guarded save states and Beetle-native multi-disc switching are implemented; complete pinned RADV title link, packaging evidence and physical-console validation remain.
 
 See `systems/ps1/README.md` for the weighted percentage.
