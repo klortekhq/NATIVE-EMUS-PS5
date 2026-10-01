@@ -169,6 +169,7 @@ int main(int argc, char** argv) {
   }
 
   native_emus::ps1::SaveRamStore save_ram(prepared.save_ram_path);
+  native_emus::ps1::SaveStateStore save_state(prepared.state_path);
   if (!save_ram.load(core, error)) {
     core.unload();
     ps5rt::shutdown_app();
@@ -189,6 +190,22 @@ int main(int argc, char** argv) {
   while (!runtime_io.quit_requested()) {
     core.run_frame();
     ++frames;
+
+    if (runtime_io.consume_save_state_requested()) {
+      std::string state_error;
+      if (save_state.save(core, state_error))
+        ps5rt::log(ps5rt::LogLevel::info, "ps1", "saved state slot 0");
+      else
+        ps5rt::log(ps5rt::LogLevel::warning, "ps1", state_error);
+    }
+
+    if (runtime_io.consume_load_state_requested()) {
+      std::string state_error;
+      if (save_state.load(core, state_error))
+        ps5rt::log(ps5rt::LogLevel::info, "ps1", "loaded state slot 0");
+      else
+        ps5rt::log(ps5rt::LogLevel::warning, "ps1", state_error);
+    }
 
     if ((frames % save_interval_frames) == 0) {
       std::string save_error;
