@@ -113,10 +113,13 @@ bool emus_to_http(std::string_view uri, std::string& out) {
     return false;
 
   const auto authority = rest.substr(0, slash);
-  const auto id = rest.substr(slash + 1);
+  const auto resource = rest.substr(slash + 1);
+  const auto metadata_slash = resource.find('/');
+  const auto id = resource.substr(0, metadata_slash);
 
-  // Catalog IDs are SHA-256 hex today. Keep the transport contract strict so
-  // a malformed URI cannot be turned into a different HTTP path.
+  // Catalog IDs are SHA-256 hex today. An optional trailing file name keeps
+  // the extension visible to emulator cores, but it is metadata only and is
+  // never forwarded to the server path.
   if (id.size() != 64)
     return false;
   for (const char ch : id) {
@@ -130,6 +133,13 @@ bool emus_to_http(std::string_view uri, std::string& out) {
 
   if (authority.find_first_of(" \t\r\n?#") != std::string_view::npos)
     return false;
+
+  if (metadata_slash != std::string_view::npos) {
+    const auto metadata = resource.substr(metadata_slash + 1);
+    if (metadata.empty() ||
+        metadata.find_first_of("\r\n?#") != std::string_view::npos)
+      return false;
+  }
 
   out = "http://";
   out.append(authority);
