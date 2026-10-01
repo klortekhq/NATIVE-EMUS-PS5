@@ -72,6 +72,18 @@ int main(){
   assert(custom_env_calls==1 && custom_env_value==0x505331u);
   assert(!mock::env(0x7f01u,&custom_env_value));
 
+  lr::VfsInterfaceInfo vfs5{5, nullptr};
+  assert(!mock::env(lr::env_get_vfs_interface, &vfs5));
+  assert(vfs5.iface == nullptr);
+
+  lr::VfsInterfaceInfo vfs1{1, nullptr};
+  assert(mock::env(lr::env_get_vfs_interface, &vfs1));
+  assert(vfs1.required_interface_version == 1);
+  assert(vfs1.iface != nullptr);
+  assert(vfs1.iface->open != nullptr);
+  assert(vfs1.iface->read != nullptr);
+  assert(vfs1.iface->write != nullptr);
+
   lr::Variable var{"mock_speed",nullptr};
   assert(mock::env(lr::env_get_variable,&var)); assert(std::string(var.value)=="normal");
   bool dirty=true; assert(mock::env(lr::env_get_variable_update,&dirty)); assert(!dirty);
