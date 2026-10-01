@@ -189,10 +189,13 @@ PIE="$OUT/artifacts/beetle_psx_hw_ps5_pie.elf"
 # clang++: --whole-archive/--defsym/version scripts are linker arguments.
 #
 # Mesa intentionally leaves generated weak entry points unresolved for the
-# base RADV driver, optional tracing/annotation layers and common WSI. At the
-# pinned PS5_Mesa revision, src/amd/vulkan/meson.build generates weak RADV/layer
-# prefixes (radv, sqtt, rra, rmv, ctx_roll, utrace, annotate), while
-# src/vulkan/wsi/meson.build generates the weak prefix wsi.
+# base RADV driver, optional tracing/annotation layers, common WSI and Vulkan
+# runtime dispatch helpers. At the pinned PS5_Mesa revision:
+# - src/amd/vulkan/meson.build generates weak RADV/layer prefixes
+#   radv, sqtt, rra, rmv, ctx_roll, utrace, annotate;
+# - src/vulkan/wsi/meson.build generates weak prefix wsi;
+# - src/vulkan/runtime/meson.build generates weak prefixes vk_common,
+#   vk_cmd_enqueue and vk_cmd_enqueue_unless_primary.
 # ELF weak-undefined semantics are "resolve to zero if no provider exists", but
 # the pinned native-title converter only accepts real module imports. The PS5
 # LLD pin does not implement GNU ld's -z nodynamic-undefined-weak, so perform a
@@ -221,7 +224,7 @@ link_ps1
 [[ -s "$PIE" ]] || { echo "PS1 native PS5 PIE missing" >&2; exit 7; }
 
 if command -v readelf >/dev/null 2>&1; then
-  mesa_weak_prefix_re='^(radv|sqtt|rra|rmv|ctx_roll|utrace|annotate|wsi)_'
+  mesa_weak_prefix_re='^(radv|sqtt|rra|rmv|ctx_roll|utrace|annotate|wsi|vk_common|vk_cmd_enqueue|vk_cmd_enqueue_unless_primary)_'
   mapfile -t weak_mesa_symbols < <(
     readelf -Ws "$PIE" |
       awk -v re="$mesa_weak_prefix_re" '$5 == "WEAK" && $7 == "UND" && $8 ~ re {print $8}' |
