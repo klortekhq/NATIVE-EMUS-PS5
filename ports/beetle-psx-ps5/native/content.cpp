@@ -26,6 +26,16 @@ std::string strip_file_uri(std::string_view input) {
   return std::string(input);
 }
 
+std::string_view final_component(std::string_view input) noexcept {
+  const auto slash = input.find_last_of("/\\");
+  return slash == std::string_view::npos ? input : input.substr(slash + 1);
+}
+
+bool is_emus_uri(std::string_view input) noexcept {
+  constexpr std::string_view prefix = "emus://";
+  return input.substr(0, prefix.size()) == prefix;
+}
+
 std::string save_stem(std::filesystem::path path) {
   auto stem = path.stem().string();
   if (stem.empty())
@@ -117,7 +127,11 @@ bool is_supported_ps1_content(std::string_view path) noexcept {
   if (path.empty())
     return false;
 
-  std::filesystem::path parsed(strip_file_uri(path));
+  const std::string local_or_name =
+      is_emus_uri(path)
+          ? std::string(final_component(path))
+          : strip_file_uri(path);
+  std::filesystem::path parsed(local_or_name);
   const auto ext = lowercase(parsed.extension().string());
   static constexpr std::array<std::string_view, 8> supported{
       ".cue", ".chd", ".pbp", ".iso", ".ccd", ".toc", ".m3u", ".exe"};
@@ -139,18 +153,41 @@ bool prepare_content(
   }
 
   const auto scheme = uri_or_path.find("://");
+  const bool remote_emus = is_emus_uri(uri_or_path);
   if (scheme != std::string_view::npos &&
-      uri_or_path.substr(0, scheme) != "file") {
-    error = "non-local URI requires the ps5rt VFS bridge";
+      uri_or_path.substr(0, scheme) != "file" &&
+      !remote_emus) {
+    error = "unsupported PS1 URI scheme";
     return false;
   }
 
-  const std::string local = strip_file_uri(uri_or_path);
-  if (!is_supported_ps1_content(local)) {
+  if (!is_supported_ps1_content(uri_or_path)) {
     error = "unsupported PS1 content extension";
     return false;
   }
 
+  if (!ensure_directory(layout.system_dir, error) ||
+      !ensure_directory(layout.save_dir, error) ||
+      !ensure_directory(layout.state_dir, error))
+    return false;
+
+  if (remote_emus) {
+    const std::string name(final_component(uri_or_path));
+    std::filesystem::path metadata_name(name);
+    if (lowercase(metadata_name.extension().string()) == ".m3u") {
+      error = "remote PS1 M3U playlists are not supported yet";
+      return false;
+    }
+
+    out.core_path = std::string(uri_or_path);
+    const auto stem = save_stem(metadata_name);
+    out.save_ram_path = layout.save_dir / (stem + ".srm");
+    out.state_path = layout.state_dir / (stem + ".state0");
+    out.local_file = false;
+    return true;
+  }
+
+  const std::string local = strip_file_uri(uri_or_path);
   std::filesystem::path content(local);
   std::error_code ec;
   if (!std::filesystem::exists(content, ec) || ec) {
@@ -161,11 +198,6 @@ bool prepare_content(
     error = "PS1 content is not a regular file";
     return false;
   }
-
-  if (!ensure_directory(layout.system_dir, error) ||
-      !ensure_directory(layout.save_dir, error) ||
-      !ensure_directory(layout.state_dir, error))
-    return false;
 
   if (lowercase(content.extension().string()) == ".m3u" &&
       !validate_local_m3u(content, out.playlist_entries, error))
