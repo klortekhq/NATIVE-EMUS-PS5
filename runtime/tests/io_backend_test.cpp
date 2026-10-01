@@ -1,5 +1,6 @@
 #include <ps5rt/io.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstddef>
