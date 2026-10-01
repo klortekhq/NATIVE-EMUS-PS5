@@ -52,11 +52,12 @@ jobs:
       - name: Generate matching LLVM TableGen IR headers
         run: |
           set -euo pipefail
-          cmake --build /tmp/llvm-config --target intrinsics_gen analysis_gen --parallel 2
+          cmake --build /tmp/llvm-config --target intrinsics_gen analysis_gen vt_gen --parallel 2
           test -s /tmp/llvm-config/include/llvm/IR/Attributes.inc
           test -s /tmp/llvm-config/include/llvm/IR/IntrinsicEnums.inc
           test -s /tmp/llvm-config/include/llvm/IR/IntrinsicImpl.inc
           test -s /tmp/llvm-config/include/llvm/Analysis/TargetLibraryInfo.inc
+          test -s /tmp/llvm-config/include/llvm/CodeGen/GenVT.inc
 
       - name: Write PS5 LLVM ABI header probe
         run: |
