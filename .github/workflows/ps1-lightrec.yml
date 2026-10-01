@@ -9,6 +9,7 @@ on:
       - 'tools/ps5/tests/test_radv_bundle.py'
       - 'tools/ps5/freeze_radv_bundle.py'
       - 'tools/ps5/validate_radv_bundle.py'
+      - 'tools/ps5/prepare_radv_source_stack.sh'
       - 'ports/beetle-psx-ps5/**'
       - '.github/workflows/ps1-lightrec.yml'
   pull_request:
@@ -18,6 +19,7 @@ on:
       - 'tools/ps5/tests/test_radv_bundle.py'
       - 'tools/ps5/freeze_radv_bundle.py'
       - 'tools/ps5/validate_radv_bundle.py'
+      - 'tools/ps5/prepare_radv_source_stack.sh'
       - 'ports/beetle-psx-ps5/**'
       - '.github/workflows/ps1-lightrec.yml'
   workflow_dispatch:
@@ -51,6 +53,14 @@ jobs:
           grep -q 'PS5 Vulkan loader is frontend-supplied' /tmp/beetle-psx/rhi/rhi_lib_vulkan.c
           echo "GNU Lightning must not own mmap on PS5: PASS"
           echo "PS5 Vulkan core must not use dlopen: PASS"
+
+      - name: Validate pinned RADV source bootstrap
+        run: |
+          set -euo pipefail
+          bash -n tools/ps5/prepare_radv_source_stack.sh
+          grep -q '71026e7ec1951fe72ae5b9118ff0905216a4c220' tools/ps5/prepare_radv_source_stack.sh
+          grep -q 'cedb774b27d089fa81f46add28d0a8c13ff0f7d2' tools/ps5/prepare_radv_source_stack.sh
+          grep -q '95c08f27386fc698f6bbe21dde3030140a41d10b' tools/ps5/prepare_radv_source_stack.sh
 
       - name: Test immutable PS1 RADV bundle receipt
         run: python3 tools/ps5/tests/test_radv_bundle.py
