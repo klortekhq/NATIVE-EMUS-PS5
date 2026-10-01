@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the RPCS3 PS5 CPU-engine source boundary and PS5 LLVM ABI fixes."""
+"""Verify the canonical RPCS3 CPU-engine source boundary for native PS5 work."""
 
 from __future__ import annotations
 
@@ -8,8 +8,9 @@ import pathlib
 import re
 import subprocess
 
-RPCS3_PIN = "2ada8e453c592d8764d2801a667f3da415794918"
-LLVM_PIN = "98b45cc22e98844b7d49bbedefdfee04a740650a"
+RPCS3_PIN = "83b1e072990e839903c67401d1a6d7d1910a5824"
+LLVM_PIN = "ca7933e47d3a3451d81e72ac174dcb5aa28b59d1"
+ASMJIT_PIN = "416f7356967c1f66784dc1580fe157f9406d8bff"
 
 
 def head(path: pathlib.Path) -> str:
@@ -36,53 +37,73 @@ def main() -> int:
 
     rpcs3 = a.rpcs3.resolve()
     llvm = a.llvm.resolve()
+    asmjit = rpcs3 / "3rdparty/asmjit/asmjit"
 
     if head(rpcs3) != RPCS3_PIN:
         raise SystemExit(f"RPCS3 pin mismatch; expected {RPCS3_PIN}")
     if head(llvm) != LLVM_PIN:
-        raise SystemExit(f"PS5 LLVM pin mismatch; expected {LLVM_PIN}")
+        raise SystemExit(f"LLVM pin mismatch; expected {LLVM_PIN}")
+    if head(asmjit) != ASMJIT_PIN:
+        raise SystemExit(f"AsmJit pin mismatch; expected {ASMJIT_PIN}")
 
     emu = (rpcs3 / "rpcs3/Emu/CMakeLists.txt").read_text()
     require(emu, "Cell/PPUTranslator.cpp", "PPU LLVM translator")
     require(emu, "Cell/SPULLVMRecompiler.cpp", "SPU LLVM recompiler")
-    require(emu, "Cell/SPUASMJITRecompiler.cpp", "SPU ASM/JIT support")
-    require_re(emu, r"add_library\s*\(\s*rpcs3_emu\s+STATIC", "RPCS3 engine target")
-
-    # The PS5 donor currently uses BUILD_LIBRETRO as a minimal non-Qt engine
-    # boundary. This repository does not require RetroArch itself: the useful
-    # property here is that rpcs3_emu can be built without the desktop Qt shell.
-    top = (rpcs3 / "rpcs3/CMakeLists.txt").read_text()
-    require_re(top, r"if\s*\(\s*BUILD_LIBRETRO\s*\)", "minimal frontend build boundary")
-    require(top, "rpcs3_emu", "engine link target")
+    require(emu, "Cell/SPUASMJITRecompiler.cpp", "SPU ASMJIT support")
     require_re(
-        top,
-        r"if\s*\(\s*NOT\s+ANDROID\s+AND\s+NOT\s+BUILD_LIBRETRO\s*\)",
-        "Qt exclusion boundary",
+        emu,
+        r"add_library\s*\(\s*rpcs3_emu\s+STATIC",
+        "standalone engine boundary",
     )
 
-    third = (rpcs3 / "3rdparty/CMakeLists.txt").read_text()
-    require_re(
-        third,
-        r"if\s*\(\s*BUILD_LIBRETRO\s*\)",
-        "desktop dependency exclusions",
+    llvm_cmake = (rpcs3 / "3rdparty/llvm/CMakeLists.txt").read_text()
+    require(
+        llvm_cmake,
+        "find_package(LLVM 22.1 CONFIG)",
+        "RPCS3 pinned LLVM contract",
     )
-    require(third, "3rdparty_volk", "Vulkan loader boundary")
-    require(third, "VK_NO_PROTOTYPES", "frontend-provided Vulkan dispatch boundary")
 
+    # The historical PS5 LLVM fork carried SCE-specific alignment fixes here.
+    # Canonical LLVM now expresses those requirements generically. Prove that
+    # the exact pinned source still has those invariants before cross-building.
     small = (llvm / "llvm/include/llvm/ADT/SmallVector.h").read_text()
-    require(small, "#if defined(__SCE__)", "SmallVector PS4/PS5 ABI fix")
-    require(small, "LLVM_SMALLVECTOR_ALIGNAS", "SmallVector explicit alignment")
-    require(small, "alignas(void *)", "SmallVector pointer alignment floor")
+    require(
+        small,
+        "struct SmallVectorAlignmentAndSize",
+        "SmallVector alignment helper",
+    )
+    require(
+        small,
+        "alignas(T) char FirstEl",
+        "SmallVector element alignment",
+    )
 
     trailing = (llvm / "llvm/include/llvm/Support/TrailingObjects.h").read_text()
-    require(trailing, "#if defined(__SCE__)", "TrailingObjects PS4/PS5 ABI fix")
-    require(trailing, "AlignTrailingObjects[0]", "TrailingObjects aligned base workaround")
+    require(
+        trailing,
+        "MaxAlignment<TrailingTys...>",
+        "TrailingObjects maximum alignment",
+    )
+    require_re(
+        trailing,
+        r"class\s+alignas\(Align\)\s+TrailingObjectsImpl",
+        "TrailingObjects aligned implementation",
+    )
 
-    print("RPCS3 PS5 CPU engine source gate PASS")
+    cpu_translator = (rpcs3 / "rpcs3/Emu/CPU/CPUTranslator.h").read_text()
+    require(
+        cpu_translator,
+        "LLVM_VERSION_MAJOR >= 23",
+        "forward LLVM API compatibility",
+    )
+
+    print("RPCS3 canonical PS5 CPU source gate PASS")
     print(f"rpcs3={RPCS3_PIN}")
     print(f"llvm={LLVM_PIN}")
+    print(f"asmjit={ASMJIT_PIN}")
     print("cpu=PPU LLVM + SPU LLVM/ASMJIT")
-    print("frontend_boundary=non-Qt BUILD_LIBRETRO engine boundary")
+    print("frontend_boundary=rpcs3_emu static engine")
+    print("llvm_alignment=canonical generic alignment contracts")
     return 0
 
 
