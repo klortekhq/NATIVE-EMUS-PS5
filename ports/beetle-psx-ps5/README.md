@@ -19,7 +19,26 @@
 
 **Total: 78 / 100**
 
-Current public-upstream evidence is green.
+Current public-upstream engine evidence is green.
+
+### 2026-10-01 hardening
+
+The percentage remains **78%** while the full RADV-linked app gate is open, but the
+standalone path has been hardened further:
+
+- current native-PS5 references were audited before changing the port;
+- the dedicated `ps1-lightrec` workflow syntax/allocator gate was repaired;
+- RADV can now be supplied as an immutable, hash-validated bundle instead of a
+  live clone of a currently unavailable graphics repository;
+- native optical-sector metadata now preserves 2048/2336/2352-byte layouts and
+  mixed-mode tracks;
+- firmware policy is explicit: region auto, BIOS animation enabled, no forced
+  region-free override; Beetle keeps its user BIOS search/OpenBIOS fallback;
+- the standalone link now feeds its RADV AGC stubs into the shared pinned
+  native-title/FSELF finalizer.
+
+See [REFERENCE-AUDIT-2026-10-01.md](REFERENCE-AUDIT-2026-10-01.md).
+
 
 Workflow `36825853078` validated, in one run:
 
@@ -163,7 +182,19 @@ Default writable tree:
   boot.txt
 ```
 
-`boot.txt` may contain a local content path when the title is launched without an argument.
+boot.txt may contain a local content path when the title is launched without an argument.
+
+Firmware belongs under:
+
+```text
+/data/NATIVE-EMUS-PS5/ps1/system/
+```
+
+Beetle retains its upstream region-aware search for `scph5500.bin`,
+`scph5501.bin` and `scph5502.bin`. User firmware is never shipped by this
+project; when no compatible user BIOS is present, the upstream OpenBIOS path
+remains available.
+
 
 Save RAM is written through a temporary file and rename, avoiding partially-written memory cards when an ordinary write fails.
 
@@ -187,10 +218,10 @@ That evidence is preserved, but the current build must reproduce the same archit
 
 ## Remaining gates
 
-- make the current public-upstream PS5 archive green in CI;
-- compile and link the standalone shell with the current engine;
-- link a pinned PS5_Vulkan/RADV release archive using its published link recipe;
-- convert the linked ELF into the native title/FSELF layout;
+- obtain/freeze the exact pinned RADV driver + matching platform SDK bundle;
+- complete the full standalone RADV link with the current Lightrec engine;
+- validate the generated native ELF/FSELF from that complete link;
 - boot on physical PS5;
-- verify BIOS/OpenBIOS, legal test executable, CUE/CHD/PBP and save persistence;
+- validate regional BIOS/OpenBIOS with legal test content;
+- validate CUE/CHD/PBP, mixed-mode discs, multi-disc M3U and memory cards on hardware;
 - performance/compatibility pass with the native Lightrec backend.
