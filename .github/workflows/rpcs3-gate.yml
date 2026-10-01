@@ -57,7 +57,7 @@ jobs:
           test -s /tmp/llvm-config/include/llvm/IR/IntrinsicEnums.inc
           test -s /tmp/llvm-config/include/llvm/IR/IntrinsicImpl.inc
 
-      - name: Cross-compile PS5 LLVM ABI header probe
+      - name: Write PS5 LLVM ABI header probe
         run: |
           set -euo pipefail
           cat >/tmp/ps5_llvm_abi_probe.cpp <<'EOF'
@@ -89,8 +89,33 @@ jobs:
             return static_cast<int>(values.size());
           }
           EOF
+
+      - name: Prove canonical LLVM still exposes the SCE alignment defect
+        run: |
+          set -euo pipefail
+          if /opt/ps5-payload-sdk/bin/prospero-clang++               -std=c++20 -O2 -DNDEBUG               -I/tmp/llvm-config/include               -I/tmp/rpcs3/3rdparty/llvm/llvm/llvm/include               -c /tmp/ps5_llvm_abi_probe.cpp               -o /tmp/ps5_llvm_unpatched_probe.o               >/tmp/ps5_llvm_unpatched.log 2>&1; then
+            echo "::error::Pinned LLVM unexpectedly passed the unpatched SCE ABI probe; review whether the local shim is still required."
+            exit 1
+          fi
+          cat /tmp/ps5_llvm_unpatched.log
+          grep -q "SmallVector<Payload, 0>" /tmp/ps5_llvm_unpatched.log
+          grep -q "alignof(Node)" /tmp/ps5_llvm_unpatched.log
+          grep -q "8 >= 32" /tmp/ps5_llvm_unpatched.log
+          grep -q "4 >= 32" /tmp/ps5_llvm_unpatched.log
+          echo "canonical LLVM SCE misalignment reproduced: PASS"
+
+      - name: Apply minimal SCE LLVM alignment shim
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/tools/ps5/apply_llvm_sce_alignment.py"             /tmp/rpcs3/3rdparty/llvm/llvm
+          python3 "$GITHUB_WORKSPACE/tools/ps5/apply_llvm_sce_alignment.py"             /tmp/rpcs3/3rdparty/llvm/llvm --check
+
+      - name: Cross-compile patched PS5 LLVM ABI header probe
+        run: |
+          set -euo pipefail
           /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG             -I/tmp/llvm-config/include             -I/tmp/rpcs3/3rdparty/llvm/llvm/llvm/include             -c /tmp/ps5_llvm_abi_probe.cpp             -o /tmp/ps5_llvm_abi_probe.o
           test -s /tmp/ps5_llvm_abi_probe.o
+          echo "patched PS5 LLVM ABI probe: PASS"
 
       - name: Fetch pinned RPCS3 AsmJit dependency
         run: |
