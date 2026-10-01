@@ -173,33 +173,9 @@ jobs:
           A=build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
           test -s "$A"
           nm -u "$A" | awk '/ U /{print $NF}' | sort -u > /tmp/ps1-undef.txt
-          ! grep -Eq '^(mmap|mprotect|munmap)        uses: actions/upload-artifact@v4
-        with:
-          name: native-beetle-psx-hw-lightrec-x64-ps5-engine
-          path: |
-            build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
-            build/ps5/beetle-psx/artifacts/BUILD-MANIFEST.json
-            build/ps5/beetle-psx/artifacts/SHA256SUMS
-          if-no-files-found: error
- /tmp/ps1-undef.txt
-          grep -q '^ps5rt_exec_allocate        uses: actions/upload-artifact@v4
-        with:
-          name: native-beetle-psx-hw-lightrec-x64-ps5-engine
-          path: |
-            build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
-            build/ps5/beetle-psx/artifacts/BUILD-MANIFEST.json
-            build/ps5/beetle-psx/artifacts/SHA256SUMS
-          if-no-files-found: error
- /tmp/ps1-undef.txt
-          grep -q '^ps5rt_exec_release        uses: actions/upload-artifact@v4
-        with:
-          name: native-beetle-psx-hw-lightrec-x64-ps5-engine
-          path: |
-            build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
-            build/ps5/beetle-psx/artifacts/BUILD-MANIFEST.json
-            build/ps5/beetle-psx/artifacts/SHA256SUMS
-          if-no-files-found: error
- /tmp/ps1-undef.txt
+          ! grep -Eq '^(mmap|mprotect|munmap)$' /tmp/ps1-undef.txt
+          grep -q '^ps5rt_exec_allocate$' /tmp/ps1-undef.txt
+          grep -q '^ps5rt_exec_release$' /tmp/ps1-undef.txt
 
       - name: Upload engine evidence
         uses: actions/upload-artifact@v4
