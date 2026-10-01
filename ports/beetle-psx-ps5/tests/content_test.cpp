@@ -63,6 +63,13 @@ int main() {
   assert(is_supported_ps1_content("disc.m3u"));
   assert(!is_supported_ps1_content("game.zip"));
 
+  const std::string remote_id(64, 'a');
+  const std::string remote_chd =
+      "emus://192.168.1.50:8787/" + remote_id + "/Metal Gear Solid.chd";
+  assert(is_supported_ps1_content(remote_chd));
+  assert(!is_supported_ps1_content(
+      "emus://192.168.1.50:8787/" + remote_id));
+
   const auto root =
       std::filesystem::temp_directory_path() / "native-emus-ps1-content-test";
   std::filesystem::remove_all(root);
@@ -129,8 +136,22 @@ int main() {
   assert(!prepare_content(nested_playlist.string(), layout, bad_multi, error));
   assert(error == "nested PS1 M3U playlists are not supported");
 
+  PreparedContent remote;
+  assert(prepare_content(remote_chd, layout, remote, error));
+  assert(!remote.local_file);
+  assert(remote.core_path == remote_chd);
+  assert(remote.save_ram_path.filename() == "Metal Gear Solid.srm");
+  assert(remote.state_path.filename() == "Metal Gear Solid.state0");
+
+  const std::string remote_m3u =
+      "emus://192.168.1.50:8787/" + remote_id + "/Final Fantasy.m3u";
+  PreparedContent remote_playlist;
+  assert(!prepare_content(remote_m3u, layout, remote_playlist, error));
+  assert(error == "remote PS1 M3U playlists are not supported yet");
+
   PreparedContent rejected;
   assert(!prepare_content("smb://server/share/game.chd", layout, rejected, error));
+  assert(error == "unsupported PS1 URI scheme");
 
   corehost::lr::StaticApi api{
       mock::set_environment,
