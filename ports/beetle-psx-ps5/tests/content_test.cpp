@@ -114,6 +114,30 @@ int main() {
   for (std::size_t i = 0; i < mock::sram.size(); ++i)
     assert(mock::sram[i] == static_cast<std::uint8_t>(i ^ 0x5a));
 
+  // Replacing an existing memory-card image must remain atomic and must not
+  // leave the temporary file behind.
+  for (std::size_t i = 0; i < mock::sram.size(); ++i)
+    mock::sram[i] = static_cast<std::uint8_t>(0xa5 ^ i);
+  assert(saves.save(core, error));
+  assert(!std::filesystem::exists(prepared.save_ram_path.string() + ".tmp"));
+
+  mock::sram.fill(0);
+  assert(saves.load(core, error));
+  for (std::size_t i = 0; i < mock::sram.size(); ++i)
+    assert(mock::sram[i] == static_cast<std::uint8_t>(0xa5 ^ i));
+
+  // A truncated/corrupt card must be rejected before touching live core RAM.
+  {
+    std::ofstream corrupt(prepared.save_ram_path, std::ios::binary | std::ios::trunc);
+    const std::array<char, 7> short_card{'P','S','1','B','A','D','!'};
+    corrupt.write(short_card.data(), static_cast<std::streamsize>(short_card.size()));
+  }
+  mock::sram.fill(0x3c);
+  assert(!saves.load(core, error));
+  assert(error == "save RAM size does not match core");
+  for (const auto byte : mock::sram)
+    assert(byte == 0x3c);
+
   core.shutdown();
   std::filesystem::remove_all(root);
   return 0;
