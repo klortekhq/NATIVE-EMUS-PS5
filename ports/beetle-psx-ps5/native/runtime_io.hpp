@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <string>
 
 #include <corehost/static_core.hpp>
 #include <ps5rt/audio.hpp>
@@ -48,6 +49,14 @@ public:
     return requested;
   }
 
+  int consume_disc_delta_requested() noexcept {
+    const int delta = disc_delta_requested_;
+    disc_delta_requested_ = 0;
+    return delta;
+  }
+
+  bool change_disc(int delta, std::string& error) noexcept;
+
 private:
   friend bool rumble_trampoline(
       unsigned port, enum retro_rumble_effect effect,
@@ -71,7 +80,14 @@ private:
   bool quit_requested_{};
   bool save_state_requested_{};
   bool load_state_requested_{};
+  int disc_delta_requested_{};
   std::uint32_t previous_buttons_{};
+
+  retro_set_eject_state_t disk_set_eject_state_{};
+  retro_get_eject_state_t disk_get_eject_state_{};
+  retro_get_image_index_t disk_get_image_index_{};
+  retro_set_image_index_t disk_set_image_index_{};
+  retro_get_num_images_t disk_get_num_images_{};
 };
 
 } // namespace native_emus::ps1
