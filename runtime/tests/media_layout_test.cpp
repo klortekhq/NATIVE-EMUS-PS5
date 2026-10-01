@@ -22,6 +22,26 @@ int main() {
   static_assert(mixed_mode[0].has_valid_sector_size());
   static_assert(mixed_mode[1].has_valid_sector_size());
 
+  // DuckStation 2026-10-01 regression class: a precache/read path must keep
+  // the native width of the track that owns the requested LBA.
+  ps5rt::DiscLayout layout{};
+  layout.tracks.assign(mixed_mode.begin(), mixed_mode.end());
+  layout.total_sectors = 27000;
+  assert(ps5rt::native_sector_size_for_lba(layout, 0) == 2352);
+  assert(ps5rt::native_sector_size_for_lba(layout, 14999) == 2352);
+  assert(ps5rt::native_sector_size_for_lba(layout, 15000) == 2352);
+  assert(ps5rt::native_sector_size_for_lba(layout, 26999) == 2352);
+  assert(ps5rt::native_sector_size_for_lba(layout, 27000) == 0);
+
+  ps5rt::DiscLayout cooked_then_raw{};
+  cooked_then_raw.tracks = {
+      {1, ps5rt::TrackKind::data, DiscSectorMode::mode1_2048, 2048, 0, 100},
+      {2, ps5rt::TrackKind::data, DiscSectorMode::mode2_2352, 2352, 100, 100},
+  };
+  cooked_then_raw.total_sectors = 200;
+  assert(ps5rt::native_sector_size_for_lba(cooked_then_raw, 50) == 2048);
+  assert(ps5rt::native_sector_size_for_lba(cooked_then_raw, 150) == 2352);
+
   // Cooked ISO and Mode2/2336 are both valid source representations.
   constexpr DiscTrack cooked{
       1, ps5rt::TrackKind::data, DiscSectorMode::mode1_2048, 2048, 0, 1000};
