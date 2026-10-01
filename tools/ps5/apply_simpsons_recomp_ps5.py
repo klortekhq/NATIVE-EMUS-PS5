@@ -31,6 +31,7 @@ INPUT_SYSTEM = pathlib.Path("tools/rexglue-sdk/src/input/input_system.cpp")
 REX_APP = pathlib.Path("tools/rexglue-sdk/src/ui/rex_app.cpp")
 THIRDPARTY_CMAKE = pathlib.Path("tools/rexglue-sdk/thirdparty/CMakeLists.txt")
 CORE_CMAKE = pathlib.Path("tools/rexglue-sdk/src/core/CMakeLists.txt")
+SYSTEM_CMAKE = pathlib.Path("tools/rexglue-sdk/src/system/CMakeLists.txt")
 VULKAN_INSTANCE_H = pathlib.Path("tools/rexglue-sdk/include/rex/ui/vulkan/instance.h")
 VULKAN_INSTANCE = pathlib.Path("tools/rexglue-sdk/src/ui/vulkan/vulkan_instance.cpp")
 VULKAN_PRESENTER = pathlib.Path("tools/rexglue-sdk/src/ui/vulkan/vulkan_presenter.cpp")
@@ -574,6 +575,52 @@ endif()
         "PS5 core POSIX link libraries",
     )
 
+
+def transform_system_cmake(text: str) -> str:
+    text = replace_once(
+        text,
+        """add_library(rexruntime SHARED ${REXSYSTEM_SOURCES})
+""",
+        """if(REXGLUE_PS5)
+    # The recompiled title is monolithic on PS5. A desktop-style .so for the
+    # Xbox runtime would add a loader/TLS/relocation dependency we do not need.
+    add_library(rexruntime STATIC ${REXSYSTEM_SOURCES})
+else()
+    add_library(rexruntime SHARED ${REXSYSTEM_SOURCES})
+endif()
+""",
+        "PS5 static rexruntime",
+    )
+    text = replace_once(
+        text,
+        """        spdlog::spdlog
+        tomlplusplus
+        SDL3::SDL3
+    PRIVATE
+""",
+        """        spdlog::spdlog
+        tomlplusplus
+    PRIVATE
+""",
+        "remove unconditional SDL from rexruntime",
+    )
+    text = replace_once(
+        text,
+        """)
+
+if(REXGLUE_ENABLE_TRACY)
+""",
+        """)
+if(NOT REXGLUE_PS5)
+    target_link_libraries(rexruntime PUBLIC SDL3::SDL3)
+endif()
+
+if(REXGLUE_ENABLE_TRACY)
+""",
+        "desktop SDL rexruntime link",
+    )
+    return text
+
 def transform_vulkan_instance_header(text: str) -> str:
     text = replace_once(
         text,
@@ -941,6 +988,7 @@ def main() -> int:
                 (root / THIRDPARTY_CMAKE).read_text()
             ),
             CORE_CMAKE: transform_core_cmake((root / CORE_CMAKE).read_text()),
+            SYSTEM_CMAKE: transform_system_cmake((root / SYSTEM_CMAKE).read_text()),
             VULKAN_INSTANCE_H: transform_vulkan_instance_header(
                 (root / VULKAN_INSTANCE_H).read_text()
             ),
@@ -969,6 +1017,8 @@ def main() -> int:
             "audio_factory": "PS5AudioSystem" in transformed[REX_APP],
             "no_sdl": "if(NOT REXGLUE_PS5)" in transformed[THIRDPARTY_CMAKE],
             "core_link": "UNIX AND NOT REXGLUE_PS5" in transformed[CORE_CMAKE],
+            "static_runtime": "add_library(rexruntime STATIC" in transformed[SYSTEM_CMAKE],
+            "runtime_no_sdl": "NOT REXGLUE_PS5" in transformed[SYSTEM_CMAKE],
             "vulkan_display_ext": "ext_KHR_display" in transformed[VULKAN_INSTANCE_H],
             "vulkan_static_loader": "PS5 Vulkan is linked into the title" in transformed[VULKAN_INSTANCE],
             "vulkan_display_surface": "vkCreateDisplayPlaneSurfaceKHR" in transformed[VULKAN_PRESENTER],
