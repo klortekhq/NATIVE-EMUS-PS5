@@ -3,6 +3,7 @@
 #include <ps5rt/c/exec.h>
 #include <ps5rt/c/jit.h>
 #include <ps5rt/c/shm.h>
+#include <ps5rt/c/sparse_arena.h>
 #include <ps5rt/c/vmem.h>
 
 #include <cassert>
@@ -194,6 +195,50 @@ int main() {
     assert(ps5rt_shm_unmap(view, 0x4000, 0) == 0);
     ps5rt_shm_destroy(&shm);
     assert(shm.handle == 0);
+    assert(direct_blocks.empty());
+  }
+
+  {
+    ps5rt_sparse_arena arena{};
+    assert(ps5rt_sparse_arena_create(
+               16ull * 1024 * 1024, nullptr, 2ull * 1024 * 1024, &arena) == 0);
+    assert(arena.base);
+    assert(arena.size == 16ull * 1024 * 1024);
+    assert(arena.committed == 0);
+
+    constexpr std::size_t code_size = 512ull * 1024;
+    constexpr std::size_t data_offset = 8ull * 1024 * 1024;
+    constexpr std::size_t data_size = 2ull * 1024 * 1024;
+
+    assert(ps5rt_sparse_arena_commit(
+               &arena, 0, code_size,
+               PS5RT_SPARSE_READ | PS5RT_SPARSE_WRITE | PS5RT_SPARSE_EXEC) == 0);
+    assert(ps5rt_sparse_arena_commit(
+               &arena, data_offset, data_size,
+               PS5RT_SPARSE_READ | PS5RT_SPARSE_WRITE) == 0);
+    assert(arena.committed == code_size + data_size);
+    assert(direct_blocks.size() == 2);
+
+    assert(ps5rt_sparse_arena_protect(
+               &arena, 0, code_size,
+               PS5RT_SPARSE_READ | PS5RT_SPARSE_EXEC) == 0);
+
+    assert(ps5rt_sparse_arena_decommit(&arena, 0, code_size) == 0);
+    assert(arena.committed == data_size);
+    assert(direct_blocks.size() == 1);
+
+    assert(ps5rt_sparse_arena_commit(
+               &arena, 0, code_size,
+               PS5RT_SPARSE_READ | PS5RT_SPARSE_WRITE | PS5RT_SPARSE_EXEC) == 0);
+    assert(arena.committed == code_size + data_size);
+    assert(direct_blocks.size() == 2);
+
+    // Partial decommit of a committed chunk is intentionally rejected.
+    assert(ps5rt_sparse_arena_decommit(&arena, 0, 0x4000) != 0);
+    assert(arena.committed == code_size + data_size);
+
+    ps5rt_sparse_arena_destroy(&arena);
+    assert(!arena.base && arena.size == 0 && arena.committed == 0);
     assert(direct_blocks.empty());
   }
 
