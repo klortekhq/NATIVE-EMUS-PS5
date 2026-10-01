@@ -58,6 +58,7 @@ bool RuntimeIo::initialize(std::uint32_t source_sample_rate) noexcept {
 
   g_active_io = this;
   audio_error_reported_ = false;
+  quit_requested_ = false;
   return true;
 }
 
@@ -83,6 +84,7 @@ void RuntimeIo::shutdown() noexcept {
 
   snapshot_ = {};
   audio_error_reported_ = false;
+  quit_requested_ = false;
 }
 
 corehost::Hooks RuntimeIo::make_hooks(
@@ -154,6 +156,14 @@ corehost::InputState RuntimeIo::input(unsigned port) noexcept {
       ps5rt::log(
           ps5rt::LogLevel::warning, "ps1",
           "DualSense poll failed; returning neutral input");
+    } else if (!snapshot_.controllers.empty()) {
+      const auto buttons = snapshot_.controllers[0].buttons;
+      const auto options =
+          static_cast<std::uint32_t>(ps5rt::Button::options);
+      const auto touchpad =
+          static_cast<std::uint32_t>(ps5rt::Button::touchpad);
+      if ((buttons & options) && (buttons & touchpad))
+        quit_requested_ = true;
     }
   }
 
