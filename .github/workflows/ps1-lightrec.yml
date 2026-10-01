@@ -114,6 +114,18 @@ jobs:
             -o /tmp/ps1-content-test
           /tmp/ps1-content-test
 
+      - name: Test standalone PS1 BIOS region configuration
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -Icorehost/include \
+            -Iruntime/include \
+            ports/beetle-psx-ps5/native/config.cpp \
+            corehost/src/static_core.cpp \
+            ports/beetle-psx-ps5/tests/config_test.cpp \
+            -o /tmp/ps1-config-test
+          /tmp/ps1-config-test
+
       - name: Test native PS1 audio input and rumble bridge
         run: |
           set -euo pipefail
@@ -174,6 +186,9 @@ jobs:
           grep -q 'libSceAgcDriver' ports/beetle-psx-ps5/build_app_ps5.sh
           grep -q 'STATIC_SUPPORT_SOURCES' ports/beetle-psx-ps5/build_app_ps5.sh
           grep -q 'retro_waitable_spsc.c' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'native/config.cpp' ports/beetle-psx-ps5/build_app_ps5.sh
+          bash -n tools/ps5/finalize_native_pie.sh
+          grep -q 'EXTRA_STUB_ARGS' tools/ps5/finalize_native_pie.sh
           echo "static frontend helper list: PASS"
 
       - name: Verify PS5 archive has no accidental POSIX JIT allocator
