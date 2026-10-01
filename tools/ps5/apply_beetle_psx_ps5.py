@@ -82,7 +82,7 @@ else ifeq ($(platform), ps5)
    THREADED_RECOMPILER = 1
    LINK_STATIC_LIBCPLUSPLUS = 0
    NEED_THREADING = 1
-   FLAGS += -D__PROSPERO__ -DHAVE_HW
+   FLAGS += -D__PROSPERO__ -DHAVE_HW -DSTATIC_LINKING
    FLAGS += -march=znver2 -msse4.1 -mavx2 -mno-vzeroupper
 
 """
@@ -271,6 +271,96 @@ else ifeq ($(platform), ps5)
     )
 
     out[libretro] = text
+
+    rhi_vk = root / "rhi/rhi_lib_vulkan.c"
+    text = rhi_vk.read_text()
+    text = replace_once(
+        text,
+        "#ifndef _WIN32\n#include <dlfcn.h>\n#elif defined(_WIN32)\n",
+        "#if !defined(_WIN32) && !defined(__PROSPERO__)\n"
+        "#include <dlfcn.h>\n"
+        "#elif defined(_WIN32)\n",
+        "PS5 Vulkan loader include",
+    )
+    text = replace_once(
+        text,
+        """      {
+#ifndef _WIN32
+         static void *module;
+         if (!module)
+         {
+            const char *vulkan_path = getenv("GRANITE_VULKAN_LIBRARY");
+            if (vulkan_path)
+               module = dlopen(vulkan_path, RTLD_LOCAL | RTLD_LAZY);
+            if (!module)
+               module = dlopen("libvulkan.so.1", RTLD_LOCAL | RTLD_LAZY);
+            if (!module)
+               module = dlopen("libvulkan.so", RTLD_LOCAL | RTLD_LAZY);
+            if (!module)
+               return false;
+         }
+
+         addr = (PFN_vkGetInstanceProcAddr)(dlsym(module, "vkGetInstanceProcAddr"));
+         if (!addr)
+            return false;
+#else
+         static HMODULE module;
+         if (!module)
+         {
+            module = LoadLibraryA("vulkan-1.dll");
+            if (!module)
+               return false;
+         }
+
+         addr = (PFN_vkGetInstanceProcAddr)(GetProcAddress(module, "vkGetInstanceProcAddr"));
+         if (!addr)
+            return false;
+#endif
+      }
+""",
+        """      {
+#if defined(__PROSPERO__)
+         /*
+          * PS5 Vulkan loader is frontend-supplied. RADV is linked into the
+          * title; trying libvulkan.so would be an architecture error.
+          */
+         return false;
+#elif !defined(_WIN32)
+         static void *module;
+         if (!module)
+         {
+            const char *vulkan_path = getenv("GRANITE_VULKAN_LIBRARY");
+            if (vulkan_path)
+               module = dlopen(vulkan_path, RTLD_LOCAL | RTLD_LAZY);
+            if (!module)
+               module = dlopen("libvulkan.so.1", RTLD_LOCAL | RTLD_LAZY);
+            if (!module)
+               module = dlopen("libvulkan.so", RTLD_LOCAL | RTLD_LAZY);
+            if (!module)
+               return false;
+         }
+
+         addr = (PFN_vkGetInstanceProcAddr)(dlsym(module, "vkGetInstanceProcAddr"));
+         if (!addr)
+            return false;
+#else
+         static HMODULE module;
+         if (!module)
+         {
+            module = LoadLibraryA("vulkan-1.dll");
+            if (!module)
+               return false;
+         }
+
+         addr = (PFN_vkGetInstanceProcAddr)(GetProcAddress(module, "vkGetInstanceProcAddr"));
+         if (!addr)
+            return false;
+#endif
+      }
+""",
+        "PS5 Vulkan loader is frontend-supplied",
+    )
+    out[rhi_vk] = text
     return out
 
 

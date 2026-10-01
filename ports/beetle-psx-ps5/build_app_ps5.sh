@@ -62,6 +62,7 @@ INCLUDES=(
   -I"$ROOT/runtime/include"
   -I"$ROOT/corehost/include"
   -I"$ROOT/ports/beetle-psx-ps5/native"
+  -I"$SRC"
   -I"$SRC/libretro-common/include"
   -I"$SRC/parallel-psx/khronos/include"
 )
@@ -71,6 +72,50 @@ CXXFLAGS=(
   -ffunction-sections -fdata-sections -fvisibility=hidden
   -march=znver2 -msse4.1 -mavx2 -mno-vzeroupper
   -pthread
+)
+
+CFLAGS=(
+  -std=c11 -O3 -DNDEBUG -fPIC -fvisibility=hidden
+  -D__PROSPERO__ -DSTATIC_LINKING
+  -DWANT_THREADING -DHAVE_THREADS
+  -DSTDC_HEADERS -D_FILE_OFFSET_BITS=64
+  -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
+  -pthread
+)
+
+# Exact libretro-common set that Beetle excludes when STATIC_LINKING=1.
+# The frontend owns these helpers; keeping the list aligned with the pinned
+# Makefile.common avoids duplicate symbols and dynamic-frontend assumptions.
+STATIC_SUPPORT_SOURCES=(
+  "$SRC/libretro-common/streams/file_stream.c"
+  "$SRC/libretro-common/streams/file_stream_transforms.c"
+  "$SRC/libretro-common/file/file_path.c"
+  "$SRC/libretro-common/file/file_path_io.c"
+  "$SRC/libretro-common/file/retro_dirent.c"
+  "$SRC/libretro-common/vfs/vfs_implementation.c"
+  "$SRC/libretro-common/lists/dir_list.c"
+  "$SRC/libretro-common/lists/string_list.c"
+  "$SRC/libretro-common/string/stdstring.c"
+  "$SRC/libretro-common/string/rstrtod.c"
+  "$SRC/libretro-common/compat/compat_strl.c"
+  "$SRC/libretro-common/compat/fopen_utf8.c"
+  "$SRC/libretro-common/compat/compat_strcasestr.c"
+  "$SRC/libretro-common/compat/compat_posix_string.c"
+  "$SRC/libretro-common/encodings/encoding_utf.c"
+  "$SRC/libretro-common/encodings/encoding_crc32.c"
+  "$SRC/libretro-common/memmap/memalign.c"
+  "$SRC/libretro-common/time/rtime.c"
+  "$SRC/libretro-common/hash/lrc_hash.c"
+  "$SRC/libretro-common/formats/data_transfer.c"
+  "$SRC/libretro-common/memmap/memmap.c"
+  "$SRC/libretro-common/file/nbio/nbio_intf.c"
+  "$SRC/libretro-common/file/nbio/nbio_stdio.c"
+  "$SRC/libretro-common/file/nbio/nbio_windowsmmap.c"
+  "$SRC/libretro-common/file/nbio/nbio_unixmmap.c"
+  "$SRC/libretro-common/rthreads/rthreads.c"
+  "$SRC/libretro-common/rthreads/retro_eventcount.c"
+  "$SRC/libretro-common/queues/retro_spsc.c"
+  "$SRC/libretro-common/queues/retro_waitable_spsc.c"
 )
 
 SOURCES=(
@@ -98,6 +143,14 @@ for src in "${SOURCES[@]}"; do
   rel="${src#$ROOT/}"
   obj="$OUT/obj/${rel//\//_}.o"
   "$CXX" "${CXXFLAGS[@]}" "${INCLUDES[@]}" -c "$src" -o "$obj"
+  OBJECTS+=("$obj")
+done
+
+for src in "${STATIC_SUPPORT_SOURCES[@]}"; do
+  [[ -f "$src" ]] || { echo "missing static frontend helper: $src" >&2; exit 6; }
+  rel="${src#$SRC/}"
+  obj="$OUT/obj/libretro_common_${rel//\//_}.o"
+  "$CC" "${CFLAGS[@]}" "${INCLUDES[@]}" -c "$src" -o "$obj"
   OBJECTS+=("$obj")
 done
 

@@ -41,7 +41,10 @@ jobs:
           grep -q 'ps5rt_exec_release' /tmp/beetle-psx/libretro.c
           grep -q 'defined(__PROSPERO__)' /tmp/beetle-psx/libretro.c
           grep -q '#define HAVE_MMAP 0' /tmp/beetle-psx/include/lightning.h
+          grep -q -- '-DSTATIC_LINKING' /tmp/beetle-psx/Makefile
+          grep -q 'PS5 Vulkan loader is frontend-supplied' /tmp/beetle-psx/rhi/rhi_lib_vulkan.c
           echo "GNU Lightning must not own mmap on PS5: PASS"
+          echo "PS5 Vulkan core must not use dlopen: PASS"
 
       - name: Test Vulkan hardware-context lifecycle
         run: |
@@ -160,6 +163,9 @@ jobs:
           grep -q 'radv_link_inputs' ports/beetle-psx-ps5/build_app_ps5.sh
           grep -q 'radv_link_flags' ports/beetle-psx-ps5/build_app_ps5.sh
           grep -q 'libSceAgcDriver' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'STATIC_SUPPORT_SOURCES' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'retro_waitable_spsc.c' ports/beetle-psx-ps5/build_app_ps5.sh
+          echo "static frontend helper list: PASS"
 
       - name: Verify PS5 archive has no accidental POSIX JIT allocator
         run: |
