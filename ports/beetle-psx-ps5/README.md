@@ -1,6 +1,6 @@
 # Beetle PSX HW PS5 — native Lightrec x86-64 port
 
-## Progress: **78%**
+## Progress: **80%**
 
 > This percentage describes **our native standalone PS5 port**, not Beetle PSX upstream compatibility or another frontend's PS5 port. It only increases on reproducible engineering evidence.
 
@@ -13,18 +13,18 @@
 | Native CPU recompiler/JIT | 25% | **25% — Lightrec + GNU Lightning x86-64 verified in current archive** |
 | Native Vulkan host / RADV | 15% | **11%** — environment, provider, display surface and presenter implemented and host-tested |
 | Native audio/input | 10% | **8%** — AudioOut, DualSense, rumble and clean-exit chord wired and host-tested |
-| VFS/disc/saves | 10% | **5%** — local CUE/CHD/PBP/etc. validation + atomic SRAM persistence; network VFS pending |
+| VFS/disc/saves | 10% | **7%** — local CUE/CHD/PBP/etc., per-track native sector widths, validated local multi-disc M3U + atomic SRAM persistence; network VFS pending |
 | Native app shell / title link | 5% | **4%** — standalone lifecycle + shell compile are green; final RADV-linked ELF/title conversion pending |
 | Physical PS5 boot/game validation | 10% | **0%** |
 
-**Total: 78 / 100**
+**Total: 80 / 100**
 
 Current public-upstream engine evidence is green.
 
 ### 2026-10-01 hardening
 
-The percentage remains **78%** while the full RADV-linked app gate is open, but the
-standalone path has been hardened further:
+The percentage is now **80%**. The increase is limited to the disc/VFS/save gate because the
+standalone path has now passed additional reproducible tests while the full RADV-linked app gate remains open:
 
 - current native-PS5 references were audited before changing the port;
 - the dedicated `ps1-lightrec` workflow syntax/allocator gate was repaired;
@@ -58,7 +58,7 @@ The resulting bundle is validated by hash and can be fed directly to
 `build_app_ps5.sh` through `PS5_RADV_BUNDLE_DIR`.
 
 
-Workflow `36825853078` validated, in one run:
+Workflow `36833195325` validated, in one run:
 
 - deterministic PS5 transform;
 - Beetle Vulkan environment lifecycle;
@@ -66,6 +66,8 @@ Workflow `36825853078` validated, in one run:
 - PS5 `VK_KHR_display` surface selection;
 - native presenter geometry;
 - local content + SRAM persistence;
+- per-LBA native sector-size preservation for 2048/2336/2352-byte mixed layouts;
+- real local multi-disc M3U resolution/validation with network/nested playlists rejected until VFS is ready;
 - AudioOut/input/rumble bridge;
 - standalone native shell compilation;
 - PS5 Lightrec x86-64 cross-build.
@@ -236,10 +238,10 @@ That evidence is preserved, but the current build must reproduce the same archit
 
 ## Remaining gates
 
-- obtain/freeze the exact pinned RADV driver + matching platform SDK bundle;
+- execute the pinned RADV source build and freeze/validate the resulting matching driver + SDK bundle;
 - complete the full standalone RADV link with the current Lightrec engine;
 - validate the generated native ELF/FSELF from that complete link;
 - boot on physical PS5;
 - validate regional BIOS/OpenBIOS with legal test content;
-- validate CUE/CHD/PBP, mixed-mode discs, multi-disc M3U and memory cards on hardware;
+- validate CUE/CHD/PBP, mixed-mode discs, multi-disc M3U and memory cards on physical hardware;
 - performance/compatibility pass with the native Lightrec backend.
