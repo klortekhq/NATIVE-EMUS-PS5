@@ -35,7 +35,7 @@
       "name": "AnyPS5",
       "repository": "boykopovar/AnyPS5",
       "url": "https://github.com/boykopovar/AnyPS5",
-      "pin": "131156c5d035673c5264ad7403f4247e023e01bd",
+      "pin": "bc51b337adc4ea11afb56b0265695f74882df0b4",
       "license": "GPL-2.0",
       "priority": "critical",
       "cache_source": true,
@@ -48,7 +48,7 @@
         "vulkan",
         "x86-relinker"
       ],
-      "relevance": "Very useful clean-room PS5 ABI and AGC reference. Current tree contains AGC command implementations, VideoOut modelling, persistent shader disk/pipeline cache work and x86 instruction relinking research.",
+      "relevance": "Very useful clean-room PS5 ABI and AGC reference. Current tree contains AGC command implementations, VideoOut modelling, persistent shader disk/pipeline cache work and x86 instruction relinking research. The 2026-10-01 refresh also preserves the comparison-image shader-cache fix and current AGC driver module split.",
       "discovered_via": [
         "@Jdr8245Jhon"
       ],
