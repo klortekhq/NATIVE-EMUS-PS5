@@ -20,7 +20,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  pinned-radv-source-gate:
+    runs-on: ubuntu-24.04
+    outputs:
+      available: ${{ steps.probe.outputs.available }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe exact historical RADV source pins
+        id: probe
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sources=(
+            "mihawk-99/PS5_Vulkan@71026e7ec1951fe72ae5b9118ff0905216a4c220"
+            "mihawk-99/PS5_Mesa@cedb774b27d089fa81f46add28d0a8c13ff0f7d2"
+            "mihawk-99/PS5_PayloadSDK@95c08f27386fc698f6bbe21dde3030140a41d10b"
+          )
+          missing=0
+          for source in "${sources[@]}"; do
+            repo="${source%@*}"
+            pin="${source#*@}"
+            url="https://api.github.com/repos/${repo}/commits/${pin}"
+            if curl --fail --silent --show-error --location \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                "$url" -o /tmp/pin.json; then
+              echo "available: ${source}"
+            else
+              echo "::warning title=RADV source unavailable::${source} is not publicly retrievable; the full native-link job remains blocked rather than producing a false failure."
+              missing=1
+            fi
+          done
+          if [[ "$missing" -eq 0 ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "### PS1 full native link source gate: READY" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### PS1 full native link source gate: BLOCKED"
+              echo
+              echo "One or more exact historical Mihawk RADV pins are currently unavailable."
+              echo "No final-link evidence is claimed. The reproducible Lightrec/ps5rt gates continue independently."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   full-native-link:
+    needs: pinned-radv-source-gate
+    if: needs.pinned-radv-source-gate.outputs.available == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
