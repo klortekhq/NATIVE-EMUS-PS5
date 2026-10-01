@@ -61,7 +61,13 @@ bool RuntimeIo::initialize(std::uint32_t source_sample_rate) noexcept {
   quit_requested_ = false;
   save_state_requested_ = false;
   load_state_requested_ = false;
+  disc_delta_requested_ = 0;
   previous_buttons_ = 0;
+  disk_set_eject_state_ = nullptr;
+  disk_get_eject_state_ = nullptr;
+  disk_get_image_index_ = nullptr;
+  disk_set_image_index_ = nullptr;
+  disk_get_num_images_ = nullptr;
   return true;
 }
 
@@ -90,7 +96,13 @@ void RuntimeIo::shutdown() noexcept {
   quit_requested_ = false;
   save_state_requested_ = false;
   load_state_requested_ = false;
+  disc_delta_requested_ = 0;
   previous_buttons_ = 0;
+  disk_set_eject_state_ = nullptr;
+  disk_get_eject_state_ = nullptr;
+  disk_get_image_index_ = nullptr;
+  disk_set_image_index_ = nullptr;
+  disk_get_num_images_ = nullptr;
 }
 
 corehost::Hooks RuntimeIo::make_hooks(
@@ -145,6 +157,53 @@ bool RuntimeIo::environment(
     return true;
   }
 
+  if (cmd == RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION) {
+    if (!data)
+      return false;
+    *static_cast<unsigned*>(data) = 1;
+    return true;
+  }
+
+  if (cmd == RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE) {
+    if (!data) {
+      disk_set_eject_state_ = nullptr;
+      disk_get_eject_state_ = nullptr;
+      disk_get_image_index_ = nullptr;
+      disk_set_image_index_ = nullptr;
+      disk_get_num_images_ = nullptr;
+      return true;
+    }
+
+    const auto* iface =
+        static_cast<const retro_disk_control_callback*>(data);
+    disk_set_eject_state_ = iface->set_eject_state;
+    disk_get_eject_state_ = iface->get_eject_state;
+    disk_get_image_index_ = iface->get_image_index;
+    disk_set_image_index_ = iface->set_image_index;
+    disk_get_num_images_ = iface->get_num_images;
+    return true;
+  }
+
+  if (cmd == RETRO_ENVIRONMENT_SET_DISK_CONTROL_EXT_INTERFACE) {
+    if (!data) {
+      disk_set_eject_state_ = nullptr;
+      disk_get_eject_state_ = nullptr;
+      disk_get_image_index_ = nullptr;
+      disk_set_image_index_ = nullptr;
+      disk_get_num_images_ = nullptr;
+      return true;
+    }
+
+    const auto* iface =
+        static_cast<const retro_disk_control_ext_callback*>(data);
+    disk_set_eject_state_ = iface->set_eject_state;
+    disk_get_eject_state_ = iface->get_eject_state;
+    disk_get_image_index_ = iface->get_image_index;
+    disk_set_image_index_ = iface->set_image_index;
+    disk_get_num_images_ = iface->get_num_images;
+    return true;
+  }
+
   return vulkan.environment(cmd, data);
 }
 
@@ -181,16 +240,78 @@ corehost::InputState RuntimeIo::input(unsigned port) noexcept {
 
       if (combo_rising(options | touchpad))
         quit_requested_ = true;
-      if (combo_rising(options | r1))
-        save_state_requested_ = true;
-      if (combo_rising(options | l1))
-        load_state_requested_ = true;
+
+      if ((buttons & touchpad) == 0) {
+        if (combo_rising(options | r1))
+          save_state_requested_ = true;
+        if (combo_rising(options | l1))
+          load_state_requested_ = true;
+      }
+
+      if ((buttons & options) == 0) {
+        if (combo_rising(touchpad | r1))
+          disc_delta_requested_ = 1;
+        else if (combo_rising(touchpad | l1))
+          disc_delta_requested_ = -1;
+      }
 
       previous_buttons_ = buttons;
     }
   }
 
   return corehost::translate_ps5rt_input(snapshot_, port);
+}
+
+bool RuntimeIo::change_disc(int delta, std::string& error) noexcept {
+  error.clear();
+
+  if (delta == 0)
+    return true;
+  if (!disk_set_eject_state_ || !disk_get_eject_state_ ||
+      !disk_get_image_index_ || !disk_set_image_index_ ||
+      !disk_get_num_images_) {
+    error = "PS1 core did not register disk-control callbacks";
+    return false;
+  }
+
+  const unsigned count = disk_get_num_images_();
+  if (count < 2) {
+    error = "PS1 content has no alternate disc";
+    return false;
+  }
+
+  const unsigned current = disk_get_image_index_();
+  unsigned target = 0;
+  if (current >= count) {
+    target = delta > 0 ? 0u : count - 1u;
+  } else if (delta > 0) {
+    target = (current + 1u) % count;
+  } else {
+    target = current == 0 ? count - 1u : current - 1u;
+  }
+
+  if (target == current)
+    return true;
+
+  const bool was_ejected = disk_get_eject_state_();
+  if (!was_ejected && !disk_set_eject_state_(true)) {
+    error = "PS1 core refused to eject current disc";
+    return false;
+  }
+
+  if (!disk_set_image_index_(target)) {
+    if (!was_ejected)
+      (void)disk_set_eject_state_(false);
+    error = "PS1 core refused the requested disc index";
+    return false;
+  }
+
+  if (!disk_set_eject_state_(false)) {
+    error = "PS1 core switched disc but could not close virtual tray";
+    return false;
+  }
+
+  return true;
 }
 
 std::size_t RuntimeIo::audio_batch(
