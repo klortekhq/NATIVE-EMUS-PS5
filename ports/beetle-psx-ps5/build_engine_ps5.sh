@@ -3,9 +3,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="${OUT:-$ROOT/build/ps5/beetle-psx}"
-SRC="$OUT/src/PS5_BeetlePSX"
-PIN="e43b3980e031c47066917c941be6ace6f51ed24f"
-REPO="https://github.com/mihawk-99/PS5_BeetlePSX.git"
+SRC="$OUT/src/beetle-psx-libretro"
+PIN="ed87921996c67658d7a70814f73034bbca08786a"
+REPO="https://github.com/libretro/beetle-psx-libretro.git"
 
 : "${PS5_PAYLOAD_SDK:?Set PS5_PAYLOAD_SDK to the public ps5-payload SDK root}"
 CC="${PS5_CC:-$PS5_PAYLOAD_SDK/bin/prospero-clang}"
@@ -89,7 +89,7 @@ python3 "$ROOT/tools/ps5/write_artifact_manifest.py" \
   --output-dir "$OUT/artifacts" \
   --system "Sony PlayStation" \
   --core "Beetle PSX HW" \
-  --upstream "mihawk-99/PS5_BeetlePSX" \
+  --upstream "libretro/beetle-psx-libretro" \
   --pin "$PIN" \
   --cpu-backend "Lightrec R3000A recompiler + GNU Lightning x86-64" \
   --graphics-backend "CPU/JIT engine gate; PS5 Vulkan donor path tracked separately" \
