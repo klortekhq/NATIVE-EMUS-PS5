@@ -1,6 +1,7 @@
 #include "config.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <cctype>
 #include <fstream>
 #include <string_view>
@@ -71,6 +72,20 @@ bool assign(
       return false;
     }
     config.server_token = value;
+    return true;
+  }
+
+  if (key == "server_read_ahead_kib") {
+    std::size_t parsed = 0;
+    const auto* begin = value.data();
+    const auto* end = begin + value.size();
+    const auto result = std::from_chars(begin, end, parsed);
+    if (value.empty() || result.ec != std::errc{} || result.ptr != end ||
+        parsed > 8192) {
+      error = "invalid PS1 server_read_ahead_kib: " + value;
+      return false;
+    }
+    config.server_read_ahead_kib = parsed;
     return true;
   }
 
