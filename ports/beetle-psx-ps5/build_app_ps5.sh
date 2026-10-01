@@ -6,9 +6,19 @@ OUT="${OUT:-$ROOT/build/ps5/beetle-psx-app}"
 ENGINE_OUT="${ENGINE_OUT:-$ROOT/build/ps5/beetle-psx}"
 SRC="$ENGINE_OUT/src/beetle-psx-libretro"
 
-: "${PS5_PAYLOAD_SDK:?Set PS5_PAYLOAD_SDK to the public ps5-payload SDK root}"
-: "${PS5_VULKAN_DIR:?Set PS5_VULKAN_DIR to a pinned PS5_Vulkan checkout}"
-: "${RADV_ARCHIVE:?Set RADV_ARCHIVE to the PS5 RADV release archive}"
+RADV_SOURCE_MODE="legacy-checkout"
+if [[ -n "${PS5_RADV_BUNDLE_DIR:-}" ]]; then
+  PS5_RADV_BUNDLE_DIR="$(cd "$PS5_RADV_BUNDLE_DIR" && pwd)"
+  python3 "$ROOT/tools/ps5/validate_radv_bundle.py" "$PS5_RADV_BUNDLE_DIR"
+  PS5_VULKAN_DIR="$PS5_RADV_BUNDLE_DIR"
+  RADV_ARCHIVE="$PS5_RADV_BUNDLE_DIR/lib/libvulkan_radeon.ps5.a"
+  PS5_PAYLOAD_SDK="$PS5_RADV_BUNDLE_DIR/sdk"
+  RADV_SOURCE_MODE="immutable-bundle"
+else
+  : "${PS5_PAYLOAD_SDK:?Set PS5_PAYLOAD_SDK or PS5_RADV_BUNDLE_DIR}"
+  : "${PS5_VULKAN_DIR:?Set PS5_VULKAN_DIR or PS5_RADV_BUNDLE_DIR}"
+  : "${RADV_ARCHIVE:?Set RADV_ARCHIVE or PS5_RADV_BUNDLE_DIR}"
+fi
 
 CC="${PS5_CC:-$PS5_PAYLOAD_SDK/bin/prospero-clang}"
 CXX="${PS5_CXX:-$PS5_PAYLOAD_SDK/bin/prospero-clang++}"
@@ -189,10 +199,21 @@ fi
 
 python3 "$ROOT/tools/ps5/write_artifact_manifest.py"   --output-dir "$OUT/artifacts"   --system "Sony PlayStation"   --core "Beetle PSX HW"   --upstream "libretro/beetle-psx-libretro"   --pin "ed87921996c67658d7a70814f73034bbca08786a"   --cpu-backend "Lightrec + GNU Lightning x86-64 threaded recompiler"   --graphics-backend "Beetle Vulkan RHI -> PS5 RADV -> VK_KHR_display"   --artifact "$PIE"
 
+cat > "$OUT/artifacts/RADV-RECEIPT.txt" <<EOF
+mode=$RADV_SOURCE_MODE
+driver=$RADV_ARCHIVE
+ps5_vulkan_dir=$PS5_VULKAN_DIR
+sdk=$PS5_PAYLOAD_SDK
+EOF
+if [[ "$RADV_SOURCE_MODE" == "immutable-bundle" ]]; then
+  sha256sum "$PS5_RADV_BUNDLE_DIR/manifest.json" >> "$OUT/artifacts/RADV-RECEIPT.txt"
+fi
+
 find "$OUT/artifacts" -maxdepth 1 -type f ! -name SHA256SUMS -print0 |
   sort -z | xargs -0 sha256sum > "$OUT/artifacts/SHA256SUMS"
 
 echo "PS1 native PS5 standalone PIE complete: $PIE"
+echo "RADV source mode: $RADV_SOURCE_MODE"
 
 # Optional final native-title conversion when a compatible public converter is
 # available. The linked PIE remains a valid engineering artifact on its own.
