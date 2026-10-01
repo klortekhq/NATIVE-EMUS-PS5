@@ -1,6 +1,6 @@
 # PS5 Scene Engineering References
 
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-01
 
 This is an engineering map, not a popularity list.
 
@@ -25,6 +25,11 @@ Why it matters:
 
 Use as a primary reference for **how a large x86-64 JIT emulator is made native on PS5**.
 
+Audit note (2026-10-01): `Swordpdf/PS5SX2` remains public and active. The
+latest checked main revision is `b5e4d310fe23fea25a284601d4a35dbb2f1cfd81`
+(PS5SX2 1.51 merge). Consume individual platform fixes deliberately rather
+than rebasing unrelated emulator code onto its frontend.
+
 ### Twiso
 Repository: https://github.com/Swordpdf/Twiso
 
@@ -34,7 +39,24 @@ Useful for frontend/title launching/storage research, but it is not the architec
 
 Profile: https://github.com/mihawk-99
 
-Key repositories:
+### Availability warning — 2026-10-01
+
+The previously tracked Mihawk repositories below are **historical engineering
+references, not currently reliable live dependencies**. Fresh GitHub API
+lookups and CI clone/codeload attempts on 2026-10-01 return unavailable/404 for
+the exact PS5_Vulkan, PS5_Mesa, PS5_PayloadSDK, PS5_Dynarmic and
+PS5_Mupen64Plus sources used by our old pins.
+
+Rules for this repository:
+
+- preserve the exact historical revisions and successful build evidence;
+- never silently substitute a same-named fork or moving branch;
+- when an exact donor is unavailable, run our frozen transform-contract tests
+  and report provenance as blocked;
+- only restore an integration gate when the exact source is retrievable again
+  or after an explicit, reviewed migration to a new public upstream.
+
+Historically tracked repositories:
 
 - PS5_Vulkan
 - PS5_Mesa
@@ -70,6 +92,20 @@ Recent fixes address PS4/PS5 ABI alignment behavior affecting LLVM containers an
 Critical for Vita3K / Azahar / Switch-family research.
 
 Contains a PS5-specific executable code-cache path so Dynarmic does not exhaust the title flexible-memory pool.
+
+## mpereiraesaa / ps5-vulkan
+
+Repository: https://github.com/mpereiraesaa/ps5-vulkan
+
+This is a **currently public, active native PS5 Vulkan reference** and is worth
+tracking independently from the historical Mihawk RADV stack. Latest checked
+revision on 2026-10-01 is
+`e6d3c3f82f3c8a574e28c174b15b287f9c0ecc6d`.
+
+Useful areas include native GPU/WSI evidence, PS5 payload-SDK integration,
+shader/compiler work and recent RADV/DXVK physical-display investigations.
+It is not assumed ABI-compatible with our frozen PS1 RADV bundle contract:
+migration requires an explicit link/runtime audit and fresh physical evidence.
 
 ## BlackBearReloaded
 
@@ -139,6 +175,10 @@ Use as a primary public reference for:
 - firmware-support infrastructure
 
 Do not fork random prototypes when the SDK already provides a maintained public interface.
+
+Audit note (2026-10-01): public `ps5-payload-dev/sdk` remains available; the
+latest checked revision is `f7fd02e6e195902a449b5e664917be8c01888b34`
+(`add support for llvm-23`).
 
 ## Rufidj / ps5link-sdk
 
