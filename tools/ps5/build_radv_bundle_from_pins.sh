@@ -12,9 +12,24 @@ VULKAN="$WORK/PS5_Vulkan"
 MESA="$WORK/PS5_Mesa"
 SDK_FORK="$WORK/PS5_PayloadSDK"
 
-[[ "$(git -C "$VULKAN" rev-parse HEAD)" == "71026e7ec1951fe72ae5b9118ff0905216a4c220" ]]
-[[ "$(git -C "$MESA" rev-parse HEAD)" == "cedb774b27d089fa81f46add28d0a8c13ff0f7d2" ]]
-[[ "$(git -C "$SDK_FORK" rev-parse HEAD)" == "95c08f27386fc698f6bbe21dde3030140a41d10b" ]]
+verify_pin() {
+  local dir=$1
+  local expected=$2
+  local actual=""
+  if [[ -d "$dir/.git" ]]; then
+    actual="$(git -C "$dir" rev-parse HEAD)"
+  elif [[ -f "$dir/.native-emus-pin" ]]; then
+    actual="$(cat "$dir/.native-emus-pin")"
+  fi
+  [[ "$actual" == "$expected" ]] || {
+    echo "source pin mismatch: $dir -> $actual (expected $expected)" >&2
+    exit 2
+  }
+}
+
+verify_pin "$VULKAN" "71026e7ec1951fe72ae5b9118ff0905216a4c220"
+verify_pin "$MESA" "cedb774b27d089fa81f46add28d0a8c13ff0f7d2"
+verify_pin "$SDK_FORK" "95c08f27386fc698f6bbe21dde3030140a41d10b"
 
 export PS5_MESA_FORK="$MESA"
 export PS5_PAYLOAD_SDK_FORK="$SDK_FORK"
