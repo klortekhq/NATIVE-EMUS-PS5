@@ -14,10 +14,12 @@ struct EmuServerConfig {
 // Registers the read-only emus:// backend.
 //
 // URI shape:
-//   emus://host:port/<catalog-file-id>
+//   emus://host:port/<catalog-file-id>/<virtual-relative-path>
 //
-// It is translated to:
-//   http://host:port/api/v1/files/<catalog-file-id>
+// It is translated to the server file endpoint while the optional suffix is
+// forwarded as an encoded virtual path anchored at the catalog entry's
+// directory. This lets descriptor formats (CUE/CCD/TOC/M3U) open relative
+// sidecars without exposing the server's physical filesystem.
 //
 // The token is kept in process-local configuration and is never embedded in
 // the URI. Call shutdown_emu_server_backend() before process teardown.
