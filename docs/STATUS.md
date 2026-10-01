@@ -39,7 +39,7 @@ Dynarmic A32+A64 x86-64 JIT cross-build evidence: workflow **36760157664**.\n\n#
 |---|---|---|
 | PCSX2 / PS2 | Reference integration research | Swordpdf/PS5SX2 demonstrates native PCSX2 recompilers + Vulkan on PS5 |
 | Flycast / Dreamcast | **rec-x64 engine cross-build green** | run 36845566519 cross-built the real SH4 rec-x64 + ARM7/DSP x64 engine and PS5 vmem adapter; artifact 11153815261. Next gate: exact-capacity RW/RX execution + fastmem on physical PS5, then native services/Vulkan |
-| RPCS3 / PS3 | PS5 platform research preserved | previously tracked Mihawk PS5_RPCS3 / PS5_LLVM / PS5_Mesa work is historical evidence; those sources are not treated as live dependencies while their public provenance is unavailable |
+| RPCS3 / PS3 | **canonical PPU/SPU engine cross-build green** | run 36855520217 cross-built JITASM + SPU AsmJit + PPU LLVM + SPU LLVM from canonical RPCS3 and uploaded artifact 11158467437. A 2 GiB sparse-JIT ps5rt probe also cross-builds (artifact 11159199014); physical execution is the next gate |
 | Vita3K / Vita | **shared A32/A64 x64 JIT gate green** | `libdynarmic_ps5.a` cross-build is green; Vita3K integration is next |
 | Cemu / Wii U | Port plan | PPC recompiler + Vulkan; desktop UI separation remains a major task |
 | xemu / Xbox | Platform research | QEMU-derived machine model makes host isolation broader |
@@ -72,15 +72,15 @@ These are especially useful for hardening AudioOut, DualSense, VFS, packaging an
 | Component | Repository state | External state / notes |
 |---|---|---|
 | public runtime contract | **Implemented + evolving** | C++20 contracts plus native PS5 app/audio/input/io/video backends are in `runtime/` |
-| executable/JIT memory | **native backend implemented + Flycast engine cross-build green** | JIT shared memory, direct fallback and dual RW/RX aliases exist; Flycast rec-x64 cross-builds with the PS5 adapter, and an exact SH4/ARM7/DSP capacity probe is wired for physical validation. Historical Dynarmic/Mupen donors are provenance-gated while unavailable |
-| flexible/direct/pooled memory | **flexible/direct implemented; pooled pending** | virtual ranges, shared/direct mapping and fixed mapping helpers are in the PS5 backend |
+| executable/JIT memory | **native backend + sparse fixed-address arena implemented** | JIT shared memory, direct fallback, dual RW/RX aliases and incremental direct-memory commits inside reserved VA now exist. Flycast rec-x64 and RPCS3 PPU/SPU engines cross-build; the RPCS3 2 GiB sparse arena probe cross-builds with Prospero and awaits physical validation |
+| flexible/direct/pooled memory | **flexible/direct + sparse arena implemented; pooled pending** | virtual ranges, shared/direct mappings, fixed mapping helpers and sparse fixed-offset direct-memory chunks are in the PS5 backend |
 | TLS | interface defined | compiler-rt emutls and PS5-specific shims need implementation/evaluation |
 | thread policy | interface defined | explicit stack handling is proven necessary by PS5SX2 |
 | AudioOut | **native backend implemented** | 48 kHz PS5 output with stateful source-rate conversion; cross-build proven |
 | DualSense | **native backend implemented** | signed-in-user controller enumeration, sticks/triggers/buttons and rumble are implemented; keyboard/mouse PS5 backends remain pending |
-| VFS/storage | **local + SMB + EMUS random-access implemented** | /data, USB/external discovery and saves are active; native `emus://` uses HTTP Range/ETag and anchored descriptor sidecars, with physical-PS5/LAN validation still pending |
+| VFS/storage | **local + SMB + EMUS random-access implemented** | /data, USB/external discovery and saves are active; native `emus://` uses persistent HTTP connections, Range/ETag, anchored descriptor sidecars and one controlled reconnect on native transport failure. Physical-PS5/LAN validation and measured read-ahead tuning remain |
 | Vulkan bootstrap | interface defined + PS1 provider/presenter implemented | historical Mihawk RADV pins are currently unavailable; active public references include `mpereiraesaa/ps5-vulkan` and BlackBear's PS5 graphics/tooling work, but no ABI migration is assumed |
-| PS5-specific LLVM ABI | external active development | critical RPCS3 fixes exist in PS5_LLVM |
+| PS5-specific LLVM ABI | **canonical defect reproduced + local deterministic shim green** | SCE over-alignment failure is proven against RPCS3's canonical LLVM pin; the marker-checked `__SCE__` shim enables real PPU/SPU object compilation without depending on unavailable historical forks |
 | native title tooling | research mapped | BlackBear tooling, ps5link-sdk and SharpProspero are tracked |
 
 ## Current engineering lanes
