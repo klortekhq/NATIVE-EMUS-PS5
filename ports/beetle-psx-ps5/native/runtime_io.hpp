@@ -36,6 +36,18 @@ public:
     return quit_requested_;
   }
 
+  bool consume_save_state_requested() noexcept {
+    const bool requested = save_state_requested_;
+    save_state_requested_ = false;
+    return requested;
+  }
+
+  bool consume_load_state_requested() noexcept {
+    const bool requested = load_state_requested_;
+    load_state_requested_ = false;
+    return requested;
+  }
+
 private:
   friend bool rumble_trampoline(
       unsigned port, enum retro_rumble_effect effect,
@@ -57,6 +69,9 @@ private:
   bool input_ready_{};
   bool audio_error_reported_{};
   bool quit_requested_{};
+  bool save_state_requested_{};
+  bool load_state_requested_{};
+  std::uint32_t previous_buttons_{};
 };
 
 } // namespace native_emus::ps1
