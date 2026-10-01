@@ -66,6 +66,7 @@ int main() {
         << "bios = openbios\n"
         << "skip_bios = false\n"
         << "internal_resolution = 4x\n"
+        << "server_token = local-secret\n"
         << "future_option = ignored-for-forward-compat\n";
   }
 
@@ -74,6 +75,7 @@ int main() {
   assert(config.bios_override == "openbios");
   assert(config.skip_bios == "disabled");
   assert(config.internal_resolution == "4x");
+  assert(config.server_token == "local-secret");
 
   corehost::lr::StaticApi api{};
   api.set_environment = mock::set_environment;
@@ -114,6 +116,13 @@ int main() {
   }
   assert(!native_emus::ps1::load_port_config(path, config, error));
   assert(error.find("invalid PS1 region") != std::string::npos);
+
+  {
+    std::ofstream out(path, std::ios::trunc);
+    out << "server_token = bad\rvalue\n";
+  }
+  assert(!native_emus::ps1::load_port_config(path, config, error));
+  assert(error.find("invalid PS1 server_token") != std::string::npos);
 
   std::filesystem::remove_all(root);
   return 0;
