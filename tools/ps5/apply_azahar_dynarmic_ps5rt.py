@@ -154,7 +154,7 @@ public:
         """void ProtectMemory(const void* base, size_t size, bool is_executable) {
 #    ifdef __PROSPERO__
     if (size != 0 && ProtectPs5Arena(base, size, is_executable) != 0) {
-        throw Xbyak::Error(Xbyak::ERR_CANT_PROTECT);
+        throw Xbyak::Error(Xbyak::ERR_CANT_ALLOC);
     }
 #    elif defined(_WIN32)
     DWORD oldProtect = 0;
