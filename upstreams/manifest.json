@@ -77,7 +77,20 @@
       "upstream_revision": null,
       "license": null,
       "pin_status": "repository-verified-revision-pending",
-      "ps5_scene_references": []
+      "ps5_scene_references": [
+        "https://github.com/ZiZc3/XPSemu"
+      ],
+      "scene_reference_pins": [
+        {
+          "repository": "https://github.com/ZiZc3/XPSemu",
+          "revision": "eca27ad0633c19ca55ba48e5d036f068b6295ba0",
+          "branch": "main",
+          "license": "Repository metadata is NOASSERTION. Top-level LICENSE/COPYING describe QEMU GPL-2.0 and the tree includes many third-party license files; per-file/third-party inventory is required before code reuse.",
+          "preservation": "metadata-only-until-license-inventory",
+          "role": "PS5 xemu platform donor/reference; canonical xemu remains the source base",
+          "hardware_status": "upstream README claims Alpha 1 was tested on a physical PS5 and lists real-game results; not independently validated by NATIVE-EMUS-PS5"
+        }
+      ]
     },
     {
       "workspace": "xenia",
