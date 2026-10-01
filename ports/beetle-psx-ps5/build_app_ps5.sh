@@ -139,6 +139,7 @@ SOURCES=(
   "$ROOT/runtime/src/ps5/memory.cpp"
   "$ROOT/corehost/src/static_core.cpp"
   "$ROOT/corehost/src/ps5rt_bridge.cpp"
+  "$ROOT/ports/beetle-psx-ps5/native/config.cpp"
   "$ROOT/ports/beetle-psx-ps5/native/content.cpp"
   "$ROOT/ports/beetle-psx-ps5/native/runtime_io.cpp"
   "$ROOT/ports/beetle-psx-ps5/native/vulkan_environment.cpp"
