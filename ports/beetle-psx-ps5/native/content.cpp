@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <fstream>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 namespace native_emus::ps1 {
