@@ -38,7 +38,7 @@ Dynarmic A32+A64 x86-64 JIT cross-build evidence: workflow **36760157664**.\n\n#
 | Target | Repo state | External evidence / useful reference |
 |---|---|---|
 | PCSX2 / PS2 | Reference integration research | Swordpdf/PS5SX2 demonstrates native PCSX2 recompilers + Vulkan on PS5 |
-| Flycast / Dreamcast | **rec-x64/JIT transform green** | deterministic PS5 fastmem + dual-view JIT transform is green in workflow 36749064626; engine cross-build is the next gate |
+| Flycast / Dreamcast | **rec-x64 engine cross-build green** | run 36845566519 cross-built the real SH4 rec-x64 + ARM7/DSP x64 engine and PS5 vmem adapter; artifact 11153815261. Next gate: exact-capacity RW/RX execution + fastmem on physical PS5, then native services/Vulkan |
 | RPCS3 / PS3 | PS5 platform research preserved | previously tracked Mihawk PS5_RPCS3 / PS5_LLVM / PS5_Mesa work is historical evidence; those sources are not treated as live dependencies while their public provenance is unavailable |
 | Vita3K / Vita | **shared A32/A64 x64 JIT gate green** | `libdynarmic_ps5.a` cross-build is green; Vita3K integration is next |
 | Cemu / Wii U | Port plan | PPC recompiler + Vulkan; desktop UI separation remains a major task |
@@ -72,7 +72,7 @@ These are especially useful for hardening AudioOut, DualSense, VFS, packaging an
 | Component | Repository state | External state / notes |
 |---|---|---|
 | public runtime contract | **Implemented + evolving** | C++20 contracts plus native PS5 app/audio/input/io/video backends are in `runtime/` |
-| executable/JIT memory | **native backend implemented + transform consumers green** | JIT shared memory, direct fallback and dual RW/RX aliases exist; Flycast/Dynarmic/Mupen transforms are CI-green |
+| executable/JIT memory | **native backend implemented + Flycast engine cross-build green** | JIT shared memory, direct fallback and dual RW/RX aliases exist; Flycast rec-x64 cross-builds with the PS5 adapter, and an exact SH4/ARM7/DSP capacity probe is wired for physical validation. Historical Dynarmic/Mupen donors are provenance-gated while unavailable |
 | flexible/direct/pooled memory | **flexible/direct implemented; pooled pending** | virtual ranges, shared/direct mapping and fixed mapping helpers are in the PS5 backend |
 | TLS | interface defined | compiler-rt emutls and PS5-specific shims need implementation/evaluation |
 | thread policy | interface defined | explicit stack handling is proven necessary by PS5SX2 |
