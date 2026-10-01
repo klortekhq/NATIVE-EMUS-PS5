@@ -483,6 +483,42 @@ jobs:
             build/ps5/vita3k-dynarmic/artifacts/SHA256SUMS
           if-no-files-found: error
 
+  ps5-cross-build-azahar-dynarmic-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar xf ps5-payload-dev.tar.gz -C /
+          test -x /opt/ps5-payload-sdk/bin/prospero-cmake
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Install Azahar Dynarmic Boost headers
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libboost-dev
+          test -d /usr/include/boost
+
+      - name: Cross-build Azahar A32 sparse x64 JIT
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/azahar-ps5/build_dynarmic_ps5.sh
+
+      - name: Upload Azahar Dynarmic PS5 JIT engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-azahar-dynarmic-a32-x64-ps5-engine
+          path: |
+            build/ps5/azahar-dynarmic/artifacts/libazahar_dynarmic_ps5.a
+            build/ps5/azahar-dynarmic/artifacts/ARTIFACT.json
+            build/ps5/azahar-dynarmic/artifacts/SHA256SUMS
+          if-no-files-found: error
+
   ps5-cross-build-mupen64plus-jit-engine:
     runs-on: ubuntu-latest
     steps:
