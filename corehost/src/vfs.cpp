@@ -24,10 +24,6 @@ ReadOnlyHandle* impl(lr::VfsFileHandle* handle) noexcept {
   return reinterpret_cast<ReadOnlyHandle*>(handle);
 }
 
-const ReadOnlyHandle* impl(const lr::VfsFileHandle* handle) noexcept {
-  return reinterpret_cast<const ReadOnlyHandle*>(handle);
-}
-
 const char* get_path(lr::VfsFileHandle* handle) {
   auto* h = impl(handle);
   return h ? h->path.c_str() : nullptr;
