@@ -218,7 +218,24 @@ remains available.
 
 Save RAM is written through a temporary file and rename, avoiding partially-written memory cards when an ordinary write fails.
 
-Network URIs are deliberately rejected until the `ps5rt` VFS bridge is complete; the shell does not pretend SMB is working when it is not.
+Network URIs are deliberately rejected until the `ps5rt` network backend is complete; the shell does not pretend SMB is working when it is not.
+
+### VFS bridge status
+
+The host-side libretro bridge is now implemented and deliberately advertises
+**VFS v1 read-only only**:
+
+- Beetle may request v5/v4/v3 first; those requests are rejected;
+- Beetle's hybrid VFS then falls back to v1;
+- v1 `open/size/tell/seek/read` route through `ps5rt::RandomAccessReader`;
+- local and `file://` reads are host-tested, including EOF and seek semantics;
+- write/remove/rename are rejected instead of being partially advertised;
+- the next subgate is an `smb://` backend registered behind
+  `ps5rt::open_random_access`.
+
+This deliberately **does not change the 83% score** yet. The existing VFS/disc/save
+gate remains 9/10 until network random access passes real seek/read tests.
+
 
 ## Current engine evidence
 
