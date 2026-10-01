@@ -1,4 +1,5 @@
 #include <corehost/static_core.hpp>
+#include <corehost/vfs.hpp>
 
 #include <cstdarg>
 #include <cstdio>
@@ -338,8 +339,18 @@ bool StaticCore::environment(unsigned cmd, void* data) {
       *static_cast<unsigned*>(data) = 48000;
       return true;
 
-    case lr::env_get_vfs_interface:
-      return false;
+    case lr::env_get_vfs_interface: {
+      if (!data)
+        return false;
+      auto& info = *static_cast<lr::VfsInterfaceInfo*>(data);
+      if (info.required_interface_version > 1) {
+        info.iface = nullptr;
+        return false;
+      }
+      info.required_interface_version = 1;
+      info.iface = vfs_interface_v1();
+      return info.iface != nullptr;
+    }
 
     default:
       return hooks_.environment ? hooks_.environment(cmd, data) : false;
