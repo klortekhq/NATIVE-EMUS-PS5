@@ -32,6 +32,10 @@ public:
     return input_ready_ && audio_.is_open();
   }
 
+  [[nodiscard]] bool quit_requested() const noexcept {
+    return quit_requested_;
+  }
+
 private:
   friend bool rumble_trampoline(
       unsigned port, enum retro_rumble_effect effect,
@@ -52,6 +56,7 @@ private:
   std::array<float, 4> weak_rumble_{};
   bool input_ready_{};
   bool audio_error_reported_{};
+  bool quit_requested_{};
 };
 
 } // namespace native_emus::ps1
