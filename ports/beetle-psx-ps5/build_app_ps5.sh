@@ -129,15 +129,18 @@ STATIC_SUPPORT_SOURCES=(
 )
 
 SOURCES=(
+  "$ROOT/runtime/src/common/io.cpp"
   "$ROOT/runtime/src/ps5/app.cpp"
   "$ROOT/runtime/src/ps5/audio.cpp"
   "$ROOT/runtime/src/ps5/input.cpp"
   "$ROOT/runtime/src/ps5/input_hid.cpp"
   "$ROOT/runtime/src/ps5/io.cpp"
+  "$ROOT/runtime/src/ps5/io_emu_server.cpp"
   "$ROOT/runtime/src/ps5/log.cpp"
   "$ROOT/runtime/src/ps5/vfs.cpp"
   "$ROOT/runtime/src/ps5/memory.cpp"
   "$ROOT/corehost/src/static_core.cpp"
+  "$ROOT/corehost/src/vfs.cpp"
   "$ROOT/corehost/src/ps5rt_bridge.cpp"
   "$ROOT/ports/beetle-psx-ps5/native/config.cpp"
   "$ROOT/ports/beetle-psx-ps5/native/content.cpp"
