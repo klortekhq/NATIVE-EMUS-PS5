@@ -4,13 +4,16 @@
 #include <ps5rt/c/exec.h>
 #include <ps5rt/c/jit.h>
 #include <ps5rt/c/shm.h>
+#include <ps5rt/c/sparse_arena.h>
 #include <ps5rt/c/vmem.h>
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <mutex>
 #include <unordered_map>
+#include <vector>
 
 extern "C" {
 int sceKernelMapFlexibleMemory(void** address, std::size_t size, int protection, int flags);
@@ -111,10 +114,24 @@ struct DualJitRecord {
   std::size_t size{};
 };
 
+struct SparseChunkRecord {
+  std::size_t offset{};
+  std::size_t size{};
+  long long direct_start{-1};
+  int protection{};
+};
+
+struct SparseArenaRecord {
+  std::size_t size{};
+  std::size_t alignment{};
+  std::map<std::size_t, SparseChunkRecord> chunks;
+};
+
 std::mutex g_registry_mutex;
 std::unordered_map<void*, DirectRecord> g_direct_records;
 std::unordered_map<void*, ExecRecord> g_exec_records;
 std::unordered_map<void*, DualJitRecord> g_dual_jit_records;
+std::unordered_map<void*, SparseArenaRecord> g_sparse_arenas;
 
 int allocate_direct_block(std::size_t size,
                           std::size_t alignment,
@@ -313,6 +330,194 @@ extern "C" int ps5rt_shm_unmap(void* address, std::size_t requested_size, unsign
     }
   }
   return 0;
+}
+
+extern "C" int ps5rt_sparse_arena_create(std::size_t requested_size,
+                                                void* hint,
+                                                std::size_t alignment,
+                                                ps5rt_sparse_arena* out) {
+  if (!out || requested_size == 0) return -1;
+  *out = {};
+
+  const auto size = round_up(requested_size, kPageSize);
+  const auto normalized_alignment = normalize_alignment(alignment);
+  void* base = nullptr;
+  const int rc = ps5rt_vrange_reserve(size, hint, normalized_alignment, &base);
+  if (rc != 0 || !base) return rc != 0 ? rc : -1;
+
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    g_sparse_arenas[base] = SparseArenaRecord{size, normalized_alignment, {}};
+  }
+  out->base = base;
+  out->size = size;
+  out->committed = 0;
+  return 0;
+}
+
+extern "C" int ps5rt_sparse_arena_commit(ps5rt_sparse_arena* arena,
+                                          std::size_t offset,
+                                          std::size_t requested_size,
+                                          unsigned flags) {
+  if (!arena || !arena->base || requested_size == 0) return -1;
+  if ((offset % kPageSize) != 0 || (requested_size % kPageSize) != 0) return -1;
+  if (offset > arena->size || requested_size > arena->size - offset) return -1;
+
+  int protection = 0;
+  if (flags & PS5RT_SPARSE_READ) protection |= kProtRead;
+  if (flags & PS5RT_SPARSE_WRITE) protection |= kProtWrite;
+  if (flags & PS5RT_SPARSE_EXEC) protection |= kProtExec;
+  if (protection == 0) return -1;
+
+  const auto size = requested_size;
+  const auto end = offset + size;
+
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    const auto ait = g_sparse_arenas.find(arena->base);
+    if (ait == g_sparse_arenas.end() || ait->second.size != arena->size) return -1;
+    const auto next = ait->second.chunks.lower_bound(offset);
+    if (next != ait->second.chunks.end() && next->first < end) return -1;
+    if (next != ait->second.chunks.begin()) {
+      const auto prev = std::prev(next);
+      if (prev->second.offset + prev->second.size > offset) return -1;
+    }
+  }
+
+  const std::size_t direct_alignment =
+      size >= kLargeAlignment ? kLargeAlignment : kPageSize;
+  const int memory_type =
+      (protection & kProtExec) ? kDirectMemoryTypeCachedShared
+                               : kDirectMemoryTypeCached;
+
+  long long direct_start = -1;
+  int rc = allocate_direct_block(size, direct_alignment, memory_type, direct_start);
+  if (rc != 0) return rc;
+
+  auto* target = static_cast<std::byte*>(arena->base) + offset;
+  void* mapped = nullptr;
+  rc = map_direct_block(
+      direct_start, size, direct_alignment, target, true, protection, &mapped);
+  if (rc != 0 || mapped != target) {
+    if (mapped && mapped != target)
+      (void)sceKernelMunmap(mapped, static_cast<unsigned long long>(size));
+    (void)sceKernelReleaseDirectMemory(
+        direct_start, static_cast<unsigned long long>(size));
+    return rc != 0 ? rc : -1;
+  }
+
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    const auto ait = g_sparse_arenas.find(arena->base);
+    if (ait == g_sparse_arenas.end()) {
+      (void)sceKernelMunmap(mapped, static_cast<unsigned long long>(size));
+      (void)sceKernelReleaseDirectMemory(
+          direct_start, static_cast<unsigned long long>(size));
+      return -1;
+    }
+    ait->second.chunks[offset] =
+        SparseChunkRecord{offset, size, direct_start, protection};
+    arena->committed += size;
+  }
+  return 0;
+}
+
+extern "C" int ps5rt_sparse_arena_decommit(ps5rt_sparse_arena* arena,
+                                            std::size_t offset,
+                                            std::size_t requested_size) {
+  if (!arena || !arena->base || requested_size == 0) return -1;
+  if ((offset % kPageSize) != 0 || (requested_size % kPageSize) != 0) return -1;
+  if (offset > arena->size || requested_size > arena->size - offset) return -1;
+
+  const auto end = offset + requested_size;
+  std::vector<SparseChunkRecord> chunks;
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    const auto ait = g_sparse_arenas.find(arena->base);
+    if (ait == g_sparse_arenas.end()) return -1;
+
+    for (const auto& [chunk_offset, chunk] : ait->second.chunks) {
+      const auto chunk_end = chunk_offset + chunk.size;
+      const bool overlaps = chunk_offset < end && chunk_end > offset;
+      if (!overlaps) continue;
+      if (chunk_offset < offset || chunk_end > end) return -1;
+      chunks.push_back(chunk);
+    }
+  }
+
+  for (const auto& chunk : chunks) {
+    auto* address = static_cast<std::byte*>(arena->base) + chunk.offset;
+    int rc = sceKernelMunmap(address, static_cast<unsigned long long>(chunk.size));
+    if (rc != 0) return rc;
+
+    rc = sceKernelReleaseDirectMemory(
+        chunk.direct_start, static_cast<unsigned long long>(chunk.size));
+    if (rc != 0) return rc;
+
+    void* reserved = address;
+    rc = sceKernelReserveVirtualRange(
+        &reserved, static_cast<unsigned long long>(chunk.size),
+        kVirtualMapFixed, kPageSize);
+    if (rc != 0 || reserved != address) {
+      if (rc == 0 && reserved)
+        (void)sceKernelMunmap(reserved, static_cast<unsigned long long>(chunk.size));
+      return rc != 0 ? rc : -1;
+    }
+
+    std::scoped_lock lock(g_registry_mutex);
+    const auto ait = g_sparse_arenas.find(arena->base);
+    if (ait == g_sparse_arenas.end()) return -1;
+    ait->second.chunks.erase(chunk.offset);
+    arena->committed -= chunk.size;
+  }
+  return 0;
+}
+
+extern "C" int ps5rt_sparse_arena_protect(ps5rt_sparse_arena* arena,
+                                           std::size_t offset,
+                                           std::size_t requested_size,
+                                           unsigned flags) {
+  if (!arena || !arena->base || requested_size == 0) return -1;
+  if ((offset % kPageSize) != 0 || (requested_size % kPageSize) != 0) return -1;
+  if (offset > arena->size || requested_size > arena->size - offset) return -1;
+
+  int protection = 0;
+  if (flags & PS5RT_SPARSE_READ) protection |= kProtRead;
+  if (flags & PS5RT_SPARSE_WRITE) protection |= kProtWrite;
+  if (flags & PS5RT_SPARSE_EXEC) protection |= kProtExec;
+  if (protection == 0) return -1;
+
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    const auto ait = g_sparse_arenas.find(arena->base);
+    if (ait == g_sparse_arenas.end()) return -1;
+
+    const auto it = ait->second.chunks.upper_bound(offset);
+    if (it == ait->second.chunks.begin()) return -1;
+    const auto chunk = std::prev(it);
+    if (offset < chunk->second.offset ||
+        offset + requested_size > chunk->second.offset + chunk->second.size)
+      return -1;
+  }
+
+  auto* address = static_cast<std::byte*>(arena->base) + offset;
+  const int rc = sceKernelMprotect(
+      address, static_cast<unsigned long long>(requested_size), protection);
+  if (rc != 0) return rc;
+
+  return 0;
+}
+
+extern "C" void ps5rt_sparse_arena_destroy(ps5rt_sparse_arena* arena) {
+  if (!arena || !arena->base) return;
+
+  (void)ps5rt_sparse_arena_decommit(arena, 0, arena->size);
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    g_sparse_arenas.erase(arena->base);
+  }
+  (void)ps5rt_vrange_release(arena->base, arena->size);
+  *arena = {};
 }
 
 extern "C" int ps5rt_vrange_reserve(std::size_t requested_size,
