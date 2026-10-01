@@ -14,6 +14,7 @@ using namespace native_emus::ps1;
 
 namespace mock {
 std::array<std::uint8_t, 128> sram{};
+std::array<std::uint8_t, 64> state{};
 
 void set_environment(corehost::lr::Environment) {}
 void set_video(corehost::lr::VideoRefresh) {}
@@ -35,9 +36,19 @@ void unload_game() {}
 void get_av(corehost::lr::SystemAvInfo*) {}
 void run() {}
 void reset() {}
-std::size_t serialize_size() { return 0; }
-bool serialize(void*, std::size_t) { return false; }
-bool unserialize(const void*, std::size_t) { return false; }
+std::size_t serialize_size() { return state.size(); }
+bool serialize(void* data, std::size_t size) {
+  if (!data || size != state.size())
+    return false;
+  std::memcpy(data, state.data(), state.size());
+  return true;
+}
+bool unserialize(const void* data, std::size_t size) {
+  if (!data || size != state.size())
+    return false;
+  std::memcpy(state.data(), data, state.size());
+  return true;
+}
 void* get_memory_data(unsigned id) {
   return id == corehost::lr::memory_save_ram ? sram.data() : nullptr;
 }
@@ -76,6 +87,7 @@ int main() {
   layout.data_root = root / "data";
   layout.system_dir = layout.data_root / "system";
   layout.save_dir = layout.data_root / "saves";
+  layout.state_dir = layout.data_root / "states";
 
   PreparedContent prepared;
   std::string error;
@@ -83,6 +95,7 @@ int main() {
   assert(prepared.local_file);
   assert(prepared.core_path == cue.string());
   assert(prepared.save_ram_path.filename() == "Ridge Test.srm");
+  assert(prepared.state_path.filename() == "Ridge Test.state0");
 
   const auto playlist = root / "Final Fantasy Test.m3u";
   {
@@ -97,6 +110,7 @@ int main() {
   assert(multi.playlist_entries[0] == disc1);
   assert(multi.playlist_entries[1] == disc2);
   assert(multi.save_ram_path.filename() == "Final Fantasy Test.srm");
+  assert(multi.state_path.filename() == "Final Fantasy Test.state0");
 
   const auto bad_playlist = root / "bad.m3u";
   {
@@ -178,6 +192,34 @@ int main() {
   assert(error == "save RAM size does not match core");
   for (const auto byte : mock::sram)
     assert(byte == 0x3c);
+
+  // Slot-0 save states use the core's real serialize/unserialize callbacks,
+  // but the host wraps them in a versioned header and atomic file replacement.
+  for (std::size_t i = 0; i < mock::state.size(); ++i)
+    mock::state[i] = static_cast<std::uint8_t>((i * 3u) ^ 0x7c);
+
+  SaveStateStore states(prepared.state_path);
+  assert(states.save(core, error));
+  assert(std::filesystem::exists(prepared.state_path));
+  assert(!std::filesystem::exists(prepared.state_path.string() + ".tmp"));
+
+  const auto expected_state = mock::state;
+  mock::state.fill(0);
+  assert(states.load(core, error));
+  assert(mock::state == expected_state);
+
+  // Corrupt/truncated state files must be rejected before unserialize can
+  // overwrite the running emulator state.
+  {
+    std::ofstream corrupt(
+        prepared.state_path, std::ios::binary | std::ios::trunc);
+    corrupt << "NEPS1ST";
+  }
+  mock::state.fill(0x55);
+  assert(!states.load(core, error));
+  assert(error == "invalid PS1 save-state header");
+  for (const auto byte : mock::state)
+    assert(byte == 0x55);
 
   core.shutdown();
   std::filesystem::remove_all(root);
