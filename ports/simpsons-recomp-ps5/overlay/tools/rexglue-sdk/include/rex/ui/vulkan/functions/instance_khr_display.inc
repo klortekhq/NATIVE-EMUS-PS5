@@ -1,8 +1,0 @@
-// VK_KHR_display (#3) instance commands used by the PS5 fullscreen presenter.
-XE_UI_VULKAN_FUNCTION(vkGetPhysicalDeviceDisplayPropertiesKHR)
-XE_UI_VULKAN_FUNCTION(vkGetPhysicalDeviceDisplayPlanePropertiesKHR)
-XE_UI_VULKAN_FUNCTION(vkGetDisplayPlaneSupportedDisplaysKHR)
-XE_UI_VULKAN_FUNCTION(vkGetDisplayModePropertiesKHR)
-XE_UI_VULKAN_FUNCTION(vkCreateDisplayModeKHR)
-XE_UI_VULKAN_FUNCTION(vkGetDisplayPlaneCapabilitiesKHR)
-XE_UI_VULKAN_FUNCTION(vkCreateDisplayPlaneSurfaceKHR)
