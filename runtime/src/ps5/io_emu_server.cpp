@@ -144,6 +144,47 @@ public:
       std::span<std::byte> destination,
       std::size_t& out_read) noexcept override {
     std::scoped_lock lock(mutex_);
+
+    for (unsigned attempt = 0; attempt < 2; ++attempt) {
+      out_read = 0;
+
+      if (conn_ < 0) {
+        auto reopened = open_locked();
+        if (!reopened)
+          return reopened;
+      }
+
+      auto result = read_once_locked(offset, destination, out_read);
+      if (result)
+        return result;
+
+      // Retry exactly once only for native transport failures. Positive HTTP
+      // status codes (404/416/500...) are server responses and must not be
+      // disguised as reconnectable network errors.
+      if (attempt != 0 || !retryable_transport_failure(result))
+        return result;
+
+      close_connection();
+      auto reopened = open_locked();
+      if (!reopened)
+        return reopened;
+    }
+
+    return {ErrorCode::io_error, 0, "server range retry exhausted"};
+  }
+
+private:
+  static bool retryable_transport_failure(const Result& result) noexcept {
+    return !result &&
+           result.native_code < 0 &&
+           (result.code == ErrorCode::io_error ||
+            result.code == ErrorCode::system_error);
+  }
+
+  Result read_once_locked(
+      std::uint64_t offset,
+      std::span<std::byte> destination,
+      std::size_t& out_read) noexcept {
     out_read = 0;
 
     if (offset > size_)
@@ -151,7 +192,7 @@ public:
     if (destination.empty() || offset == size_)
       return Result::success();
     if (conn_ < 0)
-      return {ErrorCode::system_error, 0, "server connection is closed"};
+      return {ErrorCode::system_error, -1, "server connection is closed"};
 
     const auto remaining = size_ - offset;
     const auto wanted64 = std::min<std::uint64_t>(
@@ -236,7 +277,6 @@ public:
     return Result::success();
   }
 
-private:
   Result open_locked() noexcept {
     conn_ = sceHttpCreateConnectionWithURL(
         g_http.tmpl, url_.c_str(), 1);
