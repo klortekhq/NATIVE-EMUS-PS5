@@ -487,23 +487,50 @@ extern "C" int ps5rt_sparse_arena_protect(ps5rt_sparse_arena* arena,
   if (flags & PS5RT_SPARSE_EXEC) protection |= kProtExec;
   if (protection == 0) return -1;
 
+  struct ProtectSpan {
+    std::size_t offset{};
+    std::size_t size{};
+  };
+  std::vector<ProtectSpan> spans;
+
+  const auto end = offset + requested_size;
   {
     std::scoped_lock lock(g_registry_mutex);
     const auto ait = g_sparse_arenas.find(arena->base);
     if (ait == g_sparse_arenas.end()) return -1;
 
-    const auto it = ait->second.chunks.upper_bound(offset);
-    if (it == ait->second.chunks.begin()) return -1;
-    const auto chunk = std::prev(it);
-    if (offset < chunk->second.offset ||
-        offset + requested_size > chunk->second.offset + chunk->second.size)
+    auto it = ait->second.chunks.lower_bound(offset);
+    if (it != ait->second.chunks.begin()) {
+      const auto prev = std::prev(it);
+      if (prev->second.offset + prev->second.size > offset)
+        it = prev;
+    }
+
+    std::size_t covered = offset;
+    for (; it != ait->second.chunks.end() && covered < end; ++it) {
+      const auto& chunk = it->second;
+      const auto chunk_end = chunk.offset + chunk.size;
+      if (chunk_end <= covered)
+        continue;
+      if (chunk.offset > covered)
+        return -1;
+
+      const auto span_begin = covered;
+      const auto span_end = std::min(chunk_end, end);
+      spans.push_back({span_begin, span_end - span_begin});
+      covered = span_end;
+    }
+
+    if (covered != end || spans.empty())
       return -1;
   }
 
-  auto* address = static_cast<std::byte*>(arena->base) + offset;
-  const int rc = sceKernelMprotect(
-      address, static_cast<unsigned long long>(requested_size), protection);
-  if (rc != 0) return rc;
+  for (const auto& span : spans) {
+    auto* address = static_cast<std::byte*>(arena->base) + span.offset;
+    const int rc = sceKernelMprotect(
+        address, static_cast<unsigned long long>(span.size), protection);
+    if (rc != 0) return rc;
+  }
 
   return 0;
 }
