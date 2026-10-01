@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <span>
 
+#include <rex/assert.h>
 #include <rex/audio/conversion.h>
 #include <rex/audio/flags.h>
 #include <rex/audio/ps5/ps5_audio_driver.h>
