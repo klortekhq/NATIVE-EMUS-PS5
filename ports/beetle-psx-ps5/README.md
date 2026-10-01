@@ -48,6 +48,15 @@ bash tools/ps5/prepare_radv_source_stack.sh
 That script verifies the PS5_Vulkan, PS5_Mesa and PS5_PayloadSDK revisions used
 by the current lock instead of following any moving branch.
 
+To build and freeze the actual immutable link bundle from those exact sources:
+
+```bash
+bash tools/ps5/build_radv_bundle_from_pins.sh
+```
+
+The resulting bundle is validated by hash and can be fed directly to
+`build_app_ps5.sh` through `PS5_RADV_BUNDLE_DIR`.
+
 
 Workflow `36825853078` validated, in one run:
 
