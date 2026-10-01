@@ -1,6 +1,6 @@
 # PlayStation 1 emulator workspace
 
-## Progress: **78%**
+## Progress: **80%**
 
 Selected implementation: **Beetle PSX HW + Lightrec**.
 
@@ -37,7 +37,7 @@ Our deterministic transform owns the PS5 executable-memory and static-host adapt
 
 ## Verified gates
 
-Workflow **36825853078** completed successfully from the current public upstream and produced artifact **11144874334**.
+Workflow **36833195325** completed successfully from the current public upstream; the previous engine artifact **11144874334** remains the documented binary evidence until the next uploaded engine artifact is recorded.
 
 Verified in that run:
 
@@ -48,6 +48,8 @@ Verified in that run:
 - native Vulkan host negotiation tests;
 - AudioOut, DualSense and rumble adapter;
 - content/save persistence tests;
+- per-LBA native sector-size regression tests;
+- validated local multi-disc M3U resolution;
 - standalone shell compilation.
 
 The 2026-10-01 hardening pass additionally supplies:
@@ -59,5 +61,4 @@ The 2026-10-01 hardening pass additionally supplies:
 - a repaired dedicated `ps1-lightrec` workflow.
 
 The next scoring gate remains the complete **RADV-linked native PS5 ELF**,
-followed by FSELF validation and physical-console validation. Progress therefore
-remains **78%**.
+followed by FSELF validation and physical-console validation. The media/VFS/save gate has therefore advanced and progress is now **80%**. The Vulkan/title-link gates remain unchanged until a complete pinned RADV-linked PS5 title is produced.
