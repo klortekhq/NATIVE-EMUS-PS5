@@ -1,6 +1,6 @@
 # Sony PlayStation / PS1
 
-## Progress: **80%**
+## Progress: **83%**
 
 > Native standalone PS5 target. The canonical detailed engineering status lives in [ports/beetle-psx-ps5](../../ports/beetle-psx-ps5/README.md).
 
@@ -89,3 +89,10 @@ application link is produced and validated.
 - [Detailed PS1 port](../../ports/beetle-psx-ps5/README.md)
 - [Engine workspace](../../emulators/beetle-psx/README.md)
 - [Shared PS5 runtime](../../runtime/README.md)
+
+### Latest gate
+
+Workflow **36835002466** is green. Slot-0 save states are persisted atomically,
+corrupt states are rejected before unserialize, and multi-disc changes use
+Beetle's registered disk-control interface after the frame. The Lightrec x86-64
+PS5 engine was rebuilt in the same run as artifact **11148931941**.
