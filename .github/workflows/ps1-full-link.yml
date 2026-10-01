@@ -2,6 +2,18 @@ name: ps1-full-native-link
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ports/beetle-psx-ps5/**'
+      - 'runtime/**'
+      - 'corehost/**'
+      - 'tools/ps5/build_radv_bundle_from_pins.sh'
+      - 'tools/ps5/prepare_radv_source_stack.sh'
+      - 'tools/ps5/freeze_radv_bundle.py'
+      - 'tools/ps5/validate_radv_bundle.py'
+      - 'tools/ps5/finalize_native_pie.sh'
+      - '.github/workflows/ps1-full-link.yml'
 
 concurrency:
   group: ps1-full-native-link
