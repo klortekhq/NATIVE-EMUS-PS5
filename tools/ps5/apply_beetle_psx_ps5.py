@@ -104,7 +104,11 @@ else ifeq ($(platform), ps5)
 #endif
 #endif
 """,
-        """#if (defined(__unix__) || defined(__PROSPERO__)) && !defined(__APPLE__) && !defined(__sun__)
+        """#if defined(__PROSPERO__)
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200112
+#endif
+#elif defined(__unix__) && !defined(__APPLE__) && !defined(__sun__)
 #ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 199309
 #endif
