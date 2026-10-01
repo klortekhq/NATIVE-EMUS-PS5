@@ -20,6 +20,9 @@ float last_low{};
 float last_high{};
 int rumble_calls{};
 int present_calls{};
+std::uint32_t next_buttons =
+    static_cast<std::uint32_t>(ps5rt::Button::cross) |
+    static_cast<std::uint32_t>(ps5rt::Button::options);
 }
 
 namespace ps5rt {
@@ -74,9 +77,7 @@ Result poll_input(InputSnapshot& out) noexcept {
   ++input_poll_calls;
   out = {};
   out.controllers[0].connected = true;
-  out.controllers[0].buttons =
-      static_cast<std::uint32_t>(Button::cross) |
-      static_cast<std::uint32_t>(Button::options);
+  out.controllers[0].buttons = next_buttons;
   out.controllers[0].left = {0.5f, -0.5f};
   return Result::success();
 }
@@ -146,6 +147,43 @@ int main() {
   assert(std::fabs(last_low - 1.0f) < 0.001f);
   assert(last_high > 0.49f && last_high < 0.51f);
   assert(rumble_calls == 2);
+
+  // Host hotkeys are rising-edge triggered: holding a combo must not perform
+  // repeated state writes/loads every emulated frame.
+  next_buttons =
+      static_cast<std::uint32_t>(ps5rt::Button::options) |
+      static_cast<std::uint32_t>(ps5rt::Button::r1);
+  (void)hooks.input(0);
+  assert(io.consume_save_state_requested());
+  assert(!io.consume_save_state_requested());
+
+  (void)hooks.input(0); // still held
+  assert(!io.consume_save_state_requested());
+
+  next_buttons = static_cast<std::uint32_t>(ps5rt::Button::options);
+  (void)hooks.input(0); // release R1
+  next_buttons =
+      static_cast<std::uint32_t>(ps5rt::Button::options) |
+      static_cast<std::uint32_t>(ps5rt::Button::r1);
+  (void)hooks.input(0);
+  assert(io.consume_save_state_requested());
+
+  next_buttons = static_cast<std::uint32_t>(ps5rt::Button::options);
+  (void)hooks.input(0);
+  next_buttons =
+      static_cast<std::uint32_t>(ps5rt::Button::options) |
+      static_cast<std::uint32_t>(ps5rt::Button::l1);
+  (void)hooks.input(0);
+  assert(io.consume_load_state_requested());
+  assert(!io.consume_load_state_requested());
+
+  next_buttons = static_cast<std::uint32_t>(ps5rt::Button::options);
+  (void)hooks.input(0);
+  next_buttons =
+      static_cast<std::uint32_t>(ps5rt::Button::options) |
+      static_cast<std::uint32_t>(ps5rt::Button::touchpad);
+  (void)hooks.input(0);
+  assert(io.quit_requested());
 
   io.shutdown();
   assert(input_shutdown_calls == 1);
