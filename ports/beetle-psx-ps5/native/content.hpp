@@ -16,6 +16,7 @@ struct ContentLayout {
   std::filesystem::path data_root{"/data/NATIVE-EMUS-PS5/ps1"};
   std::filesystem::path system_dir{};
   std::filesystem::path save_dir{};
+  std::filesystem::path state_dir{};
 
   ContentLayout();
 };
@@ -23,6 +24,7 @@ struct ContentLayout {
 struct PreparedContent {
   std::string core_path;
   std::filesystem::path save_ram_path;
+  std::filesystem::path state_path;
   std::vector<std::filesystem::path> playlist_entries{};
   bool local_file{};
 };
@@ -38,6 +40,21 @@ bool prepare_content(
 class SaveRamStore final {
 public:
   explicit SaveRamStore(std::filesystem::path path);
+
+  bool load(corehost::StaticCore& core, std::string& error) const;
+  bool save(corehost::StaticCore& core, std::string& error) const;
+
+  [[nodiscard]] const std::filesystem::path& path() const noexcept {
+    return path_;
+  }
+
+private:
+  std::filesystem::path path_;
+};
+
+class SaveStateStore final {
+public:
+  explicit SaveStateStore(std::filesystem::path path);
 
   bool load(corehost::StaticCore& core, std::string& error) const;
   bool save(corehost::StaticCore& core, std::string& error) const;
