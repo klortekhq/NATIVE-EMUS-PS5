@@ -1,6 +1,6 @@
 # Beetle PSX / Beetle PSX HW
 
-## Progress: **67%**
+## Progress: **78%**
 
 > Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
 

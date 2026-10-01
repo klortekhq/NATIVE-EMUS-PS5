@@ -1,6 +1,6 @@
 # Beetle PSX HW PS5 — native Lightrec x86-64 port
 
-## Progress: **67%**
+## Progress: **78%**
 
 > This percentage describes **our native standalone PS5 port**, not Beetle PSX upstream compatibility or another frontend's PS5 port. It only increases on reproducible engineering evidence.
 
@@ -9,17 +9,41 @@
 | Gate | Weight | Current |
 |---|---:|---:|
 | Public upstream pinned + provenance mapped | 10% | **10%** |
-| Reproducible current PS5 engine cross-build | 15% | **8%** — public-upstream migration is in CI; prior donor archive remains historical evidence |
-| Native CPU recompiler/JIT | 25% | **22%** — Lightrec/GNU Lightning x86-64 path proven previously; current upstream gate pending |
+| Reproducible current PS5 engine cross-build | 15% | **15% — green from public upstream** |
+| Native CPU recompiler/JIT | 25% | **25% — Lightrec + GNU Lightning x86-64 verified in current archive** |
 | Native Vulkan host / RADV | 15% | **11%** — environment, provider, display surface and presenter implemented and host-tested |
 | Native audio/input | 10% | **8%** — AudioOut, DualSense, rumble and clean-exit chord wired and host-tested |
 | VFS/disc/saves | 10% | **5%** — local CUE/CHD/PBP/etc. validation + atomic SRAM persistence; network VFS pending |
-| Native app shell / title link | 5% | **3%** — standalone lifecycle exists; PS5 shell compile/link gate is being closed |
+| Native app shell / title link | 5% | **4%** — standalone lifecycle + shell compile are green; final RADV-linked ELF/title conversion pending |
 | Physical PS5 boot/game validation | 10% | **0%** |
 
-**Total: 67 / 100**
+**Total: 78 / 100**
 
-When the new public-upstream Lightrec cross-build goes green, the engine and CPU rows are rescored from that current evidence rather than from the historical donor.
+Current public-upstream evidence is green.
+
+Workflow `36825853078` validated, in one run:
+
+- deterministic PS5 transform;
+- Beetle Vulkan environment lifecycle;
+- Vulkan negotiation/provider;
+- PS5 `VK_KHR_display` surface selection;
+- native presenter geometry;
+- local content + SRAM persistence;
+- AudioOut/input/rumble bridge;
+- standalone native shell compilation;
+- PS5 Lightrec x86-64 cross-build.
+
+Artifact `11144874334` is `native-beetle-psx-hw-lightrec-x64-ps5-engine`.
+The GitHub Actions ZIP digest is:
+
+```text
+sha256:0022701a3d1be329f3698b8eaaeda9d6a1cf3655995dc71aa68b0c6d4589c11f
+```
+
+The archive contains the current upstream Vulkan RHI plus `lightrec.o`,
+`recompiler.o`, GNU Lightning `lightning.o` / `jit_memory.o`, and was
+compiled with `ARCH_X86`, `ENABLE_THREADED_COMPILER=1`,
+`-march=znver2`, SSE4.1 and AVX2.
 
 ## Canonical source
 
@@ -144,6 +168,10 @@ Default writable tree:
 Save RAM is written through a temporary file and rename, avoiding partially-written memory cards when an ordinary write fails.
 
 Network URIs are deliberately rejected until the `ps5rt` VFS bridge is complete; the shell does not pretend SMB is working when it is not.
+
+## Current engine evidence
+
+The current canonical build is the public-upstream run above. It supersedes the old donor archive for progress scoring.
 
 ## Historical engine evidence
 
