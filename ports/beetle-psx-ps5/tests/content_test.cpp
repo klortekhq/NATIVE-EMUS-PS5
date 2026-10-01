@@ -1,5 +1,6 @@
 #include "../native/content.hpp"
 
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
