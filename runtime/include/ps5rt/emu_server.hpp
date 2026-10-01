@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string_view>
 
 #include <ps5rt/result.hpp>
@@ -9,6 +10,11 @@ namespace ps5rt {
 struct EmuServerConfig {
   std::string_view bearer_token{};
   std::string_view user_agent{"NATIVE-EMUS-PS5/1"};
+  // 0 keeps exact-range behavior. Non-zero values request at least this many
+  // bytes on a cache miss so nearby sequential reads can be served locally.
+  // Hardware benchmarks should choose the final policy rather than hardcoding
+  // an emulator-independent guess.
+  std::size_t read_ahead_bytes{};
 };
 
 // Registers the read-only emus:// backend.
