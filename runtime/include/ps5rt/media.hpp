@@ -86,6 +86,24 @@ struct DiscLayout {
   std::uint64_t total_sectors{};
 };
 
+[[nodiscard]] inline const DiscTrack* find_track_for_lba(
+    const DiscLayout& layout,
+    std::uint64_t lba) noexcept {
+  for (const auto& track : layout.tracks) {
+    const auto end = track.first_lba + track.sectors;
+    if (lba >= track.first_lba && lba < end)
+      return &track;
+  }
+  return nullptr;
+}
+
+[[nodiscard]] inline std::uint32_t native_sector_size_for_lba(
+    const DiscLayout& layout,
+    std::uint64_t lba) noexcept {
+  const auto* track = find_track_for_lba(layout, lba);
+  return track && track->has_valid_sector_size() ? track->sector_size : 0;
+}
+
 // Host-side optical-media description used by adapters for Sega CD, Saturn,
 // Dreamcast, PC Engine CD, Neo Geo CD, PC-FX, CD-i, 3DO, PS1/PS2 and others.
 // CHD/CUE/CCD/MDS parsing may remain inside an emulator when upstream already
