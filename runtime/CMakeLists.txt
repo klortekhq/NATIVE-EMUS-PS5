@@ -121,4 +121,10 @@ if(PS5RT_BUILD_HOST_PLATFORM_TESTS)
   target_link_libraries(ps5rt-log-host-test PRIVATE ps5rt::ps5rt)
   target_compile_features(ps5rt-log-host-test PRIVATE cxx_std_20)
   add_test(NAME ps5rt-log-host COMMAND ps5rt-log-host-test)
+
+  add_executable(ps5rt-emu-server-uri-host-test
+    tests/emu_server_uri_test.cpp
+  )
+  target_compile_features(ps5rt-emu-server-uri-host-test PRIVATE cxx_std_20)
+  add_test(NAME ps5rt-emu-server-uri-host COMMAND ps5rt-emu-server-uri-host-test)
 endif()
