@@ -66,9 +66,7 @@ void PS5InputDriver::Translate(const ps5rt::ControllerState& source,
   if (b & B(ps5rt::Button::left)) buttons |= X_INPUT_GAMEPAD_DPAD_LEFT;
   if (b & B(ps5rt::Button::right)) buttons |= X_INPUT_GAMEPAD_DPAD_RIGHT;
   if (b & B(ps5rt::Button::options)) buttons |= X_INPUT_GAMEPAD_START;
-  // Until ps5rt exposes a separately proven Create bit, the touchpad click is
-  // the deterministic Back/View mapping and avoids hijacking the PS system key.
-  if (b & B(ps5rt::Button::touchpad)) buttons |= X_INPUT_GAMEPAD_BACK;
+  if (b & B(ps5rt::Button::create)) buttons |= X_INPUT_GAMEPAD_BACK;
   if (b & B(ps5rt::Button::l3)) buttons |= X_INPUT_GAMEPAD_LEFT_THUMB;
   if (b & B(ps5rt::Button::r3)) buttons |= X_INPUT_GAMEPAD_RIGHT_THUMB;
   if (b & B(ps5rt::Button::l1)) buttons |= X_INPUT_GAMEPAD_LEFT_SHOULDER;
