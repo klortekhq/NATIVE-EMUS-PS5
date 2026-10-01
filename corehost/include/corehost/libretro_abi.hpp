@@ -119,6 +119,71 @@ struct SystemAvInfo {
   SystemTiming timing{};
 };
 
+// Libretro VFS API v1. Later interface fields are intentionally not advertised
+// until they are implemented. Beetle PSX HW's hybrid VFS falls back to v1 for
+// URI-backed reads, which is sufficient for open/seek/read of disc images.
+struct VfsFileHandle;
+
+constexpr unsigned vfs_file_access_read = 1u << 0;
+constexpr unsigned vfs_file_access_write = 1u << 1;
+constexpr unsigned vfs_file_access_read_write =
+    vfs_file_access_read | vfs_file_access_write;
+constexpr int vfs_seek_start = 0;
+constexpr int vfs_seek_current = 1;
+constexpr int vfs_seek_end = 2;
+
+using VfsGetPath = const char*(*)(VfsFileHandle*);
+using VfsOpen = VfsFileHandle*(*)(const char*, unsigned, unsigned);
+using VfsClose = int(*)(VfsFileHandle*);
+using VfsSize = std::int64_t(*)(VfsFileHandle*);
+using VfsTell = std::int64_t(*)(VfsFileHandle*);
+using VfsSeek = std::int64_t(*)(VfsFileHandle*, std::int64_t, int);
+using VfsRead = std::int64_t(*)(VfsFileHandle*, void*, std::uint64_t);
+using VfsWrite = std::int64_t(*)(VfsFileHandle*, const void*, std::uint64_t);
+using VfsFlush = int(*)(VfsFileHandle*);
+using VfsRemove = int(*)(const char*);
+using VfsRename = int(*)(const char*, const char*);
+
+struct VfsInterface {
+  // v1
+  VfsGetPath get_path{};
+  VfsOpen open{};
+  VfsClose close{};
+  VfsSize size{};
+  VfsTell tell{};
+  VfsSeek seek{};
+  VfsRead read{};
+  VfsWrite write{};
+  VfsFlush flush{};
+  VfsRemove remove{};
+  VfsRename rename{};
+
+  // v2-v5 placeholders. Keeping the complete pointer-sized tail makes this
+  // object ABI-safe if a core compiled with a newer libretro.h inspects its
+  // struct size, while we still reject requests newer than v1.
+  void* truncate{};
+  void* stat{};
+  void* mkdir{};
+  void* opendir{};
+  void* readdir{};
+  void* dirent_get_name{};
+  void* dirent_is_dir{};
+  void* closedir{};
+  void* stat_64{};
+  void* set_readonly{};
+  void* get_mtime{};
+  void* set_mtime{};
+  void* copy_begin{};
+  void* copy_step{};
+  void* copy_close{};
+  void* dirent_stat{};
+};
+
+struct VfsInterfaceInfo {
+  std::uint32_t required_interface_version{};
+  VfsInterface* iface{};
+};
+
 using Environment = bool(*)(unsigned, void*);
 using VideoRefresh = void(*)(const void*, unsigned, unsigned, std::size_t);
 using AudioSample = void(*)(std::int16_t, std::int16_t);
