@@ -174,11 +174,6 @@ bool prepare_content(
   if (remote_emus) {
     const std::string name(final_component(uri_or_path));
     std::filesystem::path metadata_name(name);
-    if (lowercase(metadata_name.extension().string()) == ".m3u") {
-      error = "remote PS1 M3U playlists are not supported yet";
-      return false;
-    }
-
     out.core_path = std::string(uri_or_path);
     const auto stem = save_stem(metadata_name);
     out.save_ram_path = layout.save_dir / (stem + ".srm");
