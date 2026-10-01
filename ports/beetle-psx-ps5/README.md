@@ -39,6 +39,15 @@ standalone path has been hardened further:
 
 See [REFERENCE-AUDIT-2026-10-01.md](REFERENCE-AUDIT-2026-10-01.md).
 
+The exact RADV source stack can now be materialized reproducibly with:
+
+```bash
+bash tools/ps5/prepare_radv_source_stack.sh
+```
+
+That script verifies the PS5_Vulkan, PS5_Mesa and PS5_PayloadSDK revisions used
+by the current lock instead of following any moving branch.
+
 
 Workflow `36825853078` validated, in one run:
 
