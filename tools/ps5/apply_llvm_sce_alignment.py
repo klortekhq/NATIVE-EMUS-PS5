@@ -7,7 +7,10 @@ drift fails loudly instead of silently patching the wrong revision.
 
 Why this exists:
 - Prospero/SCE treats the over-aligned empty SmallVectorStorage<T, 0> base as
-  only pointer-aligned in the final SmallVector object.
+  only pointer-aligned in the final SmallVector object. The final class must
+  preserve the stricter of the vector base alignment and the element alignment;
+  using alignas(T) alone is invalid for low-alignment T whose base already
+  requires 8-byte alignment.
 - The same ABI loses the TrailingObjectsImpl empty-base alignment in the
   derived TrailingObjects owner.
 
@@ -31,7 +34,7 @@ class LLVM_GSL_OWNER SmallVector : public SmallVectorImpl<T>,
 SMALL_NEW = """template <typename T,
           unsigned N = CalculateSmallVectorDefaultInlinedElements<T>::value>
 #if defined(__SCE__)
-#define LLVM_SMALLVECTOR_ALIGNAS(Ty) alignas(Ty)
+#define LLVM_SMALLVECTOR_ALIGNAS(Ty) alignas(SmallVectorAlignmentAndSize<Ty>)
 #else
 #define LLVM_SMALLVECTOR_ALIGNAS(Ty)
 #endif
