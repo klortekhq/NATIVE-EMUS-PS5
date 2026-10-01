@@ -32,6 +32,7 @@ if(PS5RT_BUILD_PS5_BACKEND)
     src/ps5/input.cpp
     src/ps5/input_hid.cpp
     src/ps5/io.cpp
+    src/ps5/log.cpp
     src/ps5/memory.cpp
     src/ps5/vfs.cpp
     src/ps5/video.cpp
@@ -73,4 +74,12 @@ if(PS5RT_BUILD_HOST_PLATFORM_TESTS)
   target_link_libraries(ps5rt-memory-host-test PRIVATE ps5rt::ps5rt)
   target_compile_features(ps5rt-memory-host-test PRIVATE cxx_std_20)
   add_test(NAME ps5rt-memory-host COMMAND ps5rt-memory-host-test)
+
+  add_executable(ps5rt-log-host-test
+    tests/log_host_test.cpp
+    src/ps5/log.cpp
+  )
+  target_link_libraries(ps5rt-log-host-test PRIVATE ps5rt::ps5rt)
+  target_compile_features(ps5rt-log-host-test PRIVATE cxx_std_20)
+  add_test(NAME ps5rt-log-host COMMAND ps5rt-log-host-test)
 endif()

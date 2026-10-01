@@ -124,6 +124,7 @@ SOURCES=(
   "$ROOT/runtime/src/ps5/input.cpp"
   "$ROOT/runtime/src/ps5/input_hid.cpp"
   "$ROOT/runtime/src/ps5/io.cpp"
+  "$ROOT/runtime/src/ps5/log.cpp"
   "$ROOT/runtime/src/ps5/vfs.cpp"
   "$ROOT/runtime/src/ps5/memory.cpp"
   "$ROOT/corehost/src/static_core.cpp"
