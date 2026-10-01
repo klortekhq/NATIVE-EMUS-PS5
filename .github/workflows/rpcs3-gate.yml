@@ -80,6 +80,10 @@ jobs:
 
           static_assert(alignof(llvm::SmallVector<Payload, 0>) >= alignof(Payload));
           static_assert(alignof(Node) >= alignof(Payload));
+          // The SCE shim must never lower the natural/base alignment for
+          // ordinary element types while fixing over-aligned payloads.
+          static_assert(alignof(llvm::SmallVector<char, 0>) >= alignof(void*));
+          static_assert(alignof(llvm::SmallVector<int, 4>) >= alignof(void*));
 
           int ps5_llvm_abi_probe() {
           #if !defined(__SCE__)
