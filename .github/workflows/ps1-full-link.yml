@@ -81,7 +81,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             clang-18 lld-18 llvm-18-tools llvm-18-dev \
-            libclang-cpp18-dev libclc-18-dev libllvmspirvlib-18-dev \
+            libclang-18-dev libclang-cpp18-dev libclc-18-dev libllvmspirvlib-18-dev \
             cmake ninja-build ccache make nasm meson rsync \
             git curl wget unzip tar pkg-config \
             glslang-tools spirv-tools bison flex \
