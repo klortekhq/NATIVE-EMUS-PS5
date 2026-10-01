@@ -187,17 +187,57 @@ PIE="$OUT/artifacts/beetle_psx_hw_ps5_pie.elf"
 
 # IMPORTANT: radv-link.sh is an LLD recipe. Do not pass these arrays to
 # clang++: --whole-archive/--defsym/version scripts are linker arguments.
-# Mesa generates weak driver-prefixed declarations for entry points that are
-# satisfied by vk_common_* at runtime. They are optional intra-driver symbols,
-# not PS5 loader imports. Keep unresolved weak symbols local/null so the native
-# title converter only sees genuine SDK/module imports.
-"$LLD" "${radv_linker_script[@]}" --eh-frame-hdr -z nodynamic-undefined-weak   "${radv_link_flags[@]}"   --version-script "$ROOT/tools/ps5/app-hidden.map"   --exclude-libs=ALL   -e _start -o "$PIE"   "$OUT/obj/app_crt.o"   "$OUT/obj/app_cpp_runtime.o"   "${OBJECTS[@]}"   "$ENGINE"   "$OUT/stubs/libSceAgc.so"   "$OUT/stubs/libSceAgcDriver.so"   "${radv_link_inputs[@]}"   --as-needed "$PS5_PAYLOAD_SDK"/target/lib/*.so
+#
+# Mesa intentionally leaves a small set of driver-prefixed weak references
+# unresolved. ELF weak-undefined semantics are "resolve to zero if no provider
+# exists", but the pinned native-title converter only accepts real module
+# imports. The PS5 LLD pin does not implement GNU ld's
+# -z nodynamic-undefined-weak, so perform a deterministic two-pass link:
+# discover only WEAK+UND radv_* symbols, bind exactly those to absolute zero,
+# then verify that no weak RADV dynamic imports remain. Required/global imports
+# are never rewritten.
+link_ps1() {
+  local -a extra_defs=("$@")
+  "$LLD" "${radv_linker_script[@]}" --eh-frame-hdr \
+    "${radv_link_flags[@]}" \
+    --version-script "$ROOT/tools/ps5/app-hidden.map" \
+    --exclude-libs=ALL \
+    "${extra_defs[@]}" \
+    -e _start -o "$PIE" \
+    "$OUT/obj/app_crt.o" \
+    "$OUT/obj/app_cpp_runtime.o" \
+    "${OBJECTS[@]}" \
+    "$ENGINE" \
+    "$OUT/stubs/libSceAgc.so" \
+    "$OUT/stubs/libSceAgcDriver.so" \
+    "${radv_link_inputs[@]}" \
+    --as-needed "$PS5_PAYLOAD_SDK"/target/lib/*.so
+}
 
+link_ps1
 [[ -s "$PIE" ]] || { echo "PS1 native PS5 PIE missing" >&2; exit 7; }
 
 if command -v readelf >/dev/null 2>&1; then
-  if readelf -Ws "$PIE" | grep -Eq ' UND .*WEAK.*radv_| WEAK .* UND .*radv_'; then
-    echo "weak RADV entry points leaked into the PS5 dynamic import surface" >&2
+  mapfile -t weak_radv_symbols < <(
+    readelf -Ws "$PIE" |
+      awk '$5 == "WEAK" && $7 == "UND" && $8 ~ /^radv_/ {print $8}' |
+      sed 's/@.*$//' |
+      sort -u
+  )
+
+  if ((${#weak_radv_symbols[@]} > 0)); then
+    weak_radv_defs=()
+    for symbol in "${weak_radv_symbols[@]}"; do
+      weak_radv_defs+=(--defsym="${symbol}=0")
+    done
+    printf 'Resolving optional weak RADV symbols to ELF-null semantics: %s\n' \
+      "${weak_radv_symbols[*]}"
+    link_ps1 "${weak_radv_defs[@]}"
+  fi
+
+  if readelf -Ws "$PIE" |
+      awk '$5 == "WEAK" && $7 == "UND" && $8 ~ /^radv_/ {found=1} END {exit !found}'; then
+    echo "weak RADV entry points still leak into the PS5 dynamic import surface" >&2
     exit 7
   fi
 fi
