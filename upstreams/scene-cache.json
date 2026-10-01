@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "updated": "2026-10-01",
+  "purpose": "Pinned PS5 scene reference cache. Entries are engineering references, not implicit dependencies.",
+  "cache_policy": {
+    "metadata": "Always keep URL, exact commit, relevance and provenance in git.",
+    "source_snapshot": "For cache_source=true, CI materializes an exact source snapshot including initialized submodules when licensing permits.",
+    "integration": "Never import code automatically. Every reuse still requires license/provenance and delta review."
+  },
+  "references": [
+    {
+      "name": "PS5 Vulkan",
+      "repository": "mpereiraesaa/ps5-vulkan",
+      "url": "https://github.com/mpereiraesaa/ps5-vulkan",
+      "pin": "e6d3c3f82f3c8a574e28c174b15b287f9c0ecc6d",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": ["vulkan", "agc", "videoout", "shader-cache", "dxvk", "gpu"],
+      "relevance": "Primary live PS5 Vulkan/AGC reference: native VideoOut presentation, GFX1013 command work, Mesa/NIR/ACO integration, shader compilation cache, DXVK experiments and physical-console evidence.",
+      "discovered_via": ["direct-audit", "@Jdr8245Jhon"],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "AnyPS5",
+      "repository": "boykopovar/AnyPS5",
+      "url": "https://github.com/boykopovar/AnyPS5",
+      "pin": "c7fb2575a3282dde6c6e90f24bd1abe830e6f4e8",
+      "license": "GPL-2.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": ["agc", "videoout", "shader-recompiler", "shader-cache", "ps5-abi", "vulkan"],
+      "relevance": "Very useful clean-room PS5 ABI and AGC reference. Current tree contains AGC command implementations, VideoOut modelling and persistent shader disk/pipeline cache work.",
+      "discovered_via": ["@Jdr8245Jhon"],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "DualSenseClient",
+      "repository": "DualSenseClient/DualSenseClient",
+      "url": "https://github.com/DualSenseClient/DualSenseClient",
+      "pin": "7b1009ee7fd1afda9de09264f29c325baeae1d98",
+      "license": "GPL-3.0",
+      "priority": "high",
+      "cache_source": true,
+      "categories": ["dualsense", "hid", "adaptive-triggers", "haptics", "audio"],
+      "relevance": "Protocol-level DualSense reference for USB/Bluetooth HID reports, adaptive-trigger blocks, haptics/audio transport and Edge fields. Useful to validate ps5rt input/output semantics even though it is a PC client.",
+      "discovered_via": ["@Jdr8245Jhon"],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "EVO Player PS5",
+      "repository": "sainsaji/EVO-PLAYER-PS5",
+      "url": "https://github.com/sainsaji/EVO-PLAYER-PS5",
+      "pin": "21524a4a6effa65312be2026042e44a96efca4c6",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": ["ps5-payload-sdk", "videoout", "audioout", "agc", "ffmpeg", "packaging", "media-app"],
+      "relevance": "Hardware-tested native PS5 application reference: AudioOut/VideoOut, AGC work, FFmpeg cross-build, app-module/media-tile packaging and SDK/toolchain audits.",
+      "discovered_via": ["@Jdr8245Jhon"],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5PCEM",
+      "repository": "iStark/PS5PCEM",
+      "url": "https://github.com/iStark/PS5PCEM",
+      "pin": "52fd710141ef6e1bef2e9ba2c28853e612574559",
+      "license": "GPL-3.0",
+      "priority": "high",
+      "cache_source": true,
+      "categories": ["ps5-abi", "agc", "pm4", "rdna2", "videoout", "vulkan", "reverse-engineering"],
+      "relevance": "Useful PS5 guest-side reverse-engineering reference for AGC/PM4 streams, VideoOut/HLE exports, RDNA2 shader translation and memory/service behavior. Not a host runtime donor.",
+      "discovered_via": ["@Jdr8245Jhon"],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5 Payload SDK",
+      "repository": "ps5-payload-dev/sdk",
+      "url": "https://github.com/ps5-payload-dev/sdk",
+      "pin": "f7fd02e6e195902a449b5e664917be8c01888b34",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": ["sdk", "toolchain", "prospero-clang", "linker", "libc", "headers"],
+      "relevance": "Canonical public PS5 payload SDK/toolchain reference used by the project. Current checked pin adds LLVM 23 support.",
+      "discovered_via": ["direct-audit"],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5 Native App Boilerplate",
+      "repository": "BlackBearReloaded/ps5-native-app-boilerplate",
+      "url": "https://github.com/BlackBearReloaded/ps5-native-app-boilerplate",
+      "pin": "dd44bbdc75437332ed22e3ba95126733419ef25a",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": ["native-title", "elf", "fself", "linker", "packaging", "runtime"],
+      "relevance": "Primary public native-title tooling reference: page-separated PIE layout, ELF conversion, FSELF/container tooling and packaging contracts.",
+      "discovered_via": ["direct-audit"],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5SX2",
+      "repository": "Swordpdf/PS5SX2",
+      "url": "https://github.com/Swordpdf/PS5SX2",
+      "pin": "d96a7031615734cbe4efb1b3953ddfc23e0dd3aa",
+      "license": "review-per-upstream-PCXS2-and-vendored-components",
+      "priority": "critical",
+      "cache_source": false,
+      "categories": ["pcsx2", "jit", "vulkan", "threads", "native-ps5"],
+      "relevance": "Primary live reference for a large x86-64 JIT emulator running natively on PS5. Metadata/pin cached; source snapshot is disabled until the aggregate license/vendor inventory is reviewed.",
+      "discovered_via": ["direct-audit"],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5 Dump Image Converter",
+      "repository": "strongt1me/PS5-Dump-Image-Converter",
+      "url": "https://github.com/strongt1me/PS5-Dump-Image-Converter",
+      "pin": "b2e560e9db1ffe4c6ae585bcec5a8ca9b3c223bf",
+      "license": "MIT",
+      "priority": "medium",
+      "cache_source": true,
+      "categories": ["ffpkg", "ffpfsc", "exfat", "image-format", "packaging"],
+      "relevance": "Useful packaging/image-format reference for FFPKG, FFPFSC and exFAT handling. Not part of emulator runtime but relevant to distribution/storage tooling.",
+      "discovered_via": ["@Jdr8245Jhon"],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PlayStation Payload Center",
+      "repository": "Pharaoh2k/PlayStation-Payload-Center",
+      "url": "https://github.com/Pharaoh2k/PlayStation-Payload-Center",
+      "pin": "50fb96d3f32565ec026b2d867768accbcb3956fa",
+      "license": "proprietary-binary-only",
+      "priority": "watch",
+      "cache_source": false,
+      "categories": ["payload-management", "deployment", "catalog"],
+      "relevance": "Operational reference only. Proprietary binary-only license means we record metadata but do not mirror source/binaries into this project.",
+      "discovered_via": ["@Jdr8245Jhon"],
+      "last_reviewed": "2026-10-01"
+    }
+  ]
+}
