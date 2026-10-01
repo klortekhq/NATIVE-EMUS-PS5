@@ -57,12 +57,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch PS5 Dynarmic donor
+      - name: Resolve exact PS5 Dynarmic donor
+        id: donor
+        shell: bash
         run: |
-          git clone --filter=blob:none https://github.com/mihawk-99/PS5_Dynarmic.git /tmp/dynarmic
-          git -C /tmp/dynarmic checkout --detach 1df2a07e9a86afef73d511a931f40bedb40b30c4
-      - name: Verify ps5rt allocator transformation
+          set -euo pipefail
+          PIN=1df2a07e9a86afef73d511a931f40bedb40b30c4
+          if GIT_TERMINAL_PROMPT=0 git clone --filter=blob:none https://github.com/mihawk-99/PS5_Dynarmic.git /tmp/dynarmic; then
+            git -C /tmp/dynarmic checkout --detach "$PIN"
+            test "$(git -C /tmp/dynarmic rev-parse HEAD)" = "$PIN"
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=PS5_Dynarmic provenance unavailable::Exact historical donor $PIN is not public right now; running the frozen transform-contract regression instead."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify exact donor ps5rt allocator transformation
+        if: steps.donor.outputs.available == 'true'
         run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_dynarmic_ps5rt.py" /tmp/dynarmic --check
+      - name: Verify frozen Dynarmic transform contract
+        if: steps.donor.outputs.available != 'true'
+        run: python3 tools/ps5/tests/test_legacy_donor_transforms.py dynarmic
 
   dolphin-transform:
     runs-on: ubuntu-latest
@@ -174,12 +188,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch PS5 Mupen64Plus donor
+      - name: Resolve exact PS5 Mupen64Plus donor
+        id: donor
+        shell: bash
         run: |
-          git clone --filter=blob:none https://github.com/mihawk-99/PS5_Mupen64Plus.git /tmp/mupen64
-          git -C /tmp/mupen64 checkout --detach 98ec1019d191fc3c0e1c2d031f2574e95bd8d30d
-      - name: Verify CPU + RSP JIT allocator transform
+          set -euo pipefail
+          PIN=98ec1019d191fc3c0e1c2d031f2574e95bd8d30d
+          if GIT_TERMINAL_PROMPT=0 git clone --filter=blob:none https://github.com/mihawk-99/PS5_Mupen64Plus.git /tmp/mupen64; then
+            git -C /tmp/mupen64 checkout --detach "$PIN"
+            test "$(git -C /tmp/mupen64 rev-parse HEAD)" = "$PIN"
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=PS5_Mupen64Plus provenance unavailable::Exact historical donor $PIN is not public right now; running the frozen transform-contract regression instead."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify exact donor CPU + RSP JIT allocator transform
+        if: steps.donor.outputs.available == 'true'
         run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_mupen64plus_ps5rt.py" /tmp/mupen64 --check
+      - name: Verify frozen Mupen64Plus transform contract
+        if: steps.donor.outputs.available != 'true'
+        run: python3 tools/ps5/tests/test_legacy_donor_transforms.py mupen
 
   beetle-psx-lightrec-transform:
     runs-on: ubuntu-latest
