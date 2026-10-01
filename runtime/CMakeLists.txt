@@ -33,6 +33,10 @@ if(PS5RT_BUILD_HEADER_TEST)
   add_executable(ps5rt-media-layout-test tests/media_layout_test.cpp)
   target_link_libraries(ps5rt-media-layout-test PRIVATE ps5rt::ps5rt)
   add_test(NAME ps5rt-media-layout COMMAND ps5rt-media-layout-test)
+
+  add_executable(ps5rt-io-backend-test tests/io_backend_test.cpp)
+  target_link_libraries(ps5rt-io-backend-test PRIVATE ps5rt::common)
+  add_test(NAME ps5rt-io-backend COMMAND ps5rt-io-backend-test)
 endif()
 
 option(PS5RT_BUILD_PS5_BACKEND "Build the native PS5 backend implementation" OFF)
