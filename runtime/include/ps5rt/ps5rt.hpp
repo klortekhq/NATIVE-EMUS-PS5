@@ -2,6 +2,7 @@
 
 #include <ps5rt/app.hpp>
 #include <ps5rt/audio.hpp>
+#include <ps5rt/emu_server.hpp>
 #include <ps5rt/input.hpp>
 #include <ps5rt/io.hpp>
 #include <ps5rt/log.hpp>
