@@ -188,14 +188,17 @@ PIE="$OUT/artifacts/beetle_psx_hw_ps5_pie.elf"
 # IMPORTANT: radv-link.sh is an LLD recipe. Do not pass these arrays to
 # clang++: --whole-archive/--defsym/version scripts are linker arguments.
 #
-# Mesa intentionally leaves a small set of driver-prefixed weak references
-# unresolved. ELF weak-undefined semantics are "resolve to zero if no provider
-# exists", but the pinned native-title converter only accepts real module
-# imports. The PS5 LLD pin does not implement GNU ld's
-# -z nodynamic-undefined-weak, so perform a deterministic two-pass link:
-# discover only WEAK+UND radv_* symbols, bind exactly those to absolute zero,
-# then verify that no weak RADV dynamic imports remain. Required/global imports
-# are never rewritten.
+# Mesa intentionally leaves generated weak entry points unresolved for the
+# base RADV driver and its optional tracing/annotation layers. At the pinned
+# PS5_Mesa revision, src/amd/vulkan/meson.build invokes vk_entrypoints_gen.py
+# with --weak and exactly these prefixes:
+#   radv, sqtt, rra, rmv, ctx_roll, utrace, annotate
+# ELF weak-undefined semantics are "resolve to zero if no provider exists", but
+# the pinned native-title converter only accepts real module imports. The PS5
+# LLD pin does not implement GNU ld's -z nodynamic-undefined-weak, so perform a
+# deterministic two-pass link: bind only WEAK+UND symbols from those generated
+# Mesa prefixes to absolute zero, then verify that none leak into the dynamic
+# import surface. Required/global imports are never rewritten.
 link_ps1() {
   local -a extra_defs=("$@")
   "$LLD" "${radv_linker_script[@]}" --eh-frame-hdr \
@@ -218,26 +221,27 @@ link_ps1
 [[ -s "$PIE" ]] || { echo "PS1 native PS5 PIE missing" >&2; exit 7; }
 
 if command -v readelf >/dev/null 2>&1; then
-  mapfile -t weak_radv_symbols < <(
+  mesa_weak_prefix_re='^(radv|sqtt|rra|rmv|ctx_roll|utrace|annotate)_'
+  mapfile -t weak_mesa_symbols < <(
     readelf -Ws "$PIE" |
-      awk '$5 == "WEAK" && $7 == "UND" && $8 ~ /^radv_/ {print $8}' |
+      awk -v re="$mesa_weak_prefix_re" '$5 == "WEAK" && $7 == "UND" && $8 ~ re {print $8}' |
       sed 's/@.*$//' |
       sort -u
   )
 
-  if ((${#weak_radv_symbols[@]} > 0)); then
-    weak_radv_defs=()
-    for symbol in "${weak_radv_symbols[@]}"; do
-      weak_radv_defs+=(--defsym="${symbol}=0")
+  if ((${#weak_mesa_symbols[@]} > 0)); then
+    weak_mesa_defs=()
+    for symbol in "${weak_mesa_symbols[@]}"; do
+      weak_mesa_defs+=(--defsym="${symbol}=0")
     done
-    printf 'Resolving optional weak RADV symbols to ELF-null semantics: %s\n' \
-      "${weak_radv_symbols[*]}"
-    link_ps1 "${weak_radv_defs[@]}"
+    printf 'Resolving generated optional Mesa weak symbols to ELF-null semantics: %s\n' \
+      "${weak_mesa_symbols[*]}"
+    link_ps1 "${weak_mesa_defs[@]}"
   fi
 
   if readelf -Ws "$PIE" |
-      awk '$5 == "WEAK" && $7 == "UND" && $8 ~ /^radv_/ {found=1} END {exit !found}'; then
-    echo "weak RADV entry points still leak into the PS5 dynamic import surface" >&2
+      awk -v re="$mesa_weak_prefix_re" '$5 == "WEAK" && $7 == "UND" && $8 ~ re {found=1} END {exit !found}'; then
+    echo "generated optional Mesa weak symbols still leak into the PS5 dynamic import surface" >&2
     exit 7
   fi
 fi
