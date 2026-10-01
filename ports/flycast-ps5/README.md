@@ -37,3 +37,19 @@ This gives us a clean boundary:
 The engine-only CI gate temporarily configures Vulkan OFF so CPU/JIT/platform compilation failures are isolated from Vulkan dependencies.
 
 The final port remains **Vulkan/RADV**, not software-only and not an OpenGL wrapper.
+
+
+## Current evidence
+
+The engine gate is **green**. Run `36845566519` produced artifact
+`11153815261` (`native-flycast-rec-x64-ps5-engine`) with ZIP SHA-256
+`d68fb5911526babf2d50dd1ef4399c3ab382011a5b92829bc5dd32575ad9e19f`.
+
+The build contains the real upstream `rec_x64.cpp` path plus SH4 dynarec,
+AICA ARM7/DSP x64 recompilers and `core/ps5/ps5_vmem.cpp`. It is not an
+interpreter-only substitute.
+
+The next gate is physical runtime validation. The shared runtime now exposes
+`ps5rt-flycast-jit-probe`, sized to the exact upstream JIT capacities, so the
+PS5 can prove distinct RW/RX aliases and emitted-code execution before BIOS
+bring-up.
