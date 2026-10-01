@@ -14,7 +14,7 @@ if [[ ! -s "$SCRIPT" ]] || ! echo "$SHA256  $SCRIPT" | sha256sum -c - >/dev/null
   tmp="$SCRIPT.tmp"
   rm -f "$tmp"
   curl --fail --location --retry 3 --retry-all-errors "$URL" -o "$tmp"
-  echo "$SHA256  $tmp" | sha256sum -c -
+  echo "$SHA256  $tmp" | sha256sum -c - >&2
   mv "$tmp" "$SCRIPT"
 fi
 
