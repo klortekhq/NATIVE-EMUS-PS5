@@ -63,6 +63,17 @@ bool assign(
     return true;
   }
 
+  if (key == "server_token") {
+    if (value.size() > 1024 ||
+        value.find('\r') != std::string::npos ||
+        value.find('\n') != std::string::npos) {
+      error = "invalid PS1 server_token";
+      return false;
+    }
+    config.server_token = value;
+    return true;
+  }
+
   // Forward-compatible: ignore settings intended for newer builds.
   return true;
 }
