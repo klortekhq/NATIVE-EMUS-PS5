@@ -1,6 +1,6 @@
 # Beetle PSX / Beetle PSX HW
 
-## Progress: **80%**
+## Progress: **83%**
 
 > Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
 
@@ -39,3 +39,8 @@ Keep the upstream emulator core recognizable. Do not make RetroArch/libretro a m
 ## Current evidence
 
 Workflow **36833195325** is green for the current public Beetle pin and validates the Lightrec x86-64 transform, native Vulkan host contracts, local multi-disc M3U handling, per-track optical sector widths, AudioOut/DualSense and standalone shell compilation. Full pinned RADV link and physical-console validation remain.
+
+The standalone host now owns persistent save-state slot 0 and Beetle-native
+multi-disc switching without replacing any CPU/GPU emulation path. These host
+features are green in workflow **36835002466**; the engine artifact is
+**11148931941**.
