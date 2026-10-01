@@ -57,32 +57,6 @@ struct HttpRuntime {
 
 HttpRuntime g_http{};
 
-void close_runtime_locked() noexcept {
-  if (g_http.registered) {
-    (void)unregister_random_access_backend("emus", nullptr);
-    // unregister_random_access_backend requires the exact owner callback.
-    // Registration is undone explicitly by shutdown after the callback symbol
-    // is available; this branch only resets the state marker.
-    g_http.registered = false;
-  }
-  if (g_http.tmpl >= 0) {
-    (void)sceHttpDeleteTemplate(g_http.tmpl);
-    g_http.tmpl = -1;
-  }
-  if (g_http.http >= 0) {
-    (void)sceHttpTerm(g_http.http);
-    g_http.http = -1;
-  }
-  if (g_http.ssl >= 0) {
-    (void)sceSslTerm(g_http.ssl);
-    g_http.ssl = -1;
-  }
-  if (g_http.net_pool >= 0) {
-    (void)sceNetPoolDestroy(g_http.net_pool);
-    g_http.net_pool = -1;
-  }
-  g_http.token.clear();
-}
 
 bool starts_with_ci(std::string_view text, std::string_view prefix) noexcept {
   if (text.size() < prefix.size())
