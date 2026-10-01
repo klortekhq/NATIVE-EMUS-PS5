@@ -7,6 +7,7 @@
 
 #include <corehost/static_core.hpp>
 #include <ps5rt/app.hpp>
+#include <ps5rt/emu_server.hpp>
 #include <ps5rt/log.hpp>
 
 #include <libretro.h>
@@ -97,6 +98,22 @@ int fail(std::string_view message, int code) {
   return code;
 }
 
+struct EmuServerGuard {
+  bool active{};
+
+  ~EmuServerGuard() {
+    if (active)
+      ps5rt::shutdown_emu_server_backend();
+  }
+
+  void shutdown() noexcept {
+    if (!active)
+      return;
+    ps5rt::shutdown_emu_server_backend();
+    active = false;
+  }
+};
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -131,6 +148,21 @@ int main(int argc, char** argv) {
     return fail(error, 5);
   }
 
+  EmuServerGuard emu_server;
+  if (content.rfind("emus://", 0) == 0) {
+    const ps5rt::EmuServerConfig server_config{
+        port_config.server_token,
+        "NATIVE-EMUS-PS5-PS1/1",
+    };
+    const auto server_result =
+        ps5rt::initialize_emu_server_backend(server_config);
+    if (!server_result) {
+      ps5rt::shutdown_app();
+      return fail(server_result.message, 6);
+    }
+    emu_server.active = true;
+  }
+
   native_emus::ps1::VulkanEnvironment vulkan_environment;
   native_emus::ps1::VulkanPresenter presenter(vkGetInstanceProcAddr);
   native_emus::ps1::RuntimeIo runtime_io;
@@ -151,7 +183,7 @@ int main(int argc, char** argv) {
 
   if (!core.initialize(error)) {
     ps5rt::shutdown_app();
-    return fail(error, 6);
+    return fail(error, 7);
   }
 
   const auto sample_rate = core.av_info().timing.sample_rate;
@@ -160,12 +192,12 @@ int main(int argc, char** argv) {
       : 44100u;
   if (!runtime_io.initialize(rounded_rate)) {
     ps5rt::shutdown_app();
-    return fail("native PS5 audio/input initialization failed", 7);
+    return fail("native PS5 audio/input initialization failed", 8);
   }
 
   if (!core.load_path(prepared.core_path, error)) {
     ps5rt::shutdown_app();
-    return fail(error, 8);
+    return fail(error, 10);
   }
 
   native_emus::ps1::SaveRamStore save_ram(prepared.save_ram_path);
@@ -181,7 +213,7 @@ int main(int argc, char** argv) {
   if (!provider.initialize(vkGetInstanceProcAddr)) {
     core.unload();
     ps5rt::shutdown_app();
-    return fail("native PS5 Vulkan/RADV context initialization failed", 10);
+    return fail("native PS5 Vulkan/RADV context initialization failed", 11);
   }
 
   constexpr std::uint64_t save_interval_frames = 60u * 30u;
@@ -231,6 +263,7 @@ int main(int argc, char** argv) {
   provider.shutdown();
   runtime_io.shutdown();
   core.shutdown();
+  emu_server.shutdown();
   ps5rt::shutdown_app();
   return 0;
 }
