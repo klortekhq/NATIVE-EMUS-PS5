@@ -227,6 +227,23 @@ Save RAM is written through a temporary file and rename, avoiding partially-writ
 
 The standalone shell accepts `emus://` through the native ps5rt HTTP backend.
 The client performs HEAD metadata discovery and ranged GETs with ETag/If-Range.
+A dropped native HTTP transport connection is retried once after reopening the
+connection and refreshing HEAD/ETag; HTTP status errors are not retried as if
+they were network failures.
+
+Optional read-ahead is configured in `/data/NATIVE-EMUS-PS5/ps1/config.ini`:
+
+```ini
+server_read_ahead_kib = 0
+```
+
+`0` preserves exact-range reads. Values up to 8192 KiB enable one bounded
+in-memory read-ahead window per open remote file. The default stays disabled
+until physical-PS5 benchmarks establish a useful value. Compare
+`SERVER-EMUS-PS5 /api/v1/metrics` counters such as `range_requests` and
+`bytes_served` while testing candidate values rather than assuming a universal
+prefetch size.
+
 SERVER-EMUS-PS5 keeps the launchable catalog separate from descriptor sidecars:
 a catalog ID anchors virtual relative paths for CUE/CCD/TOC/M3U companions, and
 the server rejects path or symlink escapes outside the configured library.
