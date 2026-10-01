@@ -183,9 +183,11 @@ bool prepare_jit_block(
         return false;
 
     *code_area_rw = region.write_view.address;
-    *rx_offset =
-        static_cast<char*>(region.execute_view.address) -
-        static_cast<char*>(region.write_view.address);
+    const auto rw_address =
+        reinterpret_cast<std::intptr_t>(region.write_view.address);
+    const auto rx_address =
+        reinterpret_cast<std::intptr_t>(region.execute_view.address);
+    *rx_offset = static_cast<std::ptrdiff_t>(rx_address - rw_address);
     return remember_jit(std::move(region));
 }
 
