@@ -59,6 +59,9 @@ bool RuntimeIo::initialize(std::uint32_t source_sample_rate) noexcept {
   g_active_io = this;
   audio_error_reported_ = false;
   quit_requested_ = false;
+  save_state_requested_ = false;
+  load_state_requested_ = false;
+  previous_buttons_ = 0;
   return true;
 }
 
@@ -85,6 +88,9 @@ void RuntimeIo::shutdown() noexcept {
   snapshot_ = {};
   audio_error_reported_ = false;
   quit_requested_ = false;
+  save_state_requested_ = false;
+  load_state_requested_ = false;
+  previous_buttons_ = 0;
 }
 
 corehost::Hooks RuntimeIo::make_hooks(
@@ -162,8 +168,25 @@ corehost::InputState RuntimeIo::input(unsigned port) noexcept {
           static_cast<std::uint32_t>(ps5rt::Button::options);
       const auto touchpad =
           static_cast<std::uint32_t>(ps5rt::Button::touchpad);
-      if ((buttons & options) && (buttons & touchpad))
+      const auto l1 =
+          static_cast<std::uint32_t>(ps5rt::Button::l1);
+      const auto r1 =
+          static_cast<std::uint32_t>(ps5rt::Button::r1);
+
+      const auto combo_rising = [buttons, this](std::uint32_t combo) {
+        const bool active_now = (buttons & combo) == combo;
+        const bool active_before = (previous_buttons_ & combo) == combo;
+        return active_now && !active_before;
+      };
+
+      if (combo_rising(options | touchpad))
         quit_requested_ = true;
+      if (combo_rising(options | r1))
+        save_state_requested_ = true;
+      if (combo_rising(options | l1))
+        load_state_requested_ = true;
+
+      previous_buttons_ = buttons;
     }
   }
 
