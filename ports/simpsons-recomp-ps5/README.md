@@ -105,7 +105,7 @@ them without changing the ReXGlue core.
 | G7 | Intro/FMVs/audio/input/gameplay smoke test | PENDING |
 | G8 | PKG/directory-title packaging + save/cache persistence | PENDING |
 
-Current status is **bring-up**, not playable. G0 is CI-proven; the next gate cross-compiles the PS5-facing ReXGlue stack with the public Prospero toolchain.
+Current status is **bring-up**, not playable. The pinned revision is also the current upstream `main` as of 2026-10-01, so the PS5 work is based on the latest available upstream fixes. G0 is CI-proven; the next gate cross-compiles the PS5-facing ReXGlue stack with the public Prospero toolchain.
 
 ## Build contract
 
@@ -138,3 +138,24 @@ Before changing the port:
 
 That makes upstream drift fail loudly rather than producing an unreviewed
 Frankenstein build.
+
+
+## Bring-up commands
+
+```bash
+export NATIVE_EMUS_ROOT=/path/to/NATIVE-EMUS-PS5
+export PS5_PAYLOAD_SDK=/path/to/ps5-payload-sdk
+ports/simpsons-recomp-ps5/build_ps5.sh /path/to/TheSimpsonsGameRecomp
+```
+
+The build script applies `apply_simpsons_recomp_ps5.py` first. The transform is exact-match and idempotent: if upstream changes one of the blocks we depend on, it stops instead of applying a fuzzy patch.
+
+### 2026-10-01 integration checkpoint
+
+- upstream pinned and verified at `15feabc95291a7a50851a9a184c5bd78d2dd1f4d`;
+- PS5 CMake/toolchain identity is `REXGLUE_PS5` / `ps5-amd64`;
+- ReXGlue UI, audio and input source selection is redirected away from GTK/SDL host backends on PS5;
+- `ps5rt::ps5` is wired as the native host service layer;
+- SDL is skipped for the PS5 build path;
+- DualSense `Create` maps to Xbox `Back/View`;
+- the existing Vulkan renderer remains the graphics path; the next hard gate is a real PS5 Vulkan surface/device/swapchain link and then the full Simpsons executable link.
