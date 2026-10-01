@@ -20,7 +20,7 @@ R3000A guest -> Lightrec -> GNU Lightning x86-64 -> PS5 Zen 2
 
 Interpreter modes are diagnostic only.
 
-Current native-port progress: **78%**.
+Current native-port progress: **83%**.
 
 ## Native PS5 references reviewed
 
@@ -66,6 +66,22 @@ Useful evidence:
 Architecture note: it runs through Luac0re / ps2emu userland shellcode, so it is
 not the native-title architecture of NATIVE-EMUS-PS5. Reuse observations and
 test cases, not the wrapper architecture.
+
+### DuckStation native-sector regression audit — 2026-10-01 morning
+
+Fresh upstream commits reviewed before this PS1 pass:
+
+```text
+3f037f2682284bde2ffab130bdda16760f9aac7b  CHD: copy the actual bytes-per-sector for each track mode
+4d3dadd07e38acd1ea3f99f905a6db335bd2b26f  precache: retain each index's native sector format
+e68431fda82f5800c782bf1b619b140a6cb472a2  PPF: calculate offsets/sizes from each track mode
+```
+
+The lesson is a **regression contract**, not a source-code donor: no PS1 host
+layer may assume every data sector is 2352 bytes. Our current mixed-mode tests
+already preserve 2048/2336/2352-byte sector widths by LBA, so no core rewrite
+is needed. This audit is now part of the compatibility gate for CHD/CUE/PBP
+work and future precache/network-VFS code.
 
 ### DuckStation upstream
 
@@ -157,3 +173,22 @@ The supplied `t.co/H5u5RjOIHI` redirect could not be resolved by the current
 web fetcher. The GitHub audit above was performed independently against the
 current public PS1/native-PS5 repositories so work does not block on the
 short-link redirect.
+
+
+## Branch/state audit
+
+Checked before this implementation pass:
+
+- NATIVE-EMUS-PS5 exposes only the canonical `main` branch.
+- the current PS1 workspace is already at 83%; work continues from that tree,
+  not from an older checkpoint or side branch.
+- `mihawk-99/PS5_BeetlePSX`, `PS5_Vulkan`, `PS5_Mesa` and
+  `PS5_PayloadSDK` return 404 through the current GitHub API connection.
+  Exact historical pins remain recorded; moving/unverified replacements are
+  not substituted silently.
+- `libretro/beetle-psx-libretro@ed87921996c67658d7a70814f73034bbca08786a`
+  is still the newest reviewed canonical Beetle commit in this pass.
+
+The full native-link workflow now also runs automatically for relevant PS1/RADV
+changes on `main`, so every saved change exercises the next real gate rather
+than relying on a manual dispatch.
