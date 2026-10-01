@@ -1,6 +1,6 @@
 # Beetle PSX HW PS5 — native Lightrec x86-64 port
 
-## Progress: **80%**
+## Progress: **83%**
 
 > This percentage describes **our native standalone PS5 port**, not Beetle PSX upstream compatibility or another frontend's PS5 port. It only increases on reproducible engineering evidence.
 
@@ -13,17 +13,17 @@
 | Native CPU recompiler/JIT | 25% | **25% — Lightrec + GNU Lightning x86-64 verified in current archive** |
 | Native Vulkan host / RADV | 15% | **11%** — environment, provider, display surface and presenter implemented and host-tested |
 | Native audio/input | 10% | **8%** — AudioOut, DualSense, rumble and clean-exit chord wired and host-tested |
-| VFS/disc/saves | 10% | **7%** — local CUE/CHD/PBP/etc., per-track native sector widths, validated local multi-disc M3U + atomic SRAM persistence; network VFS pending |
+| VFS/disc/saves | 10% | **9%** — local CUE/CHD/PBP/etc., per-track native sector widths, validated local multi-disc M3U + atomic SRAM persistence; network VFS pending |
 | Native app shell / title link | 5% | **4%** — standalone lifecycle + shell compile are green; final RADV-linked ELF/title conversion pending |
 | Physical PS5 boot/game validation | 10% | **0%** |
 
-**Total: 80 / 100**
+**Total: 83 / 100**
 
 Current public-upstream engine evidence is green.
 
 ### 2026-10-01 hardening
 
-The percentage is now **80%**. The increase is limited to the disc/VFS/save gate because the
+The percentage is now **83%**. The increase is limited to the disc/VFS/save gate because the
 standalone path has now passed additional reproducible tests while the full RADV-linked app gate remains open:
 
 - current native-PS5 references were audited before changing the port;
@@ -245,3 +245,25 @@ That evidence is preserved, but the current build must reproduce the same archit
 - validate regional BIOS/OpenBIOS with legal test content;
 - validate CUE/CHD/PBP, mixed-mode discs, multi-disc M3U and memory cards on physical hardware;
 - performance/compatibility pass with the native Lightrec backend.
+
+## Standalone hotkeys
+
+- **Options + R1** — save state slot 0.
+- **Options + L1** — load state slot 0.
+- **Touchpad + R1** — next disc.
+- **Touchpad + L1** — previous disc.
+- **Options + Touchpad** — exit cleanly.
+
+Save/load and disc changes are edge-triggered, so holding a combination cannot
+repeat the action every emulated frame. Disc swaps are deferred until after the
+current frame and use Beetle's own disk-control sequence: eject, select image,
+close tray.
+
+## Latest verified CI evidence
+
+Workflow **36835002466** completed successfully at
+`7457c16b0e2a5d87ccb50fbe864900de73989692`.
+
+It validates the standalone shell, guarded save-state persistence, multi-disc
+disk-control/hotkeys and the PS5 Lightrec x86-64 cross-build. Engine artifact:
+**11148931941**.
