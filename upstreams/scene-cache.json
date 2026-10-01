@@ -503,6 +503,240 @@
         "historical-project-pin"
       ],
       "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PSXRecomp",
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp",
+      "pin": "3505f2a014a6424b78b8599d3506362356e4bc7b",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "priority": "high",
+      "cache_source": false,
+      "categories": [
+        "ps1",
+        "static-recompilation",
+        "mips",
+        "aot",
+        "overlays",
+        "interpreter-fallback",
+        "hardware-runtime"
+      ],
+      "relevance": "General-purpose PS1 static-recompilation reference. Especially useful for MIPS-to-C lifting, LLE-first BIOS/runtime structure, AOT overlay sharding, guarded native dispatch, transient interpreter fallback and differential validation. Metadata only: noncommercial license requires an explicit reuse decision before any code import.",
+      "discovered_via": [
+        "user-reference-2026-10-01",
+        "RetroPortingToolKit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "SNESRecomp",
+      "repository": "RetroPortingToolKit/snesrecomp",
+      "url": "https://github.com/RetroPortingToolKit/snesrecomp",
+      "pin": "3fcd8b5031df5009c9b5fb921ca83a971560a314",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "priority": "high",
+      "cache_source": false,
+      "categories": [
+        "snes",
+        "static-recompilation",
+        "65816",
+        "hardware-runtime",
+        "interpreter-fallback",
+        "differential-testing"
+      ],
+      "relevance": "Static 65816-to-C ecosystem with shared SNES hardware runtime and safe interpreter tier. Its separate emulator oracle and frame/state differential workflow are useful references for validating our Snes9x-native path without treating per-game recompilation as a replacement for a general emulator.",
+      "discovered_via": [
+        "user-reference-2026-10-01",
+        "RetroPortingToolKit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "NDSRecomp",
+      "repository": "RetroPortingToolKit/ndsrecomp",
+      "url": "https://github.com/RetroPortingToolKit/ndsrecomp",
+      "pin": "c50d0992029a4a19e251132ed69e87bfa853a5f1",
+      "license": "mixed-PolyForm-NC-MIT-GPL3-review-required",
+      "priority": "high",
+      "cache_source": false,
+      "categories": [
+        "nds",
+        "arm7",
+        "arm9",
+        "static-recompilation",
+        "dual-cpu",
+        "scheduler",
+        "interpreter-fallback",
+        "oracle"
+      ],
+      "relevance": "Early DS static-recompilation framework: ARM7TDMI/ARM946E-S lifting, event-aligned dual-CPU scheduling, bounded interpreter fallback for copied RAM code and a separate melonDS oracle. Useful architecture reference for ARM multi-core scheduling and exact-ROM dispatch gates; aggregate licensing is mixed and must be reviewed per boundary.",
+      "discovered_via": [
+        "user-reference-2026-10-01",
+        "RetroPortingToolKit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Retro Runtime",
+      "repository": "RetroPortingToolKit/Retro-Runtime",
+      "url": "https://github.com/RetroPortingToolKit/Retro-Runtime",
+      "pin": "5d5a83be51c47e41e07e54a515cfe6a469928144",
+      "license": "MIT",
+      "priority": "medium",
+      "cache_source": false,
+      "categories": [
+        "runtime",
+        "core-abi",
+        "runner",
+        "ipc",
+        "savestates",
+        "overlay",
+        "launcher"
+      ],
+      "relevance": "Shared host/core ABI plus out-of-process runner and versioned link protocol. Useful design reference for keeping emulator engines independent from launchers, overlays and updateable runners; not an emulator core donor.",
+      "discovered_via": [
+        "user-reference-2026-10-01",
+        "RetroPortingToolKit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS3Recomp",
+      "repository": "sp00nznet/ps3recomp",
+      "url": "https://github.com/sp00nznet/ps3recomp",
+      "pin": "a679051ef304555291de2eb3ec8a3dbf64a761a8",
+      "license": "MIT",
+      "priority": "critical",
+      "cache_source": false,
+      "categories": [
+        "ps3",
+        "ppu",
+        "spu",
+        "cell",
+        "static-recompilation",
+        "lv2",
+        "rsx",
+        "hle"
+      ],
+      "relevance": "Direct PS3/Cell static-recompilation reference. It contains PPU and SPU lifters/runtime contexts, SPU local-store/DMA/channel handling, LV2/HLE structure and an RSX abstraction. Particularly valuable for cross-checking RPCS3 PPU/SPU execution semantics and host/runtime boundaries; static per-game recompilation is not a replacement for RPCS3.",
+      "discovered_via": [
+        "Recompendium",
+        "user-reference-2026-10-01"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS2Recomp",
+      "repository": "ran-j/PS2Recomp",
+      "url": "https://github.com/ran-j/PS2Recomp",
+      "pin": "c5a9d02573410a2085a4b4b831b0b68ba3515440",
+      "license": "GPL-3.0",
+      "priority": "high",
+      "cache_source": false,
+      "categories": [
+        "ps2",
+        "r5900",
+        "mips",
+        "iop",
+        "static-recompilation",
+        "vu0",
+        "syscalls"
+      ],
+      "relevance": "PS2 static-recompilation reference with R5900/MMI/VU0 code generation, function dispatch, syscall handling and an IOP R3000A execution/HLE boundary. Useful for PCSX2 CPU/IOP architecture cross-checks and JIT-less fallback research.",
+      "discovered_via": [
+        "Recompendium",
+        "user-reference-2026-10-01"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Dolphin RecompCore",
+      "repository": "aharonahdoot/RecompCore",
+      "url": "https://github.com/aharonahdoot/RecompCore",
+      "pin": "283baee01e54b6c3f71e441bb78fc77b260512fa",
+      "license": "GPL-2.0-or-later",
+      "priority": "critical",
+      "cache_source": false,
+      "categories": [
+        "gamecube",
+        "dolphin",
+        "powerpc",
+        "static-recompilation",
+        "interpreter-fallback",
+        "differential-testing"
+      ],
+      "relevance": "Thin Dolphin fork adding a static-recompilation CPU core with transparent interpreter fallback and lockstep differential validation. Extremely useful for our Dolphin path because it demonstrates a no-JIT execution mode while retaining Dolphin's hardware model and measures native-vs-JIT performance explicitly.",
+      "discovered_via": [
+        "Recompendium",
+        "user-reference-2026-10-01"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "ReXGlue SDK",
+      "repository": "rexglue/rexglue-sdk",
+      "url": "https://github.com/rexglue/rexglue-sdk",
+      "pin": "c94f5ebdcb3c9d1a460ca48e04f9758448f8d518",
+      "license": "BSD-3-Clause",
+      "priority": "high",
+      "cache_source": false,
+      "categories": [
+        "xbox360",
+        "powerpc",
+        "static-recompilation",
+        "xenia",
+        "portable-cpp"
+      ],
+      "relevance": "Xbox 360 PPC-to-portable-C++ SDK rooted in Xenia and XenonRecomp. Useful for PowerPC lifting/codegen patterns, host portability and release engineering; also a relevant sibling for PPU-oriented research because of the shared PowerPC lineage.",
+      "discovered_via": [
+        "Recompendium",
+        "user-reference-2026-10-01"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Hagi Decompilation",
+      "repository": "GRAnimated/Hagi",
+      "url": "https://github.com/GRAnimated/Hagi",
+      "pin": "a1d1740e23fa9770da0952523ef47ba59a0ee143",
+      "license": "no-license-detected-review-only",
+      "priority": "medium",
+      "cache_source": false,
+      "categories": [
+        "gamecube",
+        "wii",
+        "emulator",
+        "decompilation",
+        "nintendo",
+        "native-recompilation"
+      ],
+      "relevance": "Decompilation of Nintendo's Hagi GameCube/Wii emulator from Super Mario 3D All-Stars. Valuable historical/architectural evidence because Hagi also shipped Wii titles with natively recompiled code. No license detected, so this is strictly a read-only research reference unless licensing changes.",
+      "discovered_via": [
+        "Recompendium",
+        "user-reference-2026-10-01"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Recompendium",
+      "repository": "Nio03/unricopie",
+      "url": "https://github.com/Nio03/unricopie",
+      "pin": "5e4b1ce51eb30c412581a685452acf4bde13daf6",
+      "license": "MIT",
+      "priority": "watch",
+      "cache_source": false,
+      "categories": [
+        "catalog",
+        "static-recompilation",
+        "decompilation",
+        "ports",
+        "discovery"
+      ],
+      "relevance": "Live curated discovery index separating recomps, decomps, ports/remakes and tools, with daily GitHub metadata and decomp.dev synchronization. Use to discover candidates; always verify the underlying project repository before treating any entry as an engineering reference.",
+      "discovered_via": [
+        "user-reference-2026-10-01"
+      ],
+      "last_reviewed": "2026-10-01"
     }
   ]
 }
