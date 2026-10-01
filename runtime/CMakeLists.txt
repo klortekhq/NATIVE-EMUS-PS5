@@ -96,6 +96,10 @@ if(PS5RT_BUILD_PS5_BACKEND)
     add_executable(ps5rt-flycast-jit-probe probes/flycast_jit_probe.cpp)
     target_link_libraries(ps5rt-flycast-jit-probe PRIVATE ps5rt::ps5)
     target_compile_features(ps5rt-flycast-jit-probe PRIVATE cxx_std_20)
+
+    add_executable(ps5rt-rpcs3-sparse-jit-probe probes/rpcs3_sparse_jit_probe.cpp)
+    target_link_libraries(ps5rt-rpcs3-sparse-jit-probe PRIVATE ps5rt::ps5)
+    target_compile_features(ps5rt-rpcs3-sparse-jit-probe PRIVATE cxx_std_20)
   endif()
 endif()
 
