@@ -27,12 +27,58 @@ enum class TrackKind : std::uint8_t {
   audio,
 };
 
+// Physical/native sector representation as stored by the backing image.
+//
+// Do not collapse these to one "PS1 sector size". Real/mixed-mode images may
+// store tracks with different native sector widths. The emulator may later
+// decode/canonicalize a sector, but the host/VFS layer must preserve the
+// source representation requested by the core.
+enum class DiscSectorMode : std::uint8_t {
+  unknown,
+  audio_2352,
+  mode1_2048,
+  mode1_2352,
+  mode2_2336,
+  mode2_2352,
+};
+
+[[nodiscard]] constexpr std::uint32_t native_sector_size(
+    DiscSectorMode mode) noexcept {
+  switch (mode) {
+    case DiscSectorMode::audio_2352:
+    case DiscSectorMode::mode1_2352:
+    case DiscSectorMode::mode2_2352:
+      return 2352;
+    case DiscSectorMode::mode2_2336:
+      return 2336;
+    case DiscSectorMode::mode1_2048:
+      return 2048;
+    case DiscSectorMode::unknown:
+      return 0;
+  }
+  return 0;
+}
+
+[[nodiscard]] constexpr bool valid_native_sector_size(
+    DiscSectorMode mode,
+    std::uint32_t bytes) noexcept {
+  const auto expected = native_sector_size(mode);
+  return mode == DiscSectorMode::unknown
+      ? (bytes == 2048 || bytes == 2336 || bytes == 2352)
+      : bytes == expected;
+}
+
 struct DiscTrack {
   std::uint32_t number{};
   TrackKind kind{TrackKind::data};
+  DiscSectorMode mode{DiscSectorMode::mode1_2048};
   std::uint32_t sector_size{2048};
   std::uint64_t first_lba{};
   std::uint64_t sectors{};
+
+  [[nodiscard]] constexpr bool has_valid_sector_size() const noexcept {
+    return valid_native_sector_size(mode, sector_size);
+  }
 };
 
 struct DiscLayout {
