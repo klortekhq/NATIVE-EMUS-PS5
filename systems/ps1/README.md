@@ -1,6 +1,6 @@
 # Sony PlayStation / PS1
 
-## Progress: **78%**
+## Progress: **80%**
 
 > Native standalone PS5 target. The canonical detailed engineering status lives in [ports/beetle-psx-ps5](../../ports/beetle-psx-ps5/README.md).
 
@@ -30,7 +30,7 @@ The final PS5 build **must use the recompiler**. Interpreter execution is diagno
 
 ## Current verified state
 
-Workflow **36825853078** is green from the public upstream pin and validates:
+Workflow **36833195325** is green from the public upstream pin and validates:
 
 - deterministic PS5 transform;
 - current Lightrec/GNU Lightning x86-64 PS5 archive;
@@ -40,6 +40,8 @@ Workflow **36825853078** is green from the public upstream pin and validates:
 - PS5 `VK_KHR_display` surface selection logic;
 - AudioOut/input/rumble bridge;
 - local CUE/CHD/PBP/ISO/CCD/TOC/M3U/PS-X EXE content policy;
+- native 2048/2336/2352-byte per-track sector widths by LBA;
+- validated local multi-disc M3U resolution with network/nested playlists rejected until VFS is ready;
 - atomic SRAM persistence;
 - standalone native PS1 shell compilation.
 
@@ -69,12 +71,12 @@ The driver is linked into the title; the PS5 port does not rely on a desktop Vul
 The 2026-10-01 hardening pass added an immutable RADV bundle receipt, native
 mixed-mode sector metadata, explicit region-aware BIOS policy and the shared
 native FSELF finalizer with PS1's AGC import stubs. These improve
-reproducibility but do **not** increase the 78% score until the complete RADV
+reproducibility but do **not** increase the graphics/title-link score until the complete RADV
 application link is produced and validated.
 
 ## Remaining gates
 
-1. freeze/validate the pinned RADV + matching SDK bundle;
+1. execute the pinned RADV build and freeze/validate its matching SDK bundle;
 2. finish the full standalone RADV-linked ELF;
 3. validate native ELF/FSELF conversion from that full link;
 4. physical PS5 boot;
