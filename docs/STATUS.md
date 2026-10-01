@@ -47,7 +47,7 @@ Dynarmic A32+A64 x86-64 JIT cross-build evidence: workflow **36760157664**.\n\n#
 | Switch / Eden-derived | **shared A32/A64 x64 JIT gate green** | Dynarmic PS5 archive is reproducible; ProsperoEden remains the native platform reference |
 | PPSSPP / PSP | External port research | Public PS5-specific work exists |
 | Mupen64Plus / N64 | **CPU + RSP JIT transform preserved** | exact historical donor evidence is retained; current CI falls back to a frozen ps5rt transform-contract regression when that donor is not publicly retrievable |
-| Azahar / 3DS | **shared A32/A64 x64 JIT gate green** | `libdynarmic_ps5.a` now cross-builds with both JIT frontends |
+| Azahar / 3DS | **canonical A32 sparse x64 JIT gate green** | canonical Azahar `662d412...` + its Dynarmic `e77b1ba...` cross-build with sparse fixed-address reserve, incremental direct-memory commits and W^X; artifact 11165471584. Physical execution/core integration are next |
 | Dolphin / GC/Wii | External port research | Existing PS5 work demonstrates JIT/Vulkan feasibility |
 | DeSmuME / NDS | External port research | historical Mihawk PS5 work is retained as evidence; live source availability must be re-audited before reuse |
 | Beetle PSX / Saturn | Upstream-first / historical donor evidence | PS1 now builds from public Beetle upstream; old Mihawk ports are historical feasibility evidence only |
@@ -88,7 +88,7 @@ These are especially useful for hardening AudioOut, DualSense, VFS, packaging an
 1. **runtime implementation:** migrate proven M8/Swordpdf/Mihawk platform solutions behind the new ps5rt contract;
 2. **Flycast:** first greenfield standalone modern port;
 3. **RPCS3:** preserve verified PS5-specific findings while re-auditing live public provenance before importing any old Mihawk dependency;
-4. **Vita3K/Azahar:** preserve the proven shared Dynarmic/JIT ABI and migrate only from a presently verifiable public source;
+4. **Vita3K/Azahar:** keep each emulator on its canonical pinned Dynarmic revision while sharing the proven ps5rt executable-memory ABI; Azahar's current A32 sparse-JIT engine is now cross-build green;
 5. **portable cores:** use Snes9x/SameBoy/mGBA/Genesis Plus GX/Stella-class ports to validate audio/input/VFS/packaging;
 6. **Cemu/Dolphin/PPSSPP/N64/NDS/PS1/Saturn:** consolidate known scene fixes into standalone-native designs;
 7. **xemu/Xenia/MAME/Jaguar/Amiga:** maintain dedicated deeper-host tracks.
