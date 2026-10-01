@@ -230,7 +230,7 @@
       "name": "PS5 OpenGL",
       "repository": "BlackBearReloaded/ps5-opengl",
       "url": "https://github.com/BlackBearReloaded/ps5-opengl",
-      "pin": "9c860caeaf0c25635be9a84b794601379ccfe58d",
+      "pin": "dce74910af7f4274c48d05e0ae001b3038462588",
       "license": "GPL-3.0",
       "priority": "critical",
       "cache_source": true,
@@ -242,7 +242,7 @@
         "cts",
         "gpu"
       ],
-      "relevance": "Hardware-validated PS5 OpenGL/Mesa/AGC reference with current OpenGL 4.6 CTS evidence; useful for GPU, tiling, shader and presentation cross-checks even where Vulkan is the target renderer.",
+      "relevance": "Hardware-validated PS5 OpenGL/Mesa/AGC reference with complete OpenGL 4.6 CTS evidence, showcase frame capture and recorded 1.0.0 frame-rate evidence; useful for GPU, tiling, shader, presentation and performance cross-checks even where Vulkan is the target renderer.",
       "discovered_via": [
         "direct-audit",
         "scene-cross-reference"
