@@ -11,6 +11,7 @@ on:
       - 'tools/ps5/validate_radv_bundle.py'
       - 'tools/ps5/prepare_radv_source_stack.sh'
       - 'tools/ps5/build_radv_bundle_from_pins.sh'
+      - 'tools/ps5/build-libsmb2.sh'
       - 'ports/beetle-psx-ps5/**'
       - '.github/workflows/ps1-lightrec.yml'
   pull_request:
@@ -21,6 +22,7 @@ on:
       - 'tools/ps5/freeze_radv_bundle.py'
       - 'tools/ps5/validate_radv_bundle.py'
       - 'tools/ps5/prepare_radv_source_stack.sh'
+      - 'tools/ps5/build-libsmb2.sh'
       - 'ports/beetle-psx-ps5/**'
       - '.github/workflows/ps1-lightrec.yml'
   workflow_dispatch:
@@ -125,6 +127,8 @@ jobs:
             -Iruntime/include \
             ports/beetle-psx-ps5/native/content.cpp \
             corehost/src/static_core.cpp \
+            corehost/src/vfs.cpp \
+            runtime/src/common/io.cpp \
             ports/beetle-psx-ps5/tests/content_test.cpp \
             -o /tmp/ps1-content-test
           /tmp/ps1-content-test
@@ -137,6 +141,8 @@ jobs:
             -Iruntime/include \
             ports/beetle-psx-ps5/native/config.cpp \
             corehost/src/static_core.cpp \
+            corehost/src/vfs.cpp \
+            runtime/src/common/io.cpp \
             ports/beetle-psx-ps5/tests/config_test.cpp \
             -o /tmp/ps1-config-test
           /tmp/ps1-config-test
@@ -183,6 +189,22 @@ jobs:
           test -x /opt/ps5-payload-sdk/bin/prospero-clang++
           test -x /opt/ps5-payload-sdk/bin/prospero-ar
           test -x /opt/ps5-payload-sdk/bin/prospero-ranlib
+
+      - name: Cross-build pinned libsmb2 and compile ps5rt SMB backend
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          set -euo pipefail
+          bash tools/ps5/build-libsmb2.sh
+          test -s build/ps5/libsmb2/libsmb2.ps5.a
+          /opt/ps5-payload-sdk/bin/prospero-clang++ \
+            --sysroot=/opt/ps5-payload-sdk/target \
+            -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -Iruntime/include \
+            -Ibuild/ps5/libsmb2/install/include \
+            -c runtime/src/ps5/io_smb.cpp \
+            -o /tmp/ps5rt-io-smb.o
+          test -s /tmp/ps5rt-io-smb.o
 
       - name: Cross-build Beetle PSX HW Lightrec x86-64 engine
         env:
