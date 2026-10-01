@@ -1,12 +1,52 @@
 #include <ps5rt/io.hpp>
 
+#include <array>
 #include <cstdio>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <string>
 
 namespace ps5rt {
 namespace {
+
+struct BackendSlot {
+  std::string scheme{};
+  RandomAccessOpenFn opener{};
+};
+
+std::mutex g_backend_mutex;
+std::array<BackendSlot, 8> g_backends{};
+
+bool valid_scheme(std::string_view scheme) noexcept {
+  if (scheme.empty() || scheme.size() > 15)
+    return false;
+  for (const char ch : scheme) {
+    const bool ok =
+        (ch >= 'a' && ch <= 'z') ||
+        (ch >= '0' && ch <= '9') ||
+        ch == '+' || ch == '-' || ch == '.';
+    if (!ok)
+      return false;
+  }
+  return true;
+}
+
+std::string_view uri_scheme(std::string_view uri) noexcept {
+  const auto separator = uri.find("://");
+  if (separator == std::string_view::npos)
+    return {};
+  return uri.substr(0, separator);
+}
+
+RandomAccessOpenFn find_backend(std::string_view scheme) noexcept {
+  std::scoped_lock lock(g_backend_mutex);
+  for (const auto& slot : g_backends) {
+    if (slot.opener && slot.scheme == scheme)
+      return slot.opener;
+  }
+  return nullptr;
+}
 
 class FileReader final : public RandomAccessReader {
 public:
@@ -69,6 +109,52 @@ std::string local_path(std::string_view uri) {
 
 } // namespace
 
+Result register_random_access_backend(
+    std::string_view scheme,
+    RandomAccessOpenFn opener) noexcept {
+  if (!valid_scheme(scheme) || !opener)
+    return {ErrorCode::invalid_argument, 0, "invalid random-access backend"};
+
+  std::scoped_lock lock(g_backend_mutex);
+
+  for (auto& slot : g_backends) {
+    if (slot.opener && slot.scheme == scheme) {
+      if (slot.opener == opener)
+        return Result::success();
+      return {ErrorCode::system_error, 0, "URI backend already registered"};
+    }
+  }
+
+  for (auto& slot : g_backends) {
+    if (!slot.opener) {
+      slot.scheme.assign(scheme);
+      slot.opener = opener;
+      return Result::success();
+    }
+  }
+
+  return {ErrorCode::out_of_memory, 0, "URI backend registry full"};
+}
+
+Result unregister_random_access_backend(
+    std::string_view scheme,
+    RandomAccessOpenFn opener) noexcept {
+  if (!valid_scheme(scheme) || !opener)
+    return {ErrorCode::invalid_argument, 0, "invalid random-access backend"};
+
+  std::scoped_lock lock(g_backend_mutex);
+  for (auto& slot : g_backends) {
+    if (slot.opener && slot.scheme == scheme) {
+      if (slot.opener != opener)
+        return {ErrorCode::invalid_argument, 0, "URI backend owner mismatch"};
+      slot = {};
+      return Result::success();
+    }
+  }
+
+  return {ErrorCode::invalid_argument, 0, "URI backend not registered"};
+}
+
 Result open_random_access(
     std::string_view uri,
     OpenMode mode,
@@ -83,12 +169,16 @@ Result open_random_access(
         ErrorCode::unsupported, 0,
         "read-write random access not implemented"};
 
-  const std::string path = local_path(uri);
-  if (path.find("://") != std::string::npos)
+  const auto scheme = uri_scheme(uri);
+  if (!scheme.empty() && scheme != "file" && scheme != "usb") {
+    if (const auto opener = find_backend(scheme))
+      return opener(uri, mode, out);
     return {
         ErrorCode::unsupported, 0,
         "URI scheme not handled by registered backend"};
+  }
 
+  const std::string path = local_path(uri);
   std::FILE* f = std::fopen(path.c_str(), "rb");
   if (!f)
     return {ErrorCode::io_error, 0, "fopen failed"};
