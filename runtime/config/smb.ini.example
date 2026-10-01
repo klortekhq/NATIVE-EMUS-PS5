@@ -1,0 +1,16 @@
+# Shared SMB2/SMB3 read-only backend for NATIVE-EMUS-PS5.
+#
+# Install as:
+#   /data/NATIVE-EMUS-PS5/network/smb.ini
+#
+# Content URLs never contain credentials:
+#   smb://192.168.1.100/ROMs/PS1/Game.chd
+
+enabled=true
+server=192.168.1.100
+port=445
+share=ROMs
+username=ps5
+password=
+domain=WORKGROUP
+timeout_seconds=10
