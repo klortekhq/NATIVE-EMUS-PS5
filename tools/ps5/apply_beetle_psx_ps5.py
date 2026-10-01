@@ -94,6 +94,26 @@ else ifeq ($(platform), ps5)
     )
     out[makefile] = text
 
+    eventcount = root / "libretro-common/rthreads/retro_eventcount.c"
+    text = eventcount.read_text()
+    text = replace_once(
+        text,
+        """#if defined(__unix__) && !defined(__APPLE__) && !defined(__sun__)
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 199309
+#endif
+#endif
+""",
+        """#if (defined(__unix__) || defined(__PROSPERO__)) && !defined(__APPLE__) && !defined(__sun__)
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 199309
+#endif
+#endif
+""",
+        "Prospero POSIX clock feature surface",
+    )
+    out[eventcount] = text
+
     lightning_h = root / "include/lightning.h"
     text = lightning_h.read_text()
     text = replace_once(
