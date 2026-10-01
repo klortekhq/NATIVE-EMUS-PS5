@@ -270,3 +270,38 @@ Always inspect upstream before carrying a scene fork indefinitely.
 - Azahar
 
 The ideal long-term port keeps the upstream delta small and isolates PS5 code behind a platform layer.
+
+
+## Discovery feeds and preservation
+
+### @Jdr8245Jhon
+
+The public PS5-scene feed `@Jdr8245Jhon` is tracked as a **discovery source**,
+not as technical authority. Repositories surfaced there are independently
+checked on GitHub before they enter the project reference cache.
+
+The 2026-10-01 audit added or refreshed these useful references in
+`upstreams/scene-cache.json`:
+
+- `mpereiraesaa/ps5-vulkan` — Vulkan/AGC/VideoOut/shader-cache/DXVK;
+- `boykopovar/AnyPS5` — AGC, VideoOut and persistent shader/pipeline-cache work;
+- `DualSenseClient/DualSenseClient` — HID reports, adaptive triggers, haptics/audio;
+- `sainsaji/EVO-PLAYER-PS5` — native app/toolchain, AudioOut/VideoOut, AGC and FFmpeg;
+- `iStark/PS5PCEM` — AGC/PM4/RDNA2/VideoOut reverse-engineering reference;
+- `strongt1me/PS5-Dump-Image-Converter` — FFPKG/FFPFSC/exFAT packaging reference;
+- `Pharaoh2k/PlayStation-Payload-Center` — metadata/watch-only because its
+  repository license is proprietary/binary-only.
+
+Policy:
+
+1. social posts discover leads;
+2. GitHub repository + exact revision are verified independently;
+3. license/provenance is checked before caching source;
+4. useful open-source references are pinned and preserved by CI;
+5. proprietary, irrelevant or unsafe-to-reuse material remains metadata-only;
+6. no cached reference becomes an emulator dependency without an explicit
+   architecture/license review.
+
+This is intentionally broader than emulator forks: Vulkan, native-title
+tooling, SDK/linker work, controller protocols, packaging and hardware-tested
+platform code can all remove duplicated PS5 reverse-engineering work.
