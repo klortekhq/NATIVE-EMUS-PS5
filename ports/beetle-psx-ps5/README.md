@@ -13,7 +13,7 @@
 | Native CPU recompiler/JIT | 25% | **25% — Lightrec + GNU Lightning x86-64 verified in current archive** |
 | Native Vulkan host / RADV | 15% | **11%** — environment, provider, display surface and presenter implemented and host-tested |
 | Native audio/input | 10% | **8%** — AudioOut, DualSense, rumble and clean-exit chord wired and host-tested |
-| VFS/disc/saves | 10% | **9%** — local CUE/CHD/PBP/etc., per-track native sector widths, validated local multi-disc M3U + atomic SRAM persistence; network VFS pending |
+| VFS/disc/saves | 10% | **9%** — local media + multi-disc M3U, atomic SRAM, native EMUS HTTP Range and anchored remote descriptor sidecars implemented; physical network validation pending |
 | Native app shell / title link | 5% | **4%** — standalone lifecycle + shell compile are green; final RADV-linked ELF/title conversion pending |
 | Physical PS5 boot/game validation | 10% | **0%** |
 
@@ -35,7 +35,10 @@ standalone path has now passed additional reproducible tests while the full RADV
 - firmware policy is explicit: region auto, BIOS animation enabled, no forced
   region-free override; Beetle keeps its user BIOS search/OpenBIOS fallback;
 - the standalone link now feeds its RADV AGC stubs into the shared pinned
-  native-title/FSELF finalizer.
+  native-title/FSELF finalizer;
+- the native `emus://` reader now transports descriptor-relative paths through
+  SERVER-EMUS-PS5, so remote CUE/CCD/TOC/M3U layouts can keep ordinary relative
+  BIN/IMG/SUB/disc references without SMB or physical NAS paths.
 
 See [REFERENCE-AUDIT-2026-10-01.md](REFERENCE-AUDIT-2026-10-01.md).
 
@@ -46,7 +49,11 @@ bash tools/ps5/prepare_radv_source_stack.sh
 ```
 
 That script verifies the PS5_Vulkan, PS5_Mesa and PS5_PayloadSDK revisions used
-by the current lock instead of following any moving branch.
+by the current lock instead of following any moving branch. As of 2026-10-01
+those exact historical Mihawk repositories/pins are not publicly retrievable.
+The full-link workflow therefore has an explicit provenance preflight: it reports
+the gate as **blocked** and does not claim link evidence until every exact pin is
+available again (or an intentionally reviewed graphics-stack migration lands).
 
 To build and freeze the actual immutable link bundle from those exact sources:
 
@@ -218,7 +225,12 @@ remains available.
 
 Save RAM is written through a temporary file and rename, avoiding partially-written memory cards when an ordinary write fails.
 
-Network URIs are deliberately rejected until the `ps5rt` network backend is complete; the shell does not pretend SMB is working when it is not.
+The standalone shell accepts `emus://` through the native ps5rt HTTP backend.
+The client performs HEAD metadata discovery and ranged GETs with ETag/If-Range.
+SERVER-EMUS-PS5 keeps the launchable catalog separate from descriptor sidecars:
+a catalog ID anchors virtual relative paths for CUE/CCD/TOC/M3U companions, and
+the server rejects path or symlink escapes outside the configured library.
+Other network schemes are not silently treated as interchangeable transports.
 
 ### VFS bridge status
 
@@ -229,9 +241,16 @@ The host-side libretro bridge is now implemented and deliberately advertises
 - Beetle's hybrid VFS then falls back to v1;
 - v1 `open/size/tell/seek/read` route through `ps5rt::RandomAccessReader`;
 - local and `file://` reads are host-tested, including EOF and seek semantics;
+- `smb://` and native `emus://` random-access backends are registered behind
+  `ps5rt::open_random_access`;
+- `emus://host/id/path` preserves one opaque catalog anchor while relative
+  descriptor paths are percent-encoded and resolved server-side inside the same
+  configured library;
+- remote M3U preparation is covered by the PS1 content regression, and the
+  EMUS URI translator has a dedicated host test;
 - write/remove/rename are rejected instead of being partially advertised;
-- the next subgate is an `smb://` backend registered behind
-  `ps5rt::open_random_access`.
+- the next VFS subgate is real PS5 seek/read/disc-swap validation over LAN plus
+  throughput/latency comparison against SMB.
 
 This deliberately **does not change the 83% score** yet. The existing VFS/disc/save
 gate remains 9/10 until network random access passes real seek/read tests.
@@ -255,12 +274,12 @@ That evidence is preserved, but the current build must reproduce the same archit
 
 ## Remaining gates
 
-- execute the pinned RADV source build and freeze/validate the resulting matching driver + SDK bundle;
-- complete the full standalone RADV link with the current Lightrec engine;
+- restore access to the exact pinned historical RADV sources or deliberately migrate the graphics provider to a newly audited public stack;
+- build/freeze/validate the resulting matching driver + SDK bundle and complete the full standalone Vulkan link with the current Lightrec engine;
 - validate the generated native ELF/FSELF from that complete link;
 - boot on physical PS5;
 - validate regional BIOS/OpenBIOS with legal test content;
-- validate CUE/CHD/PBP, mixed-mode discs, multi-disc M3U and memory cards on physical hardware;
+- validate local and SERVER-EMUS-PS5 CUE/CHD/PBP, mixed-mode discs, remote multi-disc M3U and memory cards on physical hardware;
 - performance/compatibility pass with the native Lightrec backend.
 
 ## Standalone hotkeys
@@ -278,9 +297,14 @@ close tray.
 
 ## Latest verified CI evidence
 
-Workflow **36835002466** completed successfully at
-`7457c16b0e2a5d87ccb50fbe864900de73989692`.
+Workflow **36844576020** completed successfully at
+`8f91540c61d2d5f8fe7fc3076cfac7b504deb704`.
 
-It validates the standalone shell, guarded save-state persistence, multi-disc
-disk-control/hotkeys and the PS5 Lightrec x86-64 cross-build. Engine artifact:
-**11148931941**.
+It validates the deterministic Beetle transform, standalone content path,
+remote EMUS multi-disc preparation, the native Prospero build of the EMUS
+random-access backend, guarded save-state/disc-control paths and the PS5
+Lightrec x86-64 engine cross-build.
+
+The last engine artifact recorded before this networking increment remains
+**11148931941** from workflow **36835002466**; no new progress percentage is
+claimed until physical-network and final Vulkan-title gates pass.
