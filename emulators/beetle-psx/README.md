@@ -1,11 +1,11 @@
 # Beetle PSX / Beetle PSX HW
 
-## Progress: **78%**
+## Progress: **80%**
 
 > Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
 
 **Systems:** PlayStation  
-**Repository state:** Port research / native PS5 integration plan
+**Repository state:** Native PS5 engine cross-built / standalone integration in progress
 
 ## Why this core is tracked
 
@@ -35,3 +35,7 @@ Keep the upstream emulator core recognizable. Do not make RetroArch/libretro a m
 3. boot a minimal test ROM/content path;
 4. validate audio/input/save paths;
 5. only then add a full native frontend and packaging.
+
+## Current evidence
+
+Workflow **36833195325** is green for the current public Beetle pin and validates the Lightrec x86-64 transform, native Vulkan host contracts, local multi-disc M3U handling, per-track optical sector widths, AudioOut/DualSense and standalone shell compilation. Full pinned RADV link and physical-console validation remain.
