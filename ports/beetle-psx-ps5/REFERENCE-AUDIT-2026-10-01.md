@@ -113,8 +113,29 @@ PS5_Mesa   cedb774b27d089fa81f46add28d0a8c13ff0f7d2
 PS5_PayloadSDK 95c08f27386fc698f6bbe21dde3030140a41d10b
 ```
 
-The Mihawk repositories are not currently publicly cloneable from this GitHub
-connection, therefore our PS1 build must not require live access to them.
+The GitHub connector used by this workspace still returns 404 for Mihawk's
+repositories, but public web access on 2026-10-01 confirms that **PS5_Vulkan**
+and **PS5_RetroArch** are visible again. PS5_RetroArch now documents Beetle PSX
+HW running on PS5 RADV, including hardware rendering at up to 16x internal
+resolution, while PS5_Vulkan documents the native driver/tooling stack.
+
+Because connector visibility and public visibility currently disagree, our build
+must remain reproducible from exact pins and must not silently follow `main`.
+
+### mihawk-99/PS5_RetroArch
+
+Public web state reviewed 2026-10-01:
+
+- Beetle PSX HW is documented as a working hardware-rendered core on PS5;
+- Vulkan hardware contexts run through RADV linked into the native title;
+- shader cache persistence is implemented;
+- the driver is rebuilt and linked with the title rather than loaded from a
+  desktop Vulkan stack;
+- current public documentation reports Beetle PSX HW rendering at up to 16x.
+
+This is strong **hardware proof for our chosen core/renderer pair**. We still do
+not adopt RetroArch as the architecture: only its proven PS5 Vulkan/RADV
+integration contract is relevant to our standalone frontend.
 
 ## Decision
 
