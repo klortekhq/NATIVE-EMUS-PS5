@@ -19,10 +19,18 @@ upstream head at the time of this gate. Historical `mihawk-99/PS5_RPCS3`,
 `PS5_LLVM` and `PS5_Mesa` revisions are retained in the scene cache as
 provenance/reference material, but are not required live dependencies.
 
-The active PS5 CPU gate reproduces the SCE x86-64 over-alignment defect against
-the canonical LLVM submodule, applies a minimal marker-checked shim only under
-`__SCE__`, and cross-compiles the real PPU/SPU recompiler translation units.
+The PS5 CPU compile gate is now green. The workflow reproduces the SCE x86-64
+over-alignment defect against the canonical LLVM submodule, applies a minimal
+marker-checked shim only under `__SCE__`, generates every required TableGen
+header from the exact same LLVM revision, and cross-compiles the real
+PPU LLVM + SPU LLVM/AsmJit translation units into a static CPU-engine archive.
 No generated LLVM header is borrowed from another revision.
+
+The next layer is also implemented at compile level: `ps5rt` exposes a sparse
+fixed-address direct-memory arena and a native probe matching RPCS3's 2 GiB
+virtual reservation with representative 512 KiB and 2 MiB incremental commits.
+That probe cross-builds with Prospero; physical-PS5 execution remains required
+before wiring RPCS3 itself to the arena.
 
 ## Desired architecture
 
@@ -57,10 +65,15 @@ behavior that is independently reproduced and documented.
 
 ## Next milestone
 
-Close the canonical PPU+SPU CPU archive gate, then continue in this order:
+Continue in this order:
 
-1. executable-memory/JIT runtime adaptation;
-2. Vulkan/RADV baseline selection from current public PS5 references;
-3. platform services;
-4. frontend/headless isolation;
-5. performance instrumentation.
+1. execute the 2 GiB sparse-JIT arena probe on physical PS5;
+2. route canonical RPCS3 JITASM/JITLLVM allocation through the proven sparse
+   runtime without changing its 1 GiB code / 1 GiB data address semantics;
+3. select the Vulkan/RADV baseline from current public PS5 references;
+4. platform services;
+5. frontend/headless isolation;
+6. performance instrumentation.
+
+Progress remains **30%** until the sparse arena is proven on hardware; a
+cross-build alone is not counted as runtime validation.
