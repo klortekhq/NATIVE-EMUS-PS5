@@ -12,9 +12,17 @@ target_include_directories(ps5rt
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+# Portable host services that are shared by native PS5 and host tests.
+add_library(ps5rt_common STATIC
+  src/common/io.cpp
+)
+add_library(ps5rt::common ALIAS ps5rt_common)
+target_link_libraries(ps5rt_common PUBLIC ps5rt::ps5rt)
+target_compile_features(ps5rt_common PUBLIC cxx_std_20)
+
 # The concrete PS5 implementation will live behind this public contract.
-# Emulator cores should depend on ps5rt::ps5rt rather than on another
-# emulator/frontend.
+# Emulator cores should depend on ps5rt::ps5rt / ps5rt::common rather than on
+# another emulator/frontend.
 
 option(PS5RT_BUILD_HEADER_TEST "Build the ps5rt public-header smoke test" OFF)
 
@@ -35,14 +43,13 @@ if(PS5RT_BUILD_PS5_BACKEND)
     src/ps5/audio.cpp
     src/ps5/input.cpp
     src/ps5/input_hid.cpp
-    src/ps5/io.cpp
     src/ps5/log.cpp
     src/ps5/memory.cpp
     src/ps5/vfs.cpp
     src/ps5/video.cpp
   )
   add_library(ps5rt::ps5 ALIAS ps5rt_ps5)
-  target_link_libraries(ps5rt_ps5 PUBLIC ps5rt::ps5rt)
+  target_link_libraries(ps5rt_ps5 PUBLIC ps5rt::ps5rt ps5rt::common)
   target_compile_features(ps5rt_ps5 PUBLIC cxx_std_20)
   target_link_libraries(ps5rt_ps5
     PRIVATE
