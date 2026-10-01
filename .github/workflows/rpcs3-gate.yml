@@ -29,20 +29,25 @@ jobs:
           sudo tar xf ps5-payload-dev.tar.gz -C /
           test -x /opt/ps5-payload-sdk/bin/prospero-clang++
 
-      - name: Fetch pinned PS5 RPCS3 and LLVM
+      - name: Fetch canonical pinned RPCS3 CPU stack
         run: |
           set -euo pipefail
-          git clone --filter=blob:none https://github.com/mihawk-99/PS5_RPCS3.git /tmp/rpcs3
-          git -C /tmp/rpcs3 checkout --detach 2ada8e453c592d8764d2801a667f3da415794918
-          git clone --filter=blob:none https://github.com/mihawk-99/PS5_LLVM.git /tmp/llvm
-          git -C /tmp/llvm checkout --detach 98b45cc22e98844b7d49bbedefdfee04a740650a
-      - name: Verify PPU/SPU LLVM recompiler source gate
-        run: python3 "$GITHUB_WORKSPACE/tools/ps5/verify_rpcs3_ps5_sources.py" /tmp/rpcs3 /tmp/llvm
+          RPCS3_PIN=83b1e072990e839903c67401d1a6d7d1910a5824
+          git clone --filter=blob:none --no-checkout https://github.com/RPCS3/rpcs3.git /tmp/rpcs3
+          git -C /tmp/rpcs3 checkout --detach "$RPCS3_PIN"
+          test "$(git -C /tmp/rpcs3 rev-parse HEAD)" = "$RPCS3_PIN"
+          git -C /tmp/rpcs3 submodule update --init --depth 1             3rdparty/asmjit/asmjit             3rdparty/llvm/llvm
+          test "$(git -C /tmp/rpcs3/3rdparty/asmjit/asmjit rev-parse HEAD)" =             416f7356967c1f66784dc1580fe157f9406d8bff
+          test "$(git -C /tmp/rpcs3/3rdparty/llvm/llvm rev-parse HEAD)" =             ca7933e47d3a3451d81e72ac174dcb5aa28b59d1
+
+      - name: Verify PPU/SPU recompiler source gate
+        run: |
+          python3 "$GITHUB_WORKSPACE/tools/ps5/verify_rpcs3_ps5_sources.py"             /tmp/rpcs3 /tmp/rpcs3/3rdparty/llvm/llvm
 
       - name: Generate LLVM configuration headers
         run: |
           set -euo pipefail
-          cmake -S /tmp/llvm/llvm -B /tmp/llvm-config -G Ninja             -DLLVM_TARGETS_TO_BUILD=X86             -DLLVM_INCLUDE_TESTS=OFF             -DLLVM_INCLUDE_EXAMPLES=OFF             -DLLVM_INCLUDE_BENCHMARKS=OFF             -DLLVM_ENABLE_TERMINFO=OFF             -DLLVM_ENABLE_ZLIB=OFF             -DLLVM_ENABLE_ZSTD=OFF             -DLLVM_ENABLE_LIBXML2=OFF             -DLLVM_ENABLE_BINDINGS=OFF
+          cmake -S /tmp/rpcs3/3rdparty/llvm/llvm/llvm -B /tmp/llvm-config -G Ninja             -DLLVM_TARGETS_TO_BUILD=X86             -DLLVM_INCLUDE_TESTS=OFF             -DLLVM_INCLUDE_EXAMPLES=OFF             -DLLVM_INCLUDE_BENCHMARKS=OFF             -DLLVM_ENABLE_TERMINFO=OFF             -DLLVM_ENABLE_ZLIB=OFF             -DLLVM_ENABLE_ZSTD=OFF             -DLLVM_ENABLE_LIBXML2=OFF             -DLLVM_ENABLE_BINDINGS=OFF
 
       - name: Generate matching LLVM TableGen IR headers
         run: |
@@ -84,7 +89,7 @@ jobs:
             return static_cast<int>(values.size());
           }
           EOF
-          /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG             -I/tmp/llvm-config/include             -I/tmp/llvm/llvm/include             -c /tmp/ps5_llvm_abi_probe.cpp             -o /tmp/ps5_llvm_abi_probe.o
+          /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG             -I/tmp/llvm-config/include             -I/tmp/rpcs3/3rdparty/llvm/llvm/llvm/include             -c /tmp/ps5_llvm_abi_probe.cpp             -o /tmp/ps5_llvm_abi_probe.o
           test -s /tmp/ps5_llvm_abi_probe.o
 
       - name: Fetch pinned RPCS3 AsmJit dependency
@@ -100,9 +105,9 @@ jobs:
           flags=(
             -std=c++20 -O2 -DNDEBUG
             -DARCH_X64
-            -DRPCS3_LIBRETRO
             -I/tmp/rpcs3
             -I/tmp/rpcs3/rpcs3
+            -I/tmp/rpcs3/Utilities
             -I/tmp/rpcs3/3rdparty
             -I/tmp/rpcs3/3rdparty/asmjit/asmjit/src
           )
@@ -116,9 +121,9 @@ jobs:
           flags=(
             -std=c++20 -O2 -DNDEBUG
             -DARCH_X64
-            -DRPCS3_LIBRETRO
             -I/tmp/rpcs3
             -I/tmp/rpcs3/rpcs3
+            -I/tmp/rpcs3/Utilities
             -I/tmp/rpcs3/3rdparty
             -I/tmp/rpcs3/3rdparty/asmjit/asmjit/src
           )
@@ -133,13 +138,13 @@ jobs:
             -std=c++20 -O2 -DNDEBUG
             -DARCH_X64
             -DLLVM_AVAILABLE
-            -DRPCS3_LIBRETRO
             -I/tmp/rpcs3
             -I/tmp/rpcs3/rpcs3
+            -I/tmp/rpcs3/Utilities
             -I/tmp/rpcs3/3rdparty
             -I/tmp/rpcs3/3rdparty/asmjit/asmjit/src
             -I/tmp/llvm-config/include
-            -I/tmp/llvm/llvm/include
+            -I/tmp/rpcs3/3rdparty/llvm/llvm/llvm/include
           )
           "$CXX" "${flags[@]}"             -c /tmp/rpcs3/rpcs3/Emu/Cell/PPUTranslator.cpp             -o /tmp/rpcs3_ppu_llvm_ps5.o
           test -s /tmp/rpcs3_ppu_llvm_ps5.o
@@ -152,13 +157,13 @@ jobs:
             -std=c++20 -O2 -DNDEBUG
             -DARCH_X64
             -DLLVM_AVAILABLE
-            -DRPCS3_LIBRETRO
             -I/tmp/rpcs3
             -I/tmp/rpcs3/rpcs3
+            -I/tmp/rpcs3/Utilities
             -I/tmp/rpcs3/3rdparty
             -I/tmp/rpcs3/3rdparty/asmjit/asmjit/src
             -I/tmp/llvm-config/include
-            -I/tmp/llvm/llvm/include
+            -I/tmp/rpcs3/3rdparty/llvm/llvm/llvm/include
           )
           "$CXX" "${flags[@]}"             -c /tmp/rpcs3/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp             -o /tmp/rpcs3_spu_llvm_ps5.o
           test -s /tmp/rpcs3_spu_llvm_ps5.o
