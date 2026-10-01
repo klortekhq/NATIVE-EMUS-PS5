@@ -41,6 +41,27 @@ struct ControllerState {
   float r2{};
 };
 
+// Stable local-player assignment, independent of PS5 sign-in enumeration.
+// A source slot of -1 leaves the logical player disconnected. Remote/network
+// players use a separate session-level mapping and never occupy these slots.
+inline constexpr std::size_t max_local_players = 4;
+struct LocalPlayerMap {
+  std::array<std::int8_t, max_local_players> source_for_player{0, 1, 2, 3};
+};
+
+struct LocalPlayerSnapshot {
+  std::array<ControllerState, max_local_players> players{};
+};
+
+struct InputSnapshot;
+
+// Reorder/disable local controller sources without changing the device poller.
+// Invalid source indices and duplicate assignments are rejected atomically.
+Result validate_local_player_map(const LocalPlayerMap& map,
+                                 std::size_t source_count) noexcept;
+Result map_local_players(const InputSnapshot& input, const LocalPlayerMap& map,
+                         LocalPlayerSnapshot& out) noexcept;
+
 // USB HID keyboard usage IDs 0..255. Emulator-specific keyboard matrices stay
 // in the emulator; ps5rt only reports host key state.
 struct KeyboardState {

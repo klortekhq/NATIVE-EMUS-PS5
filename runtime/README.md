@@ -77,9 +77,18 @@ Preferred host interface:
 
 - DualSense
 - multiple users/controllers
+- stable local-player slots (`PLAYER1`–`PLAYER4`) remappable independently of sign-in order
 - rumble
 - keyboard through USB-HID usage state
 - mouse deltas/buttons/wheel
+
+`ps5rt::map_local_players` provides a portable local mapping contract: each
+player selects one connected controller source or is disabled. It is a pure
+offline operation and requires no network/session service. Invalid and
+duplicate source assignments are rejected. Remote players belong to a later,
+separate session-layer mapping and do not consume local controller indices.
+Each core must still declare its actual player/port limit and adapt only the
+slots its system supports.
 
 ### Optical media
 

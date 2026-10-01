@@ -15,6 +15,7 @@ target_include_directories(ps5rt
 # Portable host services that are shared by native PS5 and host tests.
 add_library(ps5rt_common STATIC
   src/common/io.cpp
+  src/common/input.cpp
 )
 add_library(ps5rt::common ALIAS ps5rt_common)
 target_link_libraries(ps5rt_common PUBLIC ps5rt::ps5rt)
@@ -37,6 +38,10 @@ if(PS5RT_BUILD_HEADER_TEST)
   add_executable(ps5rt-io-backend-test tests/io_backend_test.cpp)
   target_link_libraries(ps5rt-io-backend-test PRIVATE ps5rt::common)
   add_test(NAME ps5rt-io-backend COMMAND ps5rt-io-backend-test)
+
+  add_executable(ps5rt-input-mapping-test tests/input_mapping_test.cpp)
+  target_link_libraries(ps5rt-input-mapping-test PRIVATE ps5rt::common)
+  add_test(NAME ps5rt-input-mapping COMMAND ps5rt-input-mapping-test)
 endif()
 
 option(PS5RT_BUILD_PS5_BACKEND "Build the native PS5 backend implementation" OFF)

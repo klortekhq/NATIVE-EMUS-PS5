@@ -140,6 +140,15 @@ Target devices:
 
 The emulator core should receive ordinary logical inputs; PS5-specific polling belongs here.
 
+Local controller enumeration order is not the game's player order. The portable
+`ps5rt::LocalPlayerMap` assigns up to four local controller sources to stable
+`PLAYER1`–`PLAYER4` slots, allows a slot to be disabled, and rejects duplicate
+or out-of-range assignments. Mapping runs locally without networking. Remote
+session players are a separate concern and must not displace local controllers.
+Each emulator adapter declares the target's real input-port/player limit and
+maps only supported slots; this shared contract does not imply that every game
+supports four players.
+
 ### ps5rt::vfs
 
 Responsibilities:
