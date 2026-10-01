@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated": "2026-09-30",
+  "updated": "2026-10-01",
   "rule": "A workspace is not pinned until revision and license have been explicitly recorded.",
   "workspaces": [
     {
@@ -25,14 +25,21 @@
     {
       "workspace": "rpcs3",
       "upstream_url": "https://github.com/RPCS3/rpcs3",
-      "upstream_revision": null,
-      "license": null,
-      "pin_status": "repository-verified-revision-pending",
+      "upstream_revision": "83b1e072990e839903c67401d1a6d7d1910a5824",
+      "license": "GPL-2.0 project license; third-party components retain their own licenses",
+      "pin_status": "pinned-for-first-ps5-bringup",
       "ps5_scene_references": [
         "https://github.com/mihawk-99/PS5_RPCS3",
         "https://github.com/mihawk-99/PS5_LLVM",
-        "https://github.com/mihawk-99/PS5_Mesa"
-      ]
+        "https://github.com/mihawk-99/PS5_Mesa",
+        "https://github.com/mpereiraesaa/ps5-vulkan",
+        "https://github.com/boykopovar/AnyPS5"
+      ],
+      "toolchain_dependencies": {
+        "llvm_project_revision": "ca7933e47d3a3451d81e72ac174dcb5aa28b59d1",
+        "asmjit_revision": "416f7356967c1f66784dc1580fe157f9406d8bff",
+        "llvm_requirement": "22.1"
+      }
     },
     {
       "workspace": "vita3k",
