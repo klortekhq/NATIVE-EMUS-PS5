@@ -95,7 +95,7 @@ them without changing the ReXGlue core.
 
 | Gate | Requirement | State |
 |---|---|---|
-| G0 | Pin upstream + deterministic transform | IN PROGRESS |
+| G0 | Pin upstream + deterministic transform | PASS (host-ci) |
 | G1 | ReXGlue PS5 platform compiles with public PS5 SDK | PENDING |
 | G2 | AOT Simpsons guest objects compile for x86-64 PS5 | PENDING |
 | G3 | Native AudioOut + DualSense adapters link | PENDING |
@@ -105,7 +105,7 @@ them without changing the ReXGlue core.
 | G7 | Intro/FMVs/audio/input/gameplay smoke test | PENDING |
 | G8 | PKG/directory-title packaging + save/cache persistence | PENDING |
 
-Current status is **bring-up**, not playable.
+Current status is **bring-up**, not playable. G0 is CI-proven; the next gate cross-compiles the PS5-facing ReXGlue stack with the public Prospero toolchain.
 
 ## Build contract
 

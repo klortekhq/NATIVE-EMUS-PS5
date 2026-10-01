@@ -29,6 +29,8 @@ AUDIO_CMAKE = pathlib.Path("tools/rexglue-sdk/src/audio/CMakeLists.txt")
 INPUT_CMAKE = pathlib.Path("tools/rexglue-sdk/src/input/CMakeLists.txt")
 INPUT_SYSTEM = pathlib.Path("tools/rexglue-sdk/src/input/input_system.cpp")
 REX_APP = pathlib.Path("tools/rexglue-sdk/src/ui/rex_app.cpp")
+THIRDPARTY_CMAKE = pathlib.Path("tools/rexglue-sdk/thirdparty/CMakeLists.txt")
+CORE_CMAKE = pathlib.Path("tools/rexglue-sdk/src/core/CMakeLists.txt")
 VULKAN_INSTANCE_H = pathlib.Path("tools/rexglue-sdk/include/rex/ui/vulkan/instance.h")
 VULKAN_INSTANCE = pathlib.Path("tools/rexglue-sdk/src/ui/vulkan/vulkan_instance.cpp")
 VULKAN_PRESENTER = pathlib.Path("tools/rexglue-sdk/src/ui/vulkan/vulkan_presenter.cpp")
@@ -511,6 +513,67 @@ def transform_rex_app(text: str) -> str:
     return text
 
 
+
+def transform_thirdparty_cmake(text: str) -> str:
+    text = replace_once(
+        text,
+        """    imgui
+    sdl3
+)
+""",
+        """    imgui
+)
+if(NOT REXGLUE_PS5)
+    list(APPEND REQUIRED_SUBMODULES sdl3)
+endif()
+""",
+        "PS5 SDL required-submodule exclusion",
+    )
+    text = replace_once(
+        text,
+        """#=============================================================================
+# SDL3 - Cross-platform media layer
+#=============================================================================
+set(SDL_INSTALL ON CACHE BOOL "" FORCE)
+""",
+        """#=============================================================================
+# SDL3 - Cross-platform media layer
+#=============================================================================
+if(NOT REXGLUE_PS5)
+set(SDL_INSTALL ON CACHE BOOL "" FORCE)
+""",
+        "PS5 SDL block start",
+    )
+    text = replace_once(
+        text,
+        """add_subdirectory(sdl3)
+
+#=============================================================================
+# DXC API headers""",
+        """add_subdirectory(sdl3)
+endif()
+
+#=============================================================================
+# DXC API headers""",
+        "PS5 SDL block end",
+    )
+    return text
+
+
+def transform_core_cmake(text: str) -> str:
+    return replace_once(
+        text,
+        """if(UNIX)
+    target_link_libraries(rexcore PRIVATE pthread rt dl)
+endif()
+""",
+        """if(UNIX AND NOT REXGLUE_PS5)
+    target_link_libraries(rexcore PRIVATE pthread rt dl)
+endif()
+""",
+        "PS5 core POSIX link libraries",
+    )
+
 def transform_vulkan_instance_header(text: str) -> str:
     text = replace_once(
         text,
@@ -874,6 +937,10 @@ def main() -> int:
             INPUT_CMAKE: transform_input_cmake((root / INPUT_CMAKE).read_text()),
             INPUT_SYSTEM: transform_input_system((root / INPUT_SYSTEM).read_text()),
             REX_APP: transform_rex_app((root / REX_APP).read_text()),
+            THIRDPARTY_CMAKE: transform_thirdparty_cmake(
+                (root / THIRDPARTY_CMAKE).read_text()
+            ),
+            CORE_CMAKE: transform_core_cmake((root / CORE_CMAKE).read_text()),
             VULKAN_INSTANCE_H: transform_vulkan_instance_header(
                 (root / VULKAN_INSTANCE_H).read_text()
             ),
@@ -900,6 +967,8 @@ def main() -> int:
             "input": "ps5_input_driver.cpp" in transformed[INPUT_CMAKE],
             "input_factory": "PS5InputDriver" in transformed[INPUT_SYSTEM],
             "audio_factory": "PS5AudioSystem" in transformed[REX_APP],
+            "no_sdl": "if(NOT REXGLUE_PS5)" in transformed[THIRDPARTY_CMAKE],
+            "core_link": "UNIX AND NOT REXGLUE_PS5" in transformed[CORE_CMAKE],
             "vulkan_display_ext": "ext_KHR_display" in transformed[VULKAN_INSTANCE_H],
             "vulkan_static_loader": "PS5 Vulkan is linked into the title" in transformed[VULKAN_INSTANCE],
             "vulkan_display_surface": "vkCreateDisplayPlaneSurfaceKHR" in transformed[VULKAN_PRESENTER],
