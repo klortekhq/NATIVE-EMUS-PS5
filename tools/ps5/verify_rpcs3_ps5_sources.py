@@ -63,9 +63,11 @@ def main() -> int:
         "RPCS3 pinned LLVM contract",
     )
 
-    # The historical PS5 LLVM fork carried SCE-specific alignment fixes here.
-    # Canonical LLVM now expresses those requirements generically. Prove that
-    # the exact pinned source still has those invariants before cross-building.
+    # Canonical LLVM has generic alignment machinery, but the Prospero/SCE
+    # x86-64 ABI still loses over-alignment through the relevant empty bases.
+    # Verify the exact baseline shapes here; rpcs3-gate.yml separately proves
+    # the SCE defect, applies our minimal deterministic shim, and recompiles the
+    # same ABI probe before touching RPCS3 engine objects.
     small = (llvm / "llvm/include/llvm/ADT/SmallVector.h").read_text()
     require(
         small,
@@ -103,7 +105,7 @@ def main() -> int:
     print(f"asmjit={ASMJIT_PIN}")
     print("cpu=PPU LLVM + SPU LLVM/ASMJIT")
     print("frontend_boundary=rpcs3_emu static engine")
-    print("llvm_alignment=canonical generic alignment contracts")
+    print("llvm_alignment=canonical baseline; SCE ABI probe/shim is a separate gate")
     return 0
 
 
