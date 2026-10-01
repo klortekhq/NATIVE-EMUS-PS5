@@ -40,6 +40,8 @@ jobs:
           grep -q 'ps5rt_exec_allocate' /tmp/beetle-psx/libretro.c
           grep -q 'ps5rt_exec_release' /tmp/beetle-psx/libretro.c
           grep -q 'defined(__PROSPERO__)' /tmp/beetle-psx/libretro.c
+          grep -q '#define HAVE_MMAP 0' /tmp/beetle-psx/include/lightning.h
+          echo "GNU Lightning must not own mmap on PS5: PASS"
 
       - name: Test Vulkan hardware-context lifecycle
         run: |
@@ -158,6 +160,40 @@ jobs:
           grep -q 'radv_link_inputs' ports/beetle-psx-ps5/build_app_ps5.sh
           grep -q 'radv_link_flags' ports/beetle-psx-ps5/build_app_ps5.sh
           grep -q 'libSceAgcDriver' ports/beetle-psx-ps5/build_app_ps5.sh
+
+      - name: Verify PS5 archive has no accidental POSIX JIT allocator
+        run: |
+          set -euo pipefail
+          A=build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
+          test -s "$A"
+          nm -u "$A" | awk '/ U /{print $NF}' | sort -u > /tmp/ps1-undef.txt
+          ! grep -Eq '^(mmap|mprotect|munmap)        uses: actions/upload-artifact@v4
+        with:
+          name: native-beetle-psx-hw-lightrec-x64-ps5-engine
+          path: |
+            build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
+            build/ps5/beetle-psx/artifacts/BUILD-MANIFEST.json
+            build/ps5/beetle-psx/artifacts/SHA256SUMS
+          if-no-files-found: error
+ /tmp/ps1-undef.txt
+          grep -q '^ps5rt_exec_allocate        uses: actions/upload-artifact@v4
+        with:
+          name: native-beetle-psx-hw-lightrec-x64-ps5-engine
+          path: |
+            build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
+            build/ps5/beetle-psx/artifacts/BUILD-MANIFEST.json
+            build/ps5/beetle-psx/artifacts/SHA256SUMS
+          if-no-files-found: error
+ /tmp/ps1-undef.txt
+          grep -q '^ps5rt_exec_release        uses: actions/upload-artifact@v4
+        with:
+          name: native-beetle-psx-hw-lightrec-x64-ps5-engine
+          path: |
+            build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
+            build/ps5/beetle-psx/artifacts/BUILD-MANIFEST.json
+            build/ps5/beetle-psx/artifacts/SHA256SUMS
+          if-no-files-found: error
+ /tmp/ps1-undef.txt
 
       - name: Upload engine evidence
         uses: actions/upload-artifact@v4

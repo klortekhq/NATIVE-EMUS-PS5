@@ -94,6 +94,21 @@ else ifeq ($(platform), ps5)
     )
     out[makefile] = text
 
+    lightning_h = root / "include/lightning.h"
+    text = lightning_h.read_text()
+    text = replace_once(
+        text,
+        "#define HAVE_MMAP 1\n\n#include <lightning-actual.h>\n",
+        "#if defined(__PROSPERO__)\n"
+        "#define HAVE_MMAP 0 /* caller-supplied ps5rt executable code pool */\n"
+        "#else\n"
+        "#define HAVE_MMAP 1\n"
+        "#endif\n\n"
+        "#include <lightning-actual.h>\n",
+        "lightning mmap policy",
+    )
+    out[lightning_h] = text
+
     libretro = root / "libretro.c"
     text = libretro.read_text()
 
