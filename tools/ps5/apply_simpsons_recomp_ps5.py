@@ -24,6 +24,11 @@ SDK_CMAKE = pathlib.Path("tools/rexglue-sdk/CMakeLists.txt")
 UI_CMAKE = pathlib.Path("tools/rexglue-sdk/src/ui/CMakeLists.txt")
 HELPERS = pathlib.Path("tools/rexglue-sdk/cmake/rexglue_helpers.cmake")
 SIMPSONS_CMAKE = pathlib.Path("simpsons/CMakeLists.txt")
+SURFACE = pathlib.Path("tools/rexglue-sdk/include/rex/ui/surface.h")
+AUDIO_CMAKE = pathlib.Path("tools/rexglue-sdk/src/audio/CMakeLists.txt")
+INPUT_CMAKE = pathlib.Path("tools/rexglue-sdk/src/input/CMakeLists.txt")
+INPUT_SYSTEM = pathlib.Path("tools/rexglue-sdk/src/input/input_system.cpp")
+REX_APP = pathlib.Path("tools/rexglue-sdk/src/ui/rex_app.cpp")
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -256,6 +261,252 @@ endif()
     return text
 
 
+
+def transform_surface(text: str) -> str:
+    text = replace_once(
+        text,
+        """    // Windows.
+    kTypeIndex_Win32Hwnd,
+""",
+        """    // Windows.
+    kTypeIndex_Win32Hwnd,
+    // PlayStation 5 fullscreen display.
+    kTypeIndex_PS5Display,
+""",
+        "PS5 surface enum",
+    )
+    text = replace_once(
+        text,
+        """    kTypeFlag_Win32Hwnd = TypeFlags(1) << kTypeIndex_Win32Hwnd,
+""",
+        """    kTypeFlag_Win32Hwnd = TypeFlags(1) << kTypeIndex_Win32Hwnd,
+    kTypeFlag_PS5Display = TypeFlags(1) << kTypeIndex_PS5Display,
+""",
+        "PS5 surface flag",
+    )
+    return text
+
+
+def transform_audio_cmake(text: str) -> str:
+    text = replace_once(
+        text,
+        """    # SDL backend
+    sdl/sdl_audio_system.cpp
+    sdl/sdl_audio_driver.cpp
+)
+""",
+        """    # Host backend selected below.
+)
+
+if(REXGLUE_PS5)
+    target_sources(rexaudio PRIVATE
+        ps5/ps5_audio_system.cpp
+        ps5/ps5_audio_driver.cpp
+    )
+else()
+    target_sources(rexaudio PRIVATE
+        sdl/sdl_audio_system.cpp
+        sdl/sdl_audio_driver.cpp
+    )
+endif()
+""",
+        "PS5 audio sources",
+    )
+    text = replace_once(
+        text,
+        """target_link_libraries(rexaudio
+    PUBLIC rexcore SDL3::SDL3
+    PRIVATE libavcodec libavutil
+)
+""",
+        """target_link_libraries(rexaudio
+    PUBLIC rexcore
+    PRIVATE libavcodec libavutil
+)
+if(REXGLUE_PS5)
+    target_link_libraries(rexaudio PRIVATE ps5rt::ps5)
+else()
+    target_link_libraries(rexaudio PUBLIC SDL3::SDL3)
+endif()
+""",
+        "PS5 audio dependencies",
+    )
+    return text
+
+
+def transform_input_cmake(text: str) -> str:
+    text = replace_once(
+        text,
+        """add_library(rexinput OBJECT
+    input_system.cpp
+    mnk/mnk_input_driver.cpp
+    nop/nop_input_driver.cpp
+)
+""",
+        """add_library(rexinput OBJECT
+    input_system.cpp
+    nop/nop_input_driver.cpp
+)
+if(REXGLUE_PS5)
+    target_sources(rexinput PRIVATE ps5/ps5_input_driver.cpp)
+else()
+    target_sources(rexinput PRIVATE mnk/mnk_input_driver.cpp)
+endif()
+""",
+        "PS5 input sources",
+    )
+    text = replace_once(
+        text,
+        """if(WIN32)
+    target_sources(rexinput PRIVATE sdl/sdl_input_driver.cpp xinput/xinput_input_driver.cpp)
+else()
+    target_sources(rexinput PRIVATE sdl/sdl_input_driver.cpp)
+endif()
+
+target_link_libraries(rexinput PUBLIC rexcore rexui SDL3::SDL3)
+""",
+        """if(REXGLUE_PS5)
+    target_link_libraries(rexinput PUBLIC rexcore rexui PRIVATE ps5rt::ps5)
+elseif(WIN32)
+    target_sources(rexinput PRIVATE sdl/sdl_input_driver.cpp xinput/xinput_input_driver.cpp)
+    target_link_libraries(rexinput PUBLIC rexcore rexui SDL3::SDL3)
+else()
+    target_sources(rexinput PRIVATE sdl/sdl_input_driver.cpp)
+    target_link_libraries(rexinput PUBLIC rexcore rexui SDL3::SDL3)
+endif()
+""",
+        "PS5 input dependencies",
+    )
+    return text
+
+
+def transform_input_system(text: str) -> str:
+    text = replace_once(
+        text,
+        """#include <rex/input/nop/nop_input_driver.h>
+#include <rex/input/sdl/sdl_input_driver.h>
+#include <rex/input/xinput/xinput_input_driver.h>
+#include <rex/logging.h>
+
+REXCVAR_DEFINE_STRING(input_backend, "sdl", "Input", "Input backend: sdl, xinput")
+    .allowed({"sdl", "xinput"});
+""",
+        """#include <rex/input/nop/nop_input_driver.h>
+#include <rex/platform.h>
+#if REX_PLATFORM_PS5
+#include <rex/input/ps5/ps5_input_driver.h>
+#else
+#include <rex/input/mnk/mnk_input_driver.h>
+#include <rex/input/sdl/sdl_input_driver.h>
+#include <rex/input/xinput/xinput_input_driver.h>
+#endif
+#include <rex/logging.h>
+
+#if REX_PLATFORM_PS5
+REXCVAR_DEFINE_STRING(input_backend, "ps5", "Input", "Input backend: ps5")
+    .allowed({"ps5"});
+#else
+REXCVAR_DEFINE_STRING(input_backend, "sdl", "Input", "Input backend: sdl, xinput")
+    .allowed({"sdl", "xinput"});
+#endif
+""",
+        "PS5 input includes and cvar",
+    )
+    text = replace_once(
+        text,
+        """  if (!tool_mode) {
+#if REX_PLATFORM_WIN32
+    if (REXCVAR_GET(input_backend) == "xinput") {
+      auto xinput_driver = std::make_unique<xinput::XinputInputDriver>(nullptr, 0);
+      if (xinput_driver->Setup() == X_STATUS_SUCCESS) {
+        input->AddDriver(std::move(xinput_driver));
+      }
+    }
+#endif
+
+    if (REXCVAR_GET(input_backend) == "sdl") {
+      auto sdl_driver = std::make_unique<sdl::SDLInputDriver>(nullptr, 0);
+      if (sdl_driver->Setup() == X_STATUS_SUCCESS) {
+        input->AddDriver(std::move(sdl_driver));
+      }
+    }
+
+    // MnK driver (keyboard/mouse -> controller emulation)
+    auto mnk_driver = std::make_unique<mnk::MnkInputDriver>(nullptr, 0);
+    if (mnk_driver->Setup() == X_STATUS_SUCCESS) {
+      input->AddDriver(std::move(mnk_driver));
+    }
+  }
+""",
+        """  if (!tool_mode) {
+#if REX_PLATFORM_PS5
+    auto ps5_driver = std::make_unique<ps5::PS5InputDriver>(nullptr, 0);
+    if (ps5_driver->Setup() == X_STATUS_SUCCESS) {
+      input->AddDriver(std::move(ps5_driver));
+    }
+#else
+#if REX_PLATFORM_WIN32
+    if (REXCVAR_GET(input_backend) == "xinput") {
+      auto xinput_driver = std::make_unique<xinput::XinputInputDriver>(nullptr, 0);
+      if (xinput_driver->Setup() == X_STATUS_SUCCESS) {
+        input->AddDriver(std::move(xinput_driver));
+      }
+    }
+#endif
+
+    if (REXCVAR_GET(input_backend) == "sdl") {
+      auto sdl_driver = std::make_unique<sdl::SDLInputDriver>(nullptr, 0);
+      if (sdl_driver->Setup() == X_STATUS_SUCCESS) {
+        input->AddDriver(std::move(sdl_driver));
+      }
+    }
+
+    auto mnk_driver = std::make_unique<mnk::MnkInputDriver>(nullptr, 0);
+    if (mnk_driver->Setup() == X_STATUS_SUCCESS) {
+      input->AddDriver(std::move(mnk_driver));
+    }
+#endif
+  }
+""",
+        "PS5 input factory",
+    )
+    return text
+
+
+def transform_rex_app(text: str) -> str:
+    text = replace_once(
+        text,
+        """#include <rex/audio/audio_system.h>
+#include <rex/audio/sdl/sdl_audio_system.h>
+#include <rex/input/input_system.h>
+""",
+        """#include <rex/audio/audio_system.h>
+#include <rex/platform.h>
+#if REX_PLATFORM_PS5
+#include <rex/audio/ps5/ps5_audio_system.h>
+#else
+#include <rex/audio/sdl/sdl_audio_system.h>
+#endif
+#include <rex/input/input_system.h>
+""",
+        "PS5 audio include",
+    )
+    text = replace_once(
+        text,
+        """  config_.audio_factory = REX_AUDIO_BACKEND(rex::audio::sdl::SDLAudioSystem);
+  config_.input_factory = REX_INPUT_BACKEND(rex::input::CreateDefaultInputSystem);
+""",
+        """#if REX_PLATFORM_PS5
+  config_.audio_factory = REX_AUDIO_BACKEND(rex::audio::ps5::PS5AudioSystem);
+#else
+  config_.audio_factory = REX_AUDIO_BACKEND(rex::audio::sdl::SDLAudioSystem);
+#endif
+  config_.input_factory = REX_INPUT_BACKEND(rex::input::CreateDefaultInputSystem);
+""",
+        "PS5 audio factory",
+    )
+    return text
+
 def copy_overlay(source_root: pathlib.Path, repo_root: pathlib.Path, check: bool) -> None:
     overlay = repo_root / "ports/simpsons-recomp-ps5/overlay"
     if not overlay.is_dir():
@@ -293,6 +544,11 @@ def main() -> int:
             UI_CMAKE: transform_ui_cmake((root / UI_CMAKE).read_text()),
             HELPERS: transform_helpers((root / HELPERS).read_text()),
             SIMPSONS_CMAKE: transform_simpsons_cmake((root / SIMPSONS_CMAKE).read_text()),
+            SURFACE: transform_surface((root / SURFACE).read_text()),
+            AUDIO_CMAKE: transform_audio_cmake((root / AUDIO_CMAKE).read_text()),
+            INPUT_CMAKE: transform_input_cmake((root / INPUT_CMAKE).read_text()),
+            INPUT_SYSTEM: transform_input_system((root / INPUT_SYSTEM).read_text()),
+            REX_APP: transform_rex_app((root / REX_APP).read_text()),
         }
         copy_overlay(root, repo_root, args.check)
     except RuntimeError as exc:
@@ -305,6 +561,11 @@ def main() -> int:
             "ui": "surface_ps5.cpp" in transformed[UI_CMAKE],
             "main": "windowed_app_main_ps5.cpp" in transformed[HELPERS],
             "ps5rt": "ps5rt::ps5" in transformed[SIMPSONS_CMAKE],
+            "surface": "kTypeFlag_PS5Display" in transformed[SURFACE],
+            "audio": "ps5_audio_driver.cpp" in transformed[AUDIO_CMAKE],
+            "input": "ps5_input_driver.cpp" in transformed[INPUT_CMAKE],
+            "input_factory": "PS5InputDriver" in transformed[INPUT_SYSTEM],
+            "audio_factory": "PS5AudioSystem" in transformed[REX_APP],
         }
         failed = [name for name, good in checks.items() if not good]
         if failed:
