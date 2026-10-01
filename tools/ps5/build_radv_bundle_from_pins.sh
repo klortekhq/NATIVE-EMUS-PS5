@@ -6,6 +6,19 @@ WORK="${WORK:-$ROOT/build/ps5/radv-stack}"
 BUNDLE="${BUNDLE:-$ROOT/build/ps5/radv-bundle}"
 JOBS="${JOBS:-2}"
 
+# Fast/offline path: an already frozen bundle is acceptable only after the
+# same manifest/hash validation used by the final PS1 linker.
+if [[ -n "${PS5_RADV_BUNDLE_SOURCE_DIR:-}" ]]; then
+  SOURCE="$(cd "$PS5_RADV_BUNDLE_SOURCE_DIR" && pwd)"
+  python3 "$ROOT/tools/ps5/validate_radv_bundle.py" "$SOURCE"
+  rm -rf "$BUNDLE"
+  mkdir -p "$(dirname "$BUNDLE")"
+  cp -a "$SOURCE" "$BUNDLE"
+  python3 "$ROOT/tools/ps5/validate_radv_bundle.py" "$BUNDLE"
+  echo "Verified immutable PS5 RADV bundle staged: $BUNDLE"
+  exit 0
+fi
+
 OUT="$WORK" bash "$ROOT/tools/ps5/prepare_radv_source_stack.sh"
 
 VULKAN="$WORK/PS5_Vulkan"
@@ -53,14 +66,20 @@ STAGED_SDK="$VULKAN/.deps/native/ps5-payload-sdk"
 }
 
 rm -rf "$BUNDLE"
-mkdir -p   "$BUNDLE/lib"   "$BUNDLE/tools"   "$BUNDLE/tooling/native"   "$BUNDLE/vendor/ps5/sdk/stubs"
+mkdir -p \
+  "$BUNDLE/lib" \
+  "$BUNDLE/tools" \
+  "$BUNDLE/tooling/native" \
+  "$BUNDLE/vendor/ps5/sdk/stubs"
 
 cp "$ARCHIVE" "$BUNDLE/lib/libvulkan_radeon.ps5.a"
 cp "$VULKAN/tools/radv-link.sh" "$BUNDLE/tools/radv-link.sh"
 cp "$VULKAN/tooling/native/app_crt.cpp" "$BUNDLE/tooling/native/app_crt.cpp"
 cp "$VULKAN/tooling/native/app_cpp_runtime.cpp" "$BUNDLE/tooling/native/app_cpp_runtime.cpp"
-cp "$VULKAN/vendor/ps5/sdk/stubs/agc_canary_link_stub.c"    "$BUNDLE/vendor/ps5/sdk/stubs/agc_canary_link_stub.c"
-cp "$VULKAN/vendor/ps5/sdk/stubs/agc_driver_canary_link_stub.c"    "$BUNDLE/vendor/ps5/sdk/stubs/agc_driver_canary_link_stub.c"
+cp "$VULKAN/vendor/ps5/sdk/stubs/agc_canary_link_stub.c" \
+   "$BUNDLE/vendor/ps5/sdk/stubs/agc_canary_link_stub.c"
+cp "$VULKAN/vendor/ps5/sdk/stubs/agc_driver_canary_link_stub.c" \
+   "$BUNDLE/vendor/ps5/sdk/stubs/agc_driver_canary_link_stub.c"
 cp -a "$STAGED_SDK" "$BUNDLE/sdk"
 
 python3 "$ROOT/tools/ps5/freeze_radv_bundle.py" "$BUNDLE"
