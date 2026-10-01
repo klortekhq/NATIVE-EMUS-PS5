@@ -9,24 +9,36 @@
   },
   "ps5_vulkan": {
     "repository": "mihawk-99/PS5_Vulkan",
-    "revision": "d609d712453561efc0fd78b8eb46602d49461229",
+    "revision": "71026e7ec1951fe72ae5b9118ff0905216a4c220",
     "license": "GPL-3.0-or-later",
-    "delivery": "RADV linked into title; VK_KHR_display / VideoOut"
+    "delivery": "RADV linked into title; VK_KHR_display / VideoOut",
+    "observed_via": "blackbearreloaded/ProsperoEden@183439625ef1d686d531426022d371142b3819bd tools/deps.json",
+    "public_clone_status": "unavailable from current GitHub connection on 2026-10-01"
   },
   "ps5_mesa": {
     "repository": "mihawk-99/PS5_Mesa",
-    "revision": "0b2d6d1a61d9bbf89cf8beb88a696144f67c61f8",
-    "source": "PS5_Vulkan tools/build-radv.sh pin"
+    "revision": "cedb774b27d089fa81f46add28d0a8c13ff0f7d2",
+    "source": "ProsperoEden tools/deps.json / build-radv-dependencies.sh",
+    "observed_via": "blackbearreloaded/ProsperoEden@183439625ef1d686d531426022d371142b3819bd"
   },
   "ps5_payload_sdk_fork": {
     "repository": "mihawk-99/PS5_PayloadSDK",
     "revision": "95c08f27386fc698f6bbe21dde3030140a41d10b",
-    "source": "PS5_Vulkan tools/setup-native-dependencies.sh pin"
+    "source": "PS5_Vulkan tools/setup-native-dependencies.sh pin",
+    "observed_via": "blackbearreloaded/ProsperoEden@183439625ef1d686d531426022d371142b3819bd"
   },
   "policy": {
     "radv_threaded_recording_default": false,
     "distribution_license_gate": true,
     "current_beetle_upstream_only": true,
     "ps5_vulkan_upgrade_requires_gate": true
+  },
+  "bundle_policy": {
+    "schema_version": 1,
+    "preferred_environment": "PS5_RADV_BUNDLE_DIR",
+    "required_manifest": "manifest.json",
+    "required_driver": "lib/libvulkan_radeon.ps5.a",
+    "require_matching_sdk": true,
+    "live_git_clone_required": false
   }
 }
