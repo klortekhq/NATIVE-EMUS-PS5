@@ -22,10 +22,10 @@ fi
 echo "$SHA256  $SOURCE" | sha256sum -c - >&2
 
 # BlackBear's native converter requires its page-separated PT_LOAD layout.
-# ps5-payload-dev/sdk additionally references the EH-frame and BSS boundary
-# symbols provided by its stock host/elf_x86_64.x linker script. Derive a local
-# linker script from the verified BlackBear source and add only those exact
-# PROVIDE_HIDDEN contracts.
+# ps5-payload-dev/sdk additionally references image/text, dynamic, EH-frame
+# and BSS boundary symbols provided by its stock host/elf_x86_64.x linker
+# script. Derive a local linker script from the verified BlackBear source and
+# add only those exact PROVIDE_HIDDEN contracts.
 python3 - "$SOURCE" "$SCRIPT" <<'PY'
 from pathlib import Path
 import sys
@@ -53,6 +53,42 @@ if source.count(old_hdr) != 1:
     raise SystemExit("unexpected BlackBear EH-frame linker layout")
 source = source.replace(old_hdr, new_hdr, 1)
 
+old_text = """SECTIONS {
+    .text 0 : ALIGN(CONSTANT(MAXPAGESIZE)) {
+        QUAD(0xcccccccccccccccc)
+        QUAD(0xcccccccccccccccc)
+        *(.text .text.*)
+        *(.plt .plt.*)
+    } : text
+"""
+new_text = """SECTIONS {
+    PROVIDE_HIDDEN(__image_start = .);
+    .text 0 : ALIGN(CONSTANT(MAXPAGESIZE)) {
+        PROVIDE_HIDDEN(__text_start = .);
+        QUAD(0xcccccccccccccccc)
+        QUAD(0xcccccccccccccccc)
+        *(.text .text.*)
+        *(.plt .plt.*)
+        PROVIDE_HIDDEN(__text_end = .);
+    } : text
+"""
+if source.count(old_text) != 1:
+    raise SystemExit("unexpected BlackBear text linker layout")
+source = source.replace(old_text, new_text, 1)
+
+old_dynamic = """    .dynamic : {
+        *(.dynamic)
+    } : data : dynamic
+"""
+new_dynamic = """    .dynamic : {
+        PROVIDE_HIDDEN(_DYNAMIC = .);
+        *(.dynamic)
+    } : data : dynamic
+"""
+if source.count(old_dynamic) != 1:
+    raise SystemExit("unexpected BlackBear dynamic linker layout")
+source = source.replace(old_dynamic, new_dynamic, 1)
+
 old_bss = """    .bss : {
         *(.bss .bss.*)
         *(COMMON)
@@ -68,6 +104,20 @@ new_bss = """    .bss : {
 if source.count(old_bss) != 1:
     raise SystemExit("unexpected BlackBear BSS linker layout")
 source = source.replace(old_bss, new_bss, 1)
+
+end_marker = """    } : data
+}
+"""
+if source.count(end_marker) != 1:
+    raise SystemExit("unexpected BlackBear linker end")
+source = source.replace(
+    end_marker,
+    """    } : data
+    PROVIDE_HIDDEN(__image_end = .);
+}
+""",
+    1,
+)
 
 out.write_text(source)
 PY
