@@ -33,6 +33,68 @@ std::string save_stem(std::filesystem::path path) {
   return stem;
 }
 
+std::string trim(std::string value) {
+  const auto not_space = [](unsigned char ch) { return !std::isspace(ch); };
+  const auto first = std::find_if(value.begin(), value.end(), not_space);
+  if (first == value.end())
+    return {};
+  const auto last = std::find_if(value.rbegin(), value.rend(), not_space).base();
+  return std::string(first, last);
+}
+
+bool validate_local_m3u(
+    const std::filesystem::path& playlist,
+    std::vector<std::filesystem::path>& entries,
+    std::string& error) {
+  std::ifstream input(playlist);
+  if (!input) {
+    error = "cannot open PS1 M3U playlist";
+    return false;
+  }
+
+  const auto base = playlist.parent_path();
+  std::string line;
+  while (std::getline(input, line)) {
+    line = trim(std::move(line));
+    if (line.empty() || line.front() == '#')
+      continue;
+
+    const auto scheme = line.find("://");
+    if (scheme != std::string::npos) {
+      error = "PS1 M3U network entries require the ps5rt VFS bridge";
+      return false;
+    }
+
+    std::filesystem::path entry(line);
+    if (entry.is_relative())
+      entry = base / entry;
+    entry = entry.lexically_normal();
+
+    if (lowercase(entry.extension().string()) == ".m3u") {
+      error = "nested PS1 M3U playlists are not supported";
+      return false;
+    }
+    if (!is_supported_ps1_content(entry.string())) {
+      error = "PS1 M3U contains unsupported content";
+      return false;
+    }
+
+    std::error_code ec;
+    if (!std::filesystem::exists(entry, ec) || ec ||
+        !std::filesystem::is_regular_file(entry, ec) || ec) {
+      error = "PS1 M3U entry does not exist";
+      return false;
+    }
+    entries.push_back(std::move(entry));
+  }
+
+  if (entries.empty()) {
+    error = "PS1 M3U playlist has no discs";
+    return false;
+  }
+  return true;
+}
+
 bool ensure_directory(const std::filesystem::path& path, std::string& error) {
   std::error_code ec;
   std::filesystem::create_directories(path, ec);
@@ -101,6 +163,10 @@ bool prepare_content(
 
   if (!ensure_directory(layout.system_dir, error) ||
       !ensure_directory(layout.save_dir, error))
+    return false;
+
+  if (lowercase(content.extension().string()) == ".m3u" &&
+      !validate_local_m3u(content, out.playlist_entries, error))
     return false;
 
   out.core_path = content.string();
