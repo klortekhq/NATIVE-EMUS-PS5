@@ -57,6 +57,7 @@ int main() {
   assert(config.bios_override == "disabled");
   assert(config.skip_bios == "disabled");
   assert(config.internal_resolution == "1x(native)");
+  assert(config.server_read_ahead_kib == 0);
 
   const auto path = root / "ps1.ini";
   {
@@ -67,6 +68,7 @@ int main() {
         << "skip_bios = false\n"
         << "internal_resolution = 4x\n"
         << "server_token = local-secret\n"
+        << "server_read_ahead_kib = 256\n"
         << "future_option = ignored-for-forward-compat\n";
   }
 
@@ -76,6 +78,7 @@ int main() {
   assert(config.skip_bios == "disabled");
   assert(config.internal_resolution == "4x");
   assert(config.server_token == "local-secret");
+  assert(config.server_read_ahead_kib == 256);
 
   corehost::lr::StaticApi api{};
   api.set_environment = mock::set_environment;
@@ -123,6 +126,13 @@ int main() {
   }
   assert(!native_emus::ps1::load_port_config(path, config, error));
   assert(error.find("invalid PS1 server_token") != std::string::npos);
+
+  {
+    std::ofstream out(path, std::ios::trunc);
+    out << "server_read_ahead_kib = 8193\n";
+  }
+  assert(!native_emus::ps1::load_port_config(path, config, error));
+  assert(error.find("invalid PS1 server_read_ahead_kib") != std::string::npos);
 
   std::filesystem::remove_all(root);
   return 0;
