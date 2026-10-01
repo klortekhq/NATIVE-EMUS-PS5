@@ -108,13 +108,19 @@
     {
       "workspace": "azahar",
       "upstream_url": "https://github.com/azahar-emu/azahar",
-      "upstream_revision": null,
-      "license": null,
-      "pin_status": "repository-verified-revision-pending",
+      "upstream_revision": "662d412123305a9f4be94dd3dc73ddf91a18c55e",
+      "license": "GPL-2.0 license text present in license.txt; third-party inventory pending",
+      "pin_status": "pinned-for-first-ps5-bringup",
       "ps5_scene_references": [
         "https://github.com/mihawk-99/PS5_Azahar",
         "https://github.com/mihawk-99/PS5_Dynarmic"
-      ]
+      ],
+      "toolchain_dependencies": {
+        "dynarmic_repository": "https://github.com/azahar-emu/dynarmic",
+        "dynarmic_revision": "e77b1ba0b7da7cbe93021b01a663acfe7c4dd516",
+        "cpu_frontend": "A32",
+        "host_backend": "x86-64"
+      }
     },
     {
       "workspace": "dolphin",
