@@ -146,8 +146,11 @@ int main() {
   const std::string remote_m3u =
       "emus://192.168.1.50:8787/" + remote_id + "/Final Fantasy.m3u";
   PreparedContent remote_playlist;
-  assert(!prepare_content(remote_m3u, layout, remote_playlist, error));
-  assert(error == "remote PS1 M3U playlists are not supported yet");
+  assert(prepare_content(remote_m3u, layout, remote_playlist, error));
+  assert(!remote_playlist.local_file);
+  assert(remote_playlist.core_path == remote_m3u);
+  assert(remote_playlist.save_ram_path.filename() == "Final Fantasy.srm");
+  assert(remote_playlist.state_path.filename() == "Final Fantasy.state0");
 
   PreparedContent rejected;
   assert(!prepare_content("smb://server/share/game.chd", layout, rejected, error));
