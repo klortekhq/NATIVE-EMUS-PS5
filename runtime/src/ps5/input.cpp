@@ -33,6 +33,7 @@ void hid_shutdown() noexcept __attribute__((weak));
 
 namespace {
 
+constexpr std::uint32_t kCreate = 0x000001u;
 constexpr std::uint32_t kL3 = 0x000002u;
 constexpr std::uint32_t kR3 = 0x000004u;
 constexpr std::uint32_t kOptions = 0x000008u;
@@ -76,6 +77,7 @@ float axis(std::uint8_t raw) noexcept {
 
 std::uint32_t translate_buttons(std::uint32_t raw) noexcept {
   std::uint32_t out = 0;
+  if (raw & kCreate) out |= static_cast<std::uint32_t>(Button::create);
   if (raw & kUp) out |= static_cast<std::uint32_t>(Button::up);
   if (raw & kDown) out |= static_cast<std::uint32_t>(Button::down);
   if (raw & kLeft) out |= static_cast<std::uint32_t>(Button::left);
