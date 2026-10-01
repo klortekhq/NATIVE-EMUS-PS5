@@ -1,6 +1,8 @@
 #include <ps5rt/emu_server.hpp>
 #include <ps5rt/io.hpp>
 
+#include "emu_server_uri.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -70,27 +72,6 @@ bool starts_with_ci(std::string_view text, std::string_view prefix) noexcept {
   return true;
 }
 
-bool query_unreserved(unsigned char ch) noexcept {
-  return
-      (ch >= 'a' && ch <= 'z') ||
-      (ch >= 'A' && ch <= 'Z') ||
-      (ch >= '0' && ch <= '9') ||
-      ch == '-' || ch == '.' || ch == '_' || ch == '~';
-}
-
-void append_query_encoded(std::string_view value, std::string& out) {
-  static constexpr char kHex[] = "0123456789ABCDEF";
-  for (const unsigned char ch : value) {
-    if (query_unreserved(ch)) {
-      out.push_back(static_cast<char>(ch));
-      continue;
-    }
-    out.push_back('%');
-    out.push_back(kHex[(ch >> 4u) & 0x0fu]);
-    out.push_back(kHex[ch & 0x0fu]);
-  }
-}
-
 std::string header_value(
     const char* headers,
     std::size_t size,
@@ -124,61 +105,7 @@ std::string header_value(
 }
 
 bool emus_to_http(std::string_view uri, std::string& out) {
-  constexpr std::string_view prefix = "emus://";
-  if (!uri.starts_with(prefix))
-    return false;
-
-  const auto rest = uri.substr(prefix.size());
-  const auto slash = rest.find('/');
-  if (slash == std::string_view::npos || slash == 0 || slash + 1 >= rest.size())
-    return false;
-
-  const auto authority = rest.substr(0, slash);
-  const auto resource = rest.substr(slash + 1);
-  const auto metadata_slash = resource.find('/');
-  const auto id = resource.substr(0, metadata_slash);
-
-  // Catalog IDs are SHA-256 hex today. An optional trailing file name keeps
-  // the extension visible to emulator cores, but it is metadata only and is
-  // never forwarded to the server path.
-  if (id.size() != 64)
-    return false;
-  for (const char ch : id) {
-    const bool hex =
-        (ch >= '0' && ch <= '9') ||
-        (ch >= 'a' && ch <= 'f') ||
-        (ch >= 'A' && ch <= 'F');
-    if (!hex)
-      return false;
-  }
-
-  if (authority.find_first_of(" \t\r\n?#") != std::string_view::npos)
-    return false;
-
-  std::string_view metadata{};
-  if (metadata_slash != std::string_view::npos) {
-    metadata = resource.substr(metadata_slash + 1);
-    if (metadata.empty() || metadata.size() > 4096 ||
-        metadata.find('\0') != std::string_view::npos ||
-        metadata.find_first_of("\r\n") != std::string_view::npos)
-      return false;
-  }
-
-  out = "http://";
-  out.append(authority);
-  out.append("/api/v1/files/");
-  out.append(id);
-
-  // The optional suffix is a virtual path anchored at the catalog entry's
-  // directory. Forward it as an encoded query value so descriptor formats
-  // (CUE/CCD/TOC/M3U) can open relative sidecars without exposing NAS paths.
-  // Keeping it out of the HTTP path also preserves ../ segments until the
-  // server can validate and resolve them inside the configured library.
-  if (!metadata.empty()) {
-    out.append("?path=");
-    append_query_encoded(metadata, out);
-  }
-  return true;
+  return detail::emus_to_http(uri, out);
 }
 
 Result add_common_headers(int req) noexcept {
