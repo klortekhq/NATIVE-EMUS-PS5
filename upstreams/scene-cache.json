@@ -16,22 +16,42 @@
       "license": "GPL-3.0",
       "priority": "critical",
       "cache_source": true,
-      "categories": ["vulkan", "agc", "videoout", "shader-cache", "dxvk", "gpu"],
+      "categories": [
+        "vulkan",
+        "agc",
+        "videoout",
+        "shader-cache",
+        "dxvk",
+        "gpu"
+      ],
       "relevance": "Primary live PS5 Vulkan/AGC reference: native VideoOut presentation, GFX1013 command work, Mesa/NIR/ACO integration, shader compilation cache, DXVK experiments and physical-console evidence.",
-      "discovered_via": ["direct-audit", "@Jdr8245Jhon"],
+      "discovered_via": [
+        "direct-audit",
+        "@Jdr8245Jhon"
+      ],
       "last_reviewed": "2026-10-01"
     },
     {
       "name": "AnyPS5",
       "repository": "boykopovar/AnyPS5",
       "url": "https://github.com/boykopovar/AnyPS5",
-      "pin": "c7fb2575a3282dde6c6e90f24bd1abe830e6f4e8",
+      "pin": "131156c5d035673c5264ad7403f4247e023e01bd",
       "license": "GPL-2.0",
       "priority": "critical",
       "cache_source": true,
-      "categories": ["agc", "videoout", "shader-recompiler", "shader-cache", "ps5-abi", "vulkan"],
-      "relevance": "Very useful clean-room PS5 ABI and AGC reference. Current tree contains AGC command implementations, VideoOut modelling and persistent shader disk/pipeline cache work.",
-      "discovered_via": ["@Jdr8245Jhon"],
+      "categories": [
+        "agc",
+        "videoout",
+        "shader-recompiler",
+        "shader-cache",
+        "ps5-abi",
+        "vulkan",
+        "x86-relinker"
+      ],
+      "relevance": "Very useful clean-room PS5 ABI and AGC reference. Current tree contains AGC command implementations, VideoOut modelling, persistent shader disk/pipeline cache work and x86 instruction relinking research.",
+      "discovered_via": [
+        "@Jdr8245Jhon"
+      ],
       "last_reviewed": "2026-10-01"
     },
     {
@@ -42,9 +62,17 @@
       "license": "GPL-3.0",
       "priority": "high",
       "cache_source": true,
-      "categories": ["dualsense", "hid", "adaptive-triggers", "haptics", "audio"],
+      "categories": [
+        "dualsense",
+        "hid",
+        "adaptive-triggers",
+        "haptics",
+        "audio"
+      ],
       "relevance": "Protocol-level DualSense reference for USB/Bluetooth HID reports, adaptive-trigger blocks, haptics/audio transport and Edge fields. Useful to validate ps5rt input/output semantics even though it is a PC client.",
-      "discovered_via": ["@Jdr8245Jhon"],
+      "discovered_via": [
+        "@Jdr8245Jhon"
+      ],
       "last_reviewed": "2026-10-01"
     },
     {
@@ -55,9 +83,19 @@
       "license": "GPL-3.0",
       "priority": "critical",
       "cache_source": true,
-      "categories": ["ps5-payload-sdk", "videoout", "audioout", "agc", "ffmpeg", "packaging", "media-app"],
+      "categories": [
+        "ps5-payload-sdk",
+        "videoout",
+        "audioout",
+        "agc",
+        "ffmpeg",
+        "packaging",
+        "media-app"
+      ],
       "relevance": "Hardware-tested native PS5 application reference: AudioOut/VideoOut, AGC work, FFmpeg cross-build, app-module/media-tile packaging and SDK/toolchain audits.",
-      "discovered_via": ["@Jdr8245Jhon"],
+      "discovered_via": [
+        "@Jdr8245Jhon"
+      ],
       "last_reviewed": "2026-10-01"
     },
     {
@@ -68,9 +106,19 @@
       "license": "GPL-3.0",
       "priority": "high",
       "cache_source": true,
-      "categories": ["ps5-abi", "agc", "pm4", "rdna2", "videoout", "vulkan", "reverse-engineering"],
+      "categories": [
+        "ps5-abi",
+        "agc",
+        "pm4",
+        "rdna2",
+        "videoout",
+        "vulkan",
+        "reverse-engineering"
+      ],
       "relevance": "Useful PS5 guest-side reverse-engineering reference for AGC/PM4 streams, VideoOut/HLE exports, RDNA2 shader translation and memory/service behavior. Not a host runtime donor.",
-      "discovered_via": ["@Jdr8245Jhon"],
+      "discovered_via": [
+        "@Jdr8245Jhon"
+      ],
       "last_reviewed": "2026-10-01"
     },
     {
@@ -81,9 +129,18 @@
       "license": "GPL-3.0",
       "priority": "critical",
       "cache_source": true,
-      "categories": ["sdk", "toolchain", "prospero-clang", "linker", "libc", "headers"],
+      "categories": [
+        "sdk",
+        "toolchain",
+        "prospero-clang",
+        "linker",
+        "libc",
+        "headers"
+      ],
       "relevance": "Canonical public PS5 payload SDK/toolchain reference used by the project. Current checked pin adds LLVM 23 support.",
-      "discovered_via": ["direct-audit"],
+      "discovered_via": [
+        "direct-audit"
+      ],
       "last_reviewed": "2026-10-01"
     },
     {
@@ -94,9 +151,18 @@
       "license": "GPL-3.0",
       "priority": "critical",
       "cache_source": true,
-      "categories": ["native-title", "elf", "fself", "linker", "packaging", "runtime"],
+      "categories": [
+        "native-title",
+        "elf",
+        "fself",
+        "linker",
+        "packaging",
+        "runtime"
+      ],
       "relevance": "Primary public native-title tooling reference: page-separated PIE layout, ELF conversion, FSELF/container tooling and packaging contracts.",
-      "discovered_via": ["direct-audit"],
+      "discovered_via": [
+        "direct-audit"
+      ],
       "last_reviewed": "2026-10-01"
     },
     {
@@ -107,9 +173,17 @@
       "license": "review-per-upstream-PCXS2-and-vendored-components",
       "priority": "critical",
       "cache_source": false,
-      "categories": ["pcsx2", "jit", "vulkan", "threads", "native-ps5"],
+      "categories": [
+        "pcsx2",
+        "jit",
+        "vulkan",
+        "threads",
+        "native-ps5"
+      ],
       "relevance": "Primary live reference for a large x86-64 JIT emulator running natively on PS5. Metadata/pin cached; source snapshot is disabled until the aggregate license/vendor inventory is reviewed.",
-      "discovered_via": ["direct-audit"],
+      "discovered_via": [
+        "direct-audit"
+      ],
       "last_reviewed": "2026-10-01"
     },
     {
@@ -120,9 +194,17 @@
       "license": "MIT",
       "priority": "medium",
       "cache_source": true,
-      "categories": ["ffpkg", "ffpfsc", "exfat", "image-format", "packaging"],
+      "categories": [
+        "ffpkg",
+        "ffpfsc",
+        "exfat",
+        "image-format",
+        "packaging"
+      ],
       "relevance": "Useful packaging/image-format reference for FFPKG, FFPFSC and exFAT handling. Not part of emulator runtime but relevant to distribution/storage tooling.",
-      "discovered_via": ["@Jdr8245Jhon"],
+      "discovered_via": [
+        "@Jdr8245Jhon"
+      ],
       "last_reviewed": "2026-10-01"
     },
     {
@@ -133,9 +215,293 @@
       "license": "proprietary-binary-only",
       "priority": "watch",
       "cache_source": false,
-      "categories": ["payload-management", "deployment", "catalog"],
+      "categories": [
+        "payload-management",
+        "deployment",
+        "catalog"
+      ],
       "relevance": "Operational reference only. Proprietary binary-only license means we record metadata but do not mirror source/binaries into this project.",
-      "discovered_via": ["@Jdr8245Jhon"],
+      "discovered_via": [
+        "@Jdr8245Jhon"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5 OpenGL",
+      "repository": "BlackBearReloaded/ps5-opengl",
+      "url": "https://github.com/BlackBearReloaded/ps5-opengl",
+      "pin": "9c860caeaf0c25635be9a84b794601379ccfe58d",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": [
+        "opengl",
+        "agc",
+        "mesa",
+        "videoout",
+        "cts",
+        "gpu"
+      ],
+      "relevance": "Hardware-validated PS5 OpenGL/Mesa/AGC reference with current OpenGL 4.6 CTS evidence; useful for GPU, tiling, shader and presentation cross-checks even where Vulkan is the target renderer.",
+      "discovered_via": [
+        "direct-audit",
+        "scene-cross-reference"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "ProsperoEden",
+      "repository": "BlackBearReloaded/ProsperoEden",
+      "url": "https://github.com/BlackBearReloaded/ProsperoEden",
+      "pin": "183439625ef1d686d531426022d371142b3819bd",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": [
+        "dynarmic",
+        "vulkan",
+        "radv",
+        "native-ps5",
+        "switch",
+        "toolchain"
+      ],
+      "relevance": "Native PS5 Eden-derived reference with pinned dependency builds; useful for Dynarmic, Vulkan/RADV and native application integration patterns.",
+      "discovered_via": [
+        "direct-audit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5Link SDK",
+      "repository": "Rufidj/ps5link-sdk",
+      "url": "https://github.com/Rufidj/ps5link-sdk",
+      "pin": "ea771e535378740b6a058b8e5419eb8a0e0e0ec8",
+      "license": "GPL-3.0",
+      "priority": "high",
+      "cache_source": true,
+      "categories": [
+        "sdk",
+        "libc",
+        "agc",
+        "gpu",
+        "toolchain",
+        "examples"
+      ],
+      "relevance": "Alternative PS5 SDK/catalog reference with hardware-confirmed libc symbols and graphics examples; useful for ABI cross-checking without making it a primary SDK dependency.",
+      "discovered_via": [
+        "direct-audit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "SharpProspero",
+      "repository": "SvenGDK/SharpProspero",
+      "url": "https://github.com/SvenGDK/SharpProspero",
+      "pin": "5dfdb4b0b166e83dc9ae275001afb695f12c7174",
+      "license": "GPL-3.0",
+      "priority": "high",
+      "cache_source": true,
+      "categories": [
+        "toolchain",
+        "elf",
+        "fself",
+        "sdk",
+        "firmware",
+        "packaging"
+      ],
+      "relevance": "Independent PS5 SDK/tooling reference used to cross-check ELF/FSELF metadata, SDK coverage and packaging behavior.",
+      "discovered_via": [
+        "direct-audit",
+        "BlackBear-credit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5 AGC Gears",
+      "repository": "mpereiraesaa/ps5-agc-gears",
+      "url": "https://github.com/mpereiraesaa/ps5-agc-gears",
+      "pin": "1ae1f9182abd2770c131b97419034fb85173c2dc",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": [
+        "agc",
+        "gpu",
+        "videoout",
+        "command-buffer",
+        "synchronization"
+      ],
+      "relevance": "Small hardware-oriented AGC reference used by ps5-vulkan; valuable for command-buffer emission, suspend points, render targets and native presentation primitives.",
+      "discovered_via": [
+        "ps5-vulkan-dependency"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "OpenAGC PPSSPP PS5",
+      "repository": "OpenAGC/ps5-ppsspp",
+      "url": "https://github.com/OpenAGC/ps5-ppsspp",
+      "pin": "6950c0dd51d0ad4993428f6ecc812e83de4bcf6f",
+      "license": "aggregate-license-review-pending",
+      "priority": "high",
+      "cache_source": false,
+      "categories": [
+        "ppsspp",
+        "jit",
+        "opengl",
+        "input",
+        "native-ps5"
+      ],
+      "relevance": "Public PPSSPP PS5 port reference with Prospero build and controller/frontend work. Metadata is pinned now; snapshot remains disabled until aggregate upstream/vendor licensing is reviewed.",
+      "discovered_via": [
+        "direct-audit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 RPCS3",
+      "repository": "mihawk-99/PS5_RPCS3",
+      "url": "https://github.com/mihawk-99/PS5_RPCS3",
+      "pin": "2ada8e453c592d8764d2801a667f3da415794918",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "rpcs3",
+        "ppu",
+        "spu",
+        "llvm",
+        "native-ps5"
+      ],
+      "relevance": "Historical PS5 RPCS3 donor formerly used for PPU/SPU engine bring-up. Exact pin retained so any future mirror can be provenance-checked.",
+      "discovered_via": [
+        "historical-project-pin"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 LLVM",
+      "repository": "mihawk-99/PS5_LLVM",
+      "url": "https://github.com/mihawk-99/PS5_LLVM",
+      "pin": "98b45cc22e98844b7d49bbedefdfee04a740650a",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "llvm",
+        "abi",
+        "alignment",
+        "rpcs3",
+        "toolchain"
+      ],
+      "relevance": "Historical LLVM fork with PS5 alignment fixes used by the old RPCS3 gate. Canonical LLVM now carries equivalent generic alignment contracts; exact old pin is retained for comparison.",
+      "discovered_via": [
+        "historical-project-pin"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 Mesa",
+      "repository": "mihawk-99/PS5_Mesa",
+      "url": "https://github.com/mihawk-99/PS5_Mesa",
+      "pin": "cedb774b27d089fa81f46add28d0a8c13ff0f7d2",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "mesa",
+        "radv",
+        "vulkan",
+        "gpu"
+      ],
+      "relevance": "Historical PS5 Mesa/RADV source pinned by the old graphics bundle. Exact revision remains recorded while the repository is unavailable.",
+      "discovered_via": [
+        "RADV-LOCK"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 Vulkan",
+      "repository": "mihawk-99/PS5_Vulkan",
+      "url": "https://github.com/mihawk-99/PS5_Vulkan",
+      "pin": "71026e7ec1951fe72ae5b9118ff0905216a4c220",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "vulkan",
+        "radv",
+        "videoout",
+        "gpu"
+      ],
+      "relevance": "Historical PS5 Vulkan glue used by the frozen RADV bundle. Exact revision retained for future provenance recovery.",
+      "discovered_via": [
+        "RADV-LOCK"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 PayloadSDK fork",
+      "repository": "mihawk-99/PS5_PayloadSDK",
+      "url": "https://github.com/mihawk-99/PS5_PayloadSDK",
+      "pin": "95c08f27386fc698f6bbe21dde3030140a41d10b",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "sdk",
+        "toolchain",
+        "radv"
+      ],
+      "relevance": "Historical SDK fork paired with the frozen PS5 Mesa/Vulkan stack. Exact revision retained; active development uses ps5-payload-dev/sdk instead.",
+      "discovered_via": [
+        "RADV-LOCK"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 Dynarmic",
+      "repository": "mihawk-99/PS5_Dynarmic",
+      "url": "https://github.com/mihawk-99/PS5_Dynarmic",
+      "pin": "1df2a07e9a86afef73d511a931f40bedb40b30c4",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "dynarmic",
+        "jit",
+        "executable-memory"
+      ],
+      "relevance": "Historical PS5 Dynarmic donor for executable-code allocation. Exact revision retained while current integrations move to verifiable public upstreams.",
+      "discovered_via": [
+        "historical-project-pin"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 Mupen64Plus",
+      "repository": "mihawk-99/PS5_Mupen64Plus",
+      "url": "https://github.com/mihawk-99/PS5_Mupen64Plus",
+      "pin": "98ec1019d191fc3c0e1c2d031f2574e95bd8d30d",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "mupen64plus",
+        "jit",
+        "n64"
+      ],
+      "relevance": "Historical PS5 Mupen64Plus donor. Exact revision retained for provenance while CI preserves our transform contract independently.",
+      "discovered_via": [
+        "historical-project-pin"
+      ],
       "last_reviewed": "2026-10-01"
     }
   ]
