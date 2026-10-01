@@ -13,6 +13,7 @@ REAL_CXX="${REAL_CXX:-$PS5_PAYLOAD_SDK/bin/prospero-clang++}"
 AR="${AR:-$PS5_PAYLOAD_SDK/bin/prospero-ar}"
 for t in "$REAL_CC" "$REAL_CXX" "$AR"; do [[ -x "$t" ]] || { echo "missing $t" >&2; exit 2; }; done
 rm -rf "$OUT"; mkdir -p "$SRC" "$OUT/obj" "$OUT/artifacts" "$OUT/toolwrap"
+PIE_LINKER="$(bash "$ROOT/tools/ps5/prepare_native_pie_linker.sh" "$OUT/native-linker")"
 cat > "$OUT/toolwrap/cc" <<EOF
 #!/usr/bin/env bash
 exec "$REAL_CC" -march=znver2 -msse4.1 -mavx2 -fno-strict-aliasing "\$@"
@@ -83,6 +84,10 @@ for src in "${HOST_SOURCES[@]}"; do
 done
 PIE="$OUT/artifacts/snes9x_pie.elf"
 "$CXX" -o "$PIE" "${HOST_OBJECTS[@]}" "$CORE_LIB" "${LRC_OBJECTS[@]}" \
+ -Wl,-z,max-page-size=0x4000 \
+ -Wl,--hash-style=gnu \
+ -Wl,--eh-frame-hdr \
+ -Wl,-T,"$PIE_LINKER" \
  -Wl,--version-script="$ROOT/tools/ps5/app-hidden.map" \
  -Wl,--exclude-libs,ALL \
  -pthread -lm -lSceAudioOut -lScePad -lSceUserService -lSceVideoOut -lSceSystemService
