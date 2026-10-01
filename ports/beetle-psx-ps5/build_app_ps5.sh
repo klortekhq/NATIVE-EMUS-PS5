@@ -215,12 +215,19 @@ find "$OUT/artifacts" -maxdepth 1 -type f ! -name SHA256SUMS -print0 |
 echo "PS1 native PS5 standalone PIE complete: $PIE"
 echo "RADV source mode: $RADV_SOURCE_MODE"
 
-# Optional final native-title conversion when a compatible public converter is
-# available. The linked PIE remains a valid engineering artifact on its own.
-if [[ -n "${PS5_NATIVE_TOOL:-}" ]]; then
-  [[ -x "$PS5_NATIVE_TOOL" ]] || {
-    echo "PS5_NATIVE_TOOL is not executable: $PS5_NATIVE_TOOL" >&2
+# Finalize the linked PIE with the shared, pinned native-title converter.
+# RADV imports two AGC stubs in addition to the public SDK stub directory.
+# Set PS5_FINALIZE_NATIVE=0 only for link-only diagnostics.
+if [[ "${PS5_FINALIZE_NATIVE:-1}" != "0" ]]; then
+  PS5_PAYLOAD_SDK="$PS5_PAYLOAD_SDK" \
+    bash "$ROOT/tools/ps5/finalize_native_pie.sh" \
+      "$PIE" "$OUT/artifacts/native" \
+      "$OUT/stubs/libSceAgc.so" \
+      "$OUT/stubs/libSceAgcDriver.so"
+
+  [[ -s "$OUT/artifacts/native/eboot.elf" &&
+     -s "$OUT/artifacts/native/eboot.bin" ]] || {
+    echo "PS1 native title finalization did not produce eboot.elf + eboot.bin" >&2
     exit 9
   }
-  "$PS5_NATIVE_TOOL" link --in "$PIE" --out "$OUT/artifacts/eboot.elf"     --stub-dir "$PS5_PAYLOAD_SDK/target/lib"     --stub "$OUT/stubs/libSceAgc.so"     --stub "$OUT/stubs/libSceAgcDriver.so"
 fi
