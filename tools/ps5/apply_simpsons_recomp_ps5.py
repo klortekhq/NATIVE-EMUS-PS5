@@ -29,6 +29,9 @@ AUDIO_CMAKE = pathlib.Path("tools/rexglue-sdk/src/audio/CMakeLists.txt")
 INPUT_CMAKE = pathlib.Path("tools/rexglue-sdk/src/input/CMakeLists.txt")
 INPUT_SYSTEM = pathlib.Path("tools/rexglue-sdk/src/input/input_system.cpp")
 REX_APP = pathlib.Path("tools/rexglue-sdk/src/ui/rex_app.cpp")
+VULKAN_INSTANCE_H = pathlib.Path("tools/rexglue-sdk/include/rex/ui/vulkan/instance.h")
+VULKAN_INSTANCE = pathlib.Path("tools/rexglue-sdk/src/ui/vulkan/vulkan_instance.cpp")
+VULKAN_PRESENTER = pathlib.Path("tools/rexglue-sdk/src/ui/vulkan/vulkan_presenter.cpp")
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -507,6 +510,328 @@ def transform_rex_app(text: str) -> str:
     )
     return text
 
+
+def transform_vulkan_instance_header(text: str) -> str:
+    text = replace_once(
+        text,
+        """    // VK_KHR_surface (#1)
+#include <rex/ui/vulkan/functions/instance_khr_surface.inc>
+""",
+        """    // VK_KHR_surface (#1)
+#include <rex/ui/vulkan/functions/instance_khr_surface.inc>
+#if REX_PLATFORM_PS5
+    // VK_KHR_display (#3) - native fullscreen WSI.
+#include <rex/ui/vulkan/functions/instance_khr_display.inc>
+#endif
+""",
+        "PS5 VK_KHR_display functions",
+    )
+    text = replace_once(
+        text,
+        """    bool ext_KHR_surface = false;  // #1
+""",
+        """    bool ext_KHR_surface = false;  // #1
+#if REX_PLATFORM_PS5
+    bool ext_KHR_display = false;  // #3
+#endif
+""",
+        "PS5 VK_KHR_display extension flag",
+    )
+    return text
+
+
+def transform_vulkan_instance(text: str) -> str:
+    text = replace_once(
+        text,
+        """#include <rex/ui/vulkan/presenter.h>
+
+REXCVAR_DEFINE_BOOL(vulkan_log_debug_messages, true, "UI/Vulkan", "Log Vulkan debug messages");
+""",
+        """#include <rex/ui/vulkan/presenter.h>
+
+#if REX_PLATFORM_PS5
+extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
+vkGetInstanceProcAddr(VkInstance instance, const char* name);
+extern "C" VKAPI_ATTR void VKAPI_CALL
+vkDestroyInstance(VkInstance instance, const VkAllocationCallbacks* allocator);
+#endif
+
+REXCVAR_DEFINE_BOOL(vulkan_log_debug_messages, true, "UI/Vulkan", "Log Vulkan debug messages");
+""",
+        "PS5 static Vulkan entry points",
+    )
+    text = replace_once(
+        text,
+        """  bool functions_loaded = true;
+  if (!vulkan_instance->loader_.Load(platform::lib_names::kVulkanLoader)) {
+    REXLOG_ERROR("Failed to load {}", platform::lib_names::kVulkanLoader);
+    return nullptr;
+  }
+#define XE_VULKAN_LOAD_LOADER_FUNCTION(name) \
+  functions_loaded &= (ifn.name = vulkan_instance->loader_.GetSymbol<PFN_##name>(#name)) != nullptr;
+  XE_VULKAN_LOAD_LOADER_FUNCTION(vkGetInstanceProcAddr);
+  XE_VULKAN_LOAD_LOADER_FUNCTION(vkDestroyInstance);
+#undef XE_VULKAN_LOAD_LOADER_FUNCTION
+""",
+        """  bool functions_loaded = true;
+#if REX_PLATFORM_PS5
+  // PS5 Vulkan is linked into the title; runtime dlopen is neither needed nor
+  // desirable. From here on ReXGlue still resolves every entry point through
+  // the standard vkGetInstanceProcAddr chain.
+  ifn.vkGetInstanceProcAddr = &::vkGetInstanceProcAddr;
+  ifn.vkDestroyInstance = &::vkDestroyInstance;
+  functions_loaded =
+      ifn.vkGetInstanceProcAddr != nullptr && ifn.vkDestroyInstance != nullptr;
+#else
+  if (!vulkan_instance->loader_.Load(platform::lib_names::kVulkanLoader)) {
+    REXLOG_ERROR("Failed to load {}", platform::lib_names::kVulkanLoader);
+    return nullptr;
+  }
+#define XE_VULKAN_LOAD_LOADER_FUNCTION(name) \
+  functions_loaded &= (ifn.name = vulkan_instance->loader_.GetSymbol<PFN_##name>(#name)) != nullptr;
+  XE_VULKAN_LOAD_LOADER_FUNCTION(vkGetInstanceProcAddr);
+  XE_VULKAN_LOAD_LOADER_FUNCTION(vkDestroyInstance);
+#undef XE_VULKAN_LOAD_LOADER_FUNCTION
+#endif
+""",
+        "PS5 static Vulkan loader",
+    )
+    text = replace_once(
+        text,
+        """    // #1.
+    requested_extensions.emplace("VK_KHR_surface", &vulkan_instance->extensions_.ext_KHR_surface);
+""",
+        """    // #1.
+    requested_extensions.emplace("VK_KHR_surface", &vulkan_instance->extensions_.ext_KHR_surface);
+#if REX_PLATFORM_PS5
+    // #3. PS5 homebrew presents through the display extension rather than a
+    // desktop window-system extension.
+    requested_extensions.emplace("VK_KHR_display", &vulkan_instance->extensions_.ext_KHR_display);
+#endif
+""",
+        "request PS5 VK_KHR_display",
+    )
+    text = replace_once(
+        text,
+        """  if (vulkan_instance->extensions_.ext_KHR_surface) {
+#include <rex/ui/vulkan/functions/instance_khr_surface.inc>
+  }
+""",
+        """#if REX_PLATFORM_PS5
+  if (vulkan_instance->extensions_.ext_KHR_display) {
+#include <rex/ui/vulkan/functions/instance_khr_display.inc>
+  }
+#endif
+  if (vulkan_instance->extensions_.ext_KHR_surface) {
+#include <rex/ui/vulkan/functions/instance_khr_surface.inc>
+  }
+""",
+        "load PS5 VK_KHR_display functions",
+    )
+    return text
+
+
+def transform_vulkan_presenter(text: str) -> str:
+    text = replace_once(
+        text,
+        """#if REX_PLATFORM_WIN32
+#include <rex/ui/surface_win.h>
+#endif
+""",
+        """#if REX_PLATFORM_WIN32
+#include <rex/ui/surface_win.h>
+#endif
+#if REX_PLATFORM_PS5
+#include <rex/ui/surface_ps5.h>
+#endif
+""",
+        "PS5 Vulkan surface include",
+    )
+    text = replace_once(
+        text,
+        """#if REX_PLATFORM_WIN32
+  if (instance_extensions.ext_KHR_win32_surface) {
+    type_flags |= Surface::kTypeFlag_Win32Hwnd;
+  }
+#endif
+  return type_flags;
+""",
+        """#if REX_PLATFORM_WIN32
+  if (instance_extensions.ext_KHR_win32_surface) {
+    type_flags |= Surface::kTypeFlag_Win32Hwnd;
+  }
+#endif
+#if REX_PLATFORM_PS5
+  if (instance_extensions.ext_KHR_display) {
+    type_flags |= Surface::kTypeFlag_PS5Display;
+  }
+#endif
+  return type_flags;
+""",
+        "PS5 Vulkan surface capability",
+    )
+
+    ps5_case = r"""#if REX_PLATFORM_PS5
+      case Surface::kTypeIndex_PS5Display: {
+        const VkPhysicalDevice physical_device = vulkan_device_->physical_device();
+
+        uint32_t display_count = 0;
+        if (ifn.vkGetPhysicalDeviceDisplayPropertiesKHR(
+                physical_device, &display_count, nullptr) != VK_SUCCESS ||
+            display_count == 0) {
+          REXLOG_ERROR("VulkanPresenter: PS5 has no VK_KHR_display target");
+          return SurfacePaintConnectResult::kFailureSurfaceUnusable;
+        }
+        std::vector<VkDisplayPropertiesKHR> displays(display_count);
+        if (ifn.vkGetPhysicalDeviceDisplayPropertiesKHR(
+                physical_device, &display_count, displays.data()) != VK_SUCCESS) {
+          REXLOG_ERROR("VulkanPresenter: failed to enumerate PS5 displays");
+          return SurfacePaintConnectResult::kFailureSurfaceUnusable;
+        }
+        const VkDisplayKHR display = displays.front().display;
+
+        uint32_t mode_count = 0;
+        if (ifn.vkGetDisplayModePropertiesKHR(
+                physical_device, display, &mode_count, nullptr) != VK_SUCCESS ||
+            mode_count == 0) {
+          REXLOG_ERROR("VulkanPresenter: PS5 display exposes no modes");
+          return SurfacePaintConnectResult::kFailureSurfaceUnusable;
+        }
+        std::vector<VkDisplayModePropertiesKHR> modes(mode_count);
+        if (ifn.vkGetDisplayModePropertiesKHR(
+                physical_device, display, &mode_count, modes.data()) != VK_SUCCESS) {
+          REXLOG_ERROR("VulkanPresenter: failed to enumerate PS5 display modes");
+          return SurfacePaintConnectResult::kFailureSurfaceUnusable;
+        }
+
+        // Prefer the mode whose visible region is closest to the requested
+        // surface. ReXGlue can render at another internal size; the swapchain
+        // must follow the actual display mode.
+        size_t best_mode = 0;
+        uint64_t best_delta = UINT64_MAX;
+        for (size_t i = 0; i < modes.size(); ++i) {
+          const auto& extent = modes[i].parameters.visibleRegion;
+          const uint64_t dx =
+              extent.width > new_surface_width ? extent.width - new_surface_width
+                                               : new_surface_width - extent.width;
+          const uint64_t dy =
+              extent.height > new_surface_height ? extent.height - new_surface_height
+                                                 : new_surface_height - extent.height;
+          const uint64_t delta = dx + dy;
+          if (delta < best_delta) {
+            best_delta = delta;
+            best_mode = i;
+          }
+        }
+
+        uint32_t plane_count = 0;
+        if (ifn.vkGetPhysicalDeviceDisplayPlanePropertiesKHR(
+                physical_device, &plane_count, nullptr) != VK_SUCCESS ||
+            plane_count == 0) {
+          REXLOG_ERROR("VulkanPresenter: PS5 display exposes no planes");
+          return SurfacePaintConnectResult::kFailureSurfaceUnusable;
+        }
+        std::vector<VkDisplayPlanePropertiesKHR> planes(plane_count);
+        if (ifn.vkGetPhysicalDeviceDisplayPlanePropertiesKHR(
+                physical_device, &plane_count, planes.data()) != VK_SUCCESS) {
+          REXLOG_ERROR("VulkanPresenter: failed to enumerate PS5 display planes");
+          return SurfacePaintConnectResult::kFailureSurfaceUnusable;
+        }
+
+        uint32_t selected_plane = UINT32_MAX;
+        for (uint32_t plane = 0; plane < plane_count; ++plane) {
+          uint32_t supported_count = 0;
+          if (ifn.vkGetDisplayPlaneSupportedDisplaysKHR(
+                  physical_device, plane, &supported_count, nullptr) != VK_SUCCESS ||
+              supported_count == 0) {
+            continue;
+          }
+          std::vector<VkDisplayKHR> supported(supported_count);
+          if (ifn.vkGetDisplayPlaneSupportedDisplaysKHR(
+                  physical_device, plane, &supported_count, supported.data()) != VK_SUCCESS) {
+            continue;
+          }
+          if (std::find(supported.begin(), supported.end(), display) != supported.end()) {
+            selected_plane = plane;
+            break;
+          }
+        }
+        if (selected_plane == UINT32_MAX) {
+          REXLOG_ERROR("VulkanPresenter: no PS5 display plane supports the selected display");
+          return SurfacePaintConnectResult::kFailureSurfaceUnusable;
+        }
+
+        VkDisplayPlaneCapabilitiesKHR capabilities{};
+        if (ifn.vkGetDisplayPlaneCapabilitiesKHR(
+                physical_device, modes[best_mode].displayMode, selected_plane,
+                &capabilities) != VK_SUCCESS) {
+          REXLOG_ERROR("VulkanPresenter: failed to query PS5 display plane capabilities");
+          return SurfacePaintConnectResult::kFailureSurfaceUnusable;
+        }
+
+        VkDisplayPlaneAlphaFlagBitsKHR alpha_mode = VK_DISPLAY_PLANE_ALPHA_OPAQUE_BIT_KHR;
+        if (!(capabilities.supportedAlpha & alpha_mode)) {
+          const uint32_t supported_alpha =
+              static_cast<uint32_t>(capabilities.supportedAlpha);
+          if (!supported_alpha) {
+            REXLOG_ERROR("VulkanPresenter: PS5 display plane has no supported alpha mode");
+            return SurfacePaintConnectResult::kFailureSurfaceUnusable;
+          }
+          const uint32_t lowest_bit = supported_alpha & (~supported_alpha + 1u);
+          alpha_mode = static_cast<VkDisplayPlaneAlphaFlagBitsKHR>(lowest_bit);
+        }
+
+        VkDisplaySurfaceCreateInfoKHR surface_create_info{};
+        surface_create_info.sType = VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR;
+        surface_create_info.displayMode = modes[best_mode].displayMode;
+        surface_create_info.planeIndex = selected_plane;
+        surface_create_info.planeStackIndex = planes[selected_plane].currentStackIndex;
+        surface_create_info.transform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+        surface_create_info.globalAlpha = 1.0f;
+        surface_create_info.alphaMode = alpha_mode;
+        surface_create_info.imageExtent = modes[best_mode].parameters.visibleRegion;
+
+        vulkan_surface_create_result = ifn.vkCreateDisplayPlaneSurfaceKHR(
+            instance, &surface_create_info, nullptr, &paint_context_.vulkan_surface);
+      } break;
+#endif
+"""
+    text = replace_once(
+        text,
+        """#if REX_PLATFORM_WIN32
+      case Surface::kTypeIndex_Win32Hwnd: {
+        auto& win32_hwnd_surface = static_cast<const Win32HwndSurface&>(new_surface);
+        VkWin32SurfaceCreateInfoKHR surface_create_info;
+        surface_create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+        surface_create_info.pNext = nullptr;
+        surface_create_info.flags = 0;
+        surface_create_info.hinstance = win32_hwnd_surface.hinstance();
+        surface_create_info.hwnd = win32_hwnd_surface.hwnd();
+        vulkan_surface_create_result = ifn.vkCreateWin32SurfaceKHR(
+            instance, &surface_create_info, nullptr, &paint_context_.vulkan_surface);
+      } break;
+#endif
+      default:
+""",
+        """#if REX_PLATFORM_WIN32
+      case Surface::kTypeIndex_Win32Hwnd: {
+        auto& win32_hwnd_surface = static_cast<const Win32HwndSurface&>(new_surface);
+        VkWin32SurfaceCreateInfoKHR surface_create_info;
+        surface_create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+        surface_create_info.pNext = nullptr;
+        surface_create_info.flags = 0;
+        surface_create_info.hinstance = win32_hwnd_surface.hinstance();
+        surface_create_info.hwnd = win32_hwnd_surface.hwnd();
+        vulkan_surface_create_result = ifn.vkCreateWin32SurfaceKHR(
+            instance, &surface_create_info, nullptr, &paint_context_.vulkan_surface);
+      } break;
+#endif
+""" + ps5_case + """      default:
+""",
+        "PS5 VK_KHR_display surface creation",
+    )
+    return text
+
 def copy_overlay(source_root: pathlib.Path, repo_root: pathlib.Path, check: bool) -> None:
     overlay = repo_root / "ports/simpsons-recomp-ps5/overlay"
     if not overlay.is_dir():
@@ -549,6 +874,15 @@ def main() -> int:
             INPUT_CMAKE: transform_input_cmake((root / INPUT_CMAKE).read_text()),
             INPUT_SYSTEM: transform_input_system((root / INPUT_SYSTEM).read_text()),
             REX_APP: transform_rex_app((root / REX_APP).read_text()),
+            VULKAN_INSTANCE_H: transform_vulkan_instance_header(
+                (root / VULKAN_INSTANCE_H).read_text()
+            ),
+            VULKAN_INSTANCE: transform_vulkan_instance(
+                (root / VULKAN_INSTANCE).read_text()
+            ),
+            VULKAN_PRESENTER: transform_vulkan_presenter(
+                (root / VULKAN_PRESENTER).read_text()
+            ),
         }
         copy_overlay(root, repo_root, args.check)
     except RuntimeError as exc:
@@ -566,6 +900,9 @@ def main() -> int:
             "input": "ps5_input_driver.cpp" in transformed[INPUT_CMAKE],
             "input_factory": "PS5InputDriver" in transformed[INPUT_SYSTEM],
             "audio_factory": "PS5AudioSystem" in transformed[REX_APP],
+            "vulkan_display_ext": "ext_KHR_display" in transformed[VULKAN_INSTANCE_H],
+            "vulkan_static_loader": "PS5 Vulkan is linked into the title" in transformed[VULKAN_INSTANCE],
+            "vulkan_display_surface": "vkCreateDisplayPlaneSurfaceKHR" in transformed[VULKAN_PRESENTER],
         }
         failed = [name for name, good in checks.items() if not good]
         if failed:
