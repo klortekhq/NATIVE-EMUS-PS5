@@ -62,10 +62,11 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 ## Phase 2 — modern native emulator ports
 
 ### Flycast
-- [ ] pin upstream
-- [ ] build core with PS5 toolchain
-- [ ] x86-64 SH4 dynarec through ps5rt::jit
-- [ ] Vulkan through PS5 RADV
+- [x] pin upstream
+- [x] build real rec-x64 core with PS5 toolchain
+- [x] x86-64 SH4/ARM7/DSP dynarecs routed through ps5rt JIT/VM adapter at build time
+- [ ] execute exact-capacity JIT + fastmem probes on physical PS5
+- [ ] Vulkan through an audited public PS5 Vulkan/RADV baseline
 - [ ] AudioOut
 - [ ] DualSense
 - [ ] BIOS/game VFS
