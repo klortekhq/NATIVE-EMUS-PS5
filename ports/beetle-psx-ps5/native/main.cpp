@@ -207,6 +207,15 @@ int main(int argc, char** argv) {
         ps5rt::log(ps5rt::LogLevel::warning, "ps1", state_error);
     }
 
+    const int disc_delta = runtime_io.consume_disc_delta_requested();
+    if (disc_delta != 0) {
+      std::string disc_error;
+      if (runtime_io.change_disc(disc_delta, disc_error))
+        ps5rt::log(ps5rt::LogLevel::info, "ps1", "changed active disc");
+      else
+        ps5rt::log(ps5rt::LogLevel::warning, "ps1", disc_error);
+    }
+
     if ((frames % save_interval_frames) == 0) {
       std::string save_error;
       if (!save_ram.save(core, save_error))
