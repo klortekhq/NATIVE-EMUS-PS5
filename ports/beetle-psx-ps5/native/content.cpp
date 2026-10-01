@@ -110,6 +110,7 @@ bool ensure_directory(const std::filesystem::path& path, std::string& error) {
 ContentLayout::ContentLayout() {
   system_dir = data_root / "system";
   save_dir = data_root / "saves";
+  state_dir = data_root / "states";
 }
 
 bool is_supported_ps1_content(std::string_view path) noexcept {
@@ -162,7 +163,8 @@ bool prepare_content(
   }
 
   if (!ensure_directory(layout.system_dir, error) ||
-      !ensure_directory(layout.save_dir, error))
+      !ensure_directory(layout.save_dir, error) ||
+      !ensure_directory(layout.state_dir, error))
     return false;
 
   if (lowercase(content.extension().string()) == ".m3u" &&
@@ -170,7 +172,9 @@ bool prepare_content(
     return false;
 
   out.core_path = content.string();
-  out.save_ram_path = layout.save_dir / (save_stem(content) + ".srm");
+  const auto stem = save_stem(content);
+  out.save_ram_path = layout.save_dir / (stem + ".srm");
+  out.state_path = layout.state_dir / (stem + ".state0");
   out.local_file = true;
   return true;
 }
@@ -255,6 +259,152 @@ bool SaveRamStore::save(corehost::StaticCore& core, std::string& error) const {
   if (ec) {
     std::filesystem::remove(temporary);
     error = "cannot atomically replace save RAM";
+    return false;
+  }
+  return true;
+}
+
+SaveStateStore::SaveStateStore(std::filesystem::path path)
+    : path_(std::move(path)) {}
+
+bool SaveStateStore::save(
+    corehost::StaticCore& core,
+    std::string& error) const {
+  error.clear();
+
+  std::vector<std::uint8_t> state;
+  if (!core.save_state(state) || state.empty()) {
+    error = "core could not serialize PS1 save state";
+    return false;
+  }
+
+  constexpr std::size_t max_state_size = 128u * 1024u * 1024u;
+  if (state.size() > max_state_size) {
+    error = "PS1 save state exceeds safety limit";
+    return false;
+  }
+
+  if (!ensure_directory(path_.parent_path(), error))
+    return false;
+
+  constexpr std::array<std::uint8_t, 8> magic{
+      'N','E','P','S','1','S','T',0};
+  constexpr std::uint32_t version = 1;
+  const std::uint64_t payload_size = state.size();
+
+  const auto temporary = path_.string() + ".tmp";
+  {
+    std::ofstream output(temporary, std::ios::binary | std::ios::trunc);
+    if (!output) {
+      error = "cannot create PS1 save-state temporary file";
+      return false;
+    }
+
+    output.write(
+        reinterpret_cast<const char*>(magic.data()),
+        static_cast<std::streamsize>(magic.size()));
+    output.write(
+        reinterpret_cast<const char*>(&version),
+        static_cast<std::streamsize>(sizeof(version)));
+    output.write(
+        reinterpret_cast<const char*>(&payload_size),
+        static_cast<std::streamsize>(sizeof(payload_size)));
+    output.write(
+        reinterpret_cast<const char*>(state.data()),
+        static_cast<std::streamsize>(state.size()));
+    output.flush();
+
+    if (!output) {
+      error = "cannot write PS1 save state";
+      return false;
+    }
+  }
+
+  std::error_code ec;
+  std::filesystem::rename(temporary, path_, ec);
+  if (!ec)
+    return true;
+
+  std::filesystem::remove(path_, ec);
+  ec.clear();
+  std::filesystem::rename(temporary, path_, ec);
+  if (ec) {
+    std::filesystem::remove(temporary);
+    error = "cannot atomically replace PS1 save state";
+    return false;
+  }
+  return true;
+}
+
+bool SaveStateStore::load(
+    corehost::StaticCore& core,
+    std::string& error) const {
+  error.clear();
+
+  std::error_code ec;
+  if (!std::filesystem::exists(path_, ec)) {
+    if (ec)
+      error = "cannot stat PS1 save state";
+    else
+      error = "PS1 save state slot 0 does not exist";
+    return false;
+  }
+
+  std::ifstream input(path_, std::ios::binary);
+  if (!input) {
+    error = "cannot open PS1 save state";
+    return false;
+  }
+
+  constexpr std::array<std::uint8_t, 8> expected_magic{
+      'N','E','P','S','1','S','T',0};
+  std::array<std::uint8_t, 8> magic{};
+  std::uint32_t version{};
+  std::uint64_t payload_size{};
+
+  input.read(
+      reinterpret_cast<char*>(magic.data()),
+      static_cast<std::streamsize>(magic.size()));
+  input.read(
+      reinterpret_cast<char*>(&version),
+      static_cast<std::streamsize>(sizeof(version)));
+  input.read(
+      reinterpret_cast<char*>(&payload_size),
+      static_cast<std::streamsize>(sizeof(payload_size)));
+
+  if (!input || magic != expected_magic || version != 1) {
+    error = "invalid PS1 save-state header";
+    return false;
+  }
+
+  constexpr std::uint64_t max_state_size = 128ull * 1024ull * 1024ull;
+  if (payload_size == 0 || payload_size > max_state_size) {
+    error = "invalid PS1 save-state payload size";
+    return false;
+  }
+
+  input.seekg(0, std::ios::end);
+  const auto end = input.tellg();
+  constexpr std::uint64_t header_size =
+      8u + sizeof(std::uint32_t) + sizeof(std::uint64_t);
+  if (end < 0 ||
+      static_cast<std::uint64_t>(end) != header_size + payload_size) {
+    error = "PS1 save-state file is truncated or has trailing data";
+    return false;
+  }
+
+  input.seekg(static_cast<std::streamoff>(header_size), std::ios::beg);
+  std::vector<std::uint8_t> state(static_cast<std::size_t>(payload_size));
+  input.read(
+      reinterpret_cast<char*>(state.data()),
+      static_cast<std::streamsize>(state.size()));
+  if (!input) {
+    error = "cannot read PS1 save-state payload";
+    return false;
+  }
+
+  if (!core.load_state(state.data(), state.size())) {
+    error = "core rejected PS1 save state";
     return false;
   }
   return true;
