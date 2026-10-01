@@ -66,14 +66,20 @@ Beetle PSX HW Vulkan
 
 The driver is linked into the title; the PS5 port does not rely on a desktop Vulkan loader.
 
+The 2026-10-01 hardening pass added an immutable RADV bundle receipt, native
+mixed-mode sector metadata, explicit region-aware BIOS policy and the shared
+native FSELF finalizer with PS1's AGC import stubs. These improve
+reproducibility but do **not** increase the 78% score until the complete RADV
+application link is produced and validated.
+
 ## Remaining gates
 
-1. finish the full standalone RADV-linked ELF;
-2. resolve static frontend support symbols and title-link imports;
-3. native title/FSELF conversion;
+1. freeze/validate the pinned RADV + matching SDK bundle;
+2. finish the full standalone RADV-linked ELF;
+3. validate native ELF/FSELF conversion from that full link;
 4. physical PS5 boot;
 5. BIOS/OpenBIOS and legal test-content validation;
-6. game/media/save compatibility pass;
+6. mixed-mode/game/media/save compatibility pass;
 7. performance tuning without dropping Lightrec.
 
 ## Workspaces
