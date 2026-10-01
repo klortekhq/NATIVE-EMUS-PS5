@@ -27,14 +27,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Fetch pinned PS5 Beetle PSX donor
         run: |
-          git clone --filter=blob:none https://github.com/mihawk-99/PS5_BeetlePSX.git /tmp/beetle-psx
-          git -C /tmp/beetle-psx checkout --detach e43b3980e031c47066917c941be6ace6f51ed24f
+          git clone --filter=blob:none https://github.com/libretro/beetle-psx-libretro.git /tmp/beetle-psx
+          git -C /tmp/beetle-psx checkout --detach ed87921996c67658d7a70814f73034bbca08786a
       - name: Validate deterministic Lightrec transform
         run: |
           set -euo pipefail
           python3 tools/ps5/apply_beetle_psx_ps5.py /tmp/beetle-psx --check
           python3 tools/ps5/apply_beetle_psx_ps5.py /tmp/beetle-psx
+          grep -q 'else ifeq ($(platform), ps5)' /tmp/beetle-psx/Makefile
           grep -q 'HAVE_LIGHTREC = 1' /tmp/beetle-psx/Makefile
+          grep -q 'THREADED_RECOMPILER = 1' /tmp/beetle-psx/Makefile
           grep -q 'ps5rt_exec_allocate' /tmp/beetle-psx/libretro.c
           grep -q 'ps5rt_exec_release' /tmp/beetle-psx/libretro.c
           grep -q 'defined(__PROSPERO__)' /tmp/beetle-psx/libretro.c
