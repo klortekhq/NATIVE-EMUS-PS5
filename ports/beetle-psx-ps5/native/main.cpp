@@ -1,4 +1,5 @@
 #include "content.hpp"
+#include "config.hpp"
 #include "runtime_io.hpp"
 #include "vulkan_environment.hpp"
 #include "vulkan_presenter.hpp"
@@ -123,6 +124,13 @@ int main(int argc, char** argv) {
     return fail(error, 4);
   }
 
+  native_emus::ps1::PortConfig port_config;
+  if (!native_emus::ps1::load_port_config(
+          layout.data_root / "config.ini", port_config, error)) {
+    ps5rt::shutdown_app();
+    return fail(error, 5);
+  }
+
   native_emus::ps1::VulkanEnvironment vulkan_environment;
   native_emus::ps1::VulkanPresenter presenter(vkGetInstanceProcAddr);
   native_emus::ps1::RuntimeIo runtime_io;
@@ -137,21 +145,13 @@ int main(int argc, char** argv) {
             return presenter.present(width, height);
           }));
 
-  // Standalone PS5 policy: hardware Vulkan + native recompiler. We never
-  // silently downgrade the final PS5 target to the Beetle interpreter.
-  core.set_option("beetle_psx_hw_renderer", "hardware_vk");
-  core.set_option("beetle_psx_hw_cpu_dynarec", "execute");
-
-  // Firmware policy: preserve upstream's region-aware BIOS search and keep the
-  // real boot path enabled. If no user-supplied regional BIOS is present,
-  // Beetle may use its own OpenBIOS fallback; no firmware is bundled here.
-  core.set_option("beetle_psx_hw_region", "auto");
-  core.set_option("beetle_psx_hw_skip_bios", "disabled");
-  core.set_option("beetle_psx_hw_override_bios", "disabled");
+  // Standalone PS5 architecture stays fixed to Vulkan + Lightrec. The config
+  // only selects safe user preferences such as region/BIOS/resolution.
+  native_emus::ps1::apply_port_config(core, port_config);
 
   if (!core.initialize(error)) {
     ps5rt::shutdown_app();
-    return fail(error, 5);
+    return fail(error, 6);
   }
 
   const auto sample_rate = core.av_info().timing.sample_rate;
@@ -160,12 +160,12 @@ int main(int argc, char** argv) {
       : 44100u;
   if (!runtime_io.initialize(rounded_rate)) {
     ps5rt::shutdown_app();
-    return fail("native PS5 audio/input initialization failed", 6);
+    return fail("native PS5 audio/input initialization failed", 7);
   }
 
   if (!core.load_path(prepared.core_path, error)) {
     ps5rt::shutdown_app();
-    return fail(error, 7);
+    return fail(error, 9);
   }
 
   native_emus::ps1::SaveRamStore save_ram(prepared.save_ram_path);
@@ -180,7 +180,7 @@ int main(int argc, char** argv) {
   if (!provider.initialize(vkGetInstanceProcAddr)) {
     core.unload();
     ps5rt::shutdown_app();
-    return fail("native PS5 Vulkan/RADV context initialization failed", 9);
+    return fail("native PS5 Vulkan/RADV context initialization failed", 10);
   }
 
   constexpr std::uint64_t save_interval_frames = 60u * 30u;
