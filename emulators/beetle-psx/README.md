@@ -1,6 +1,6 @@
 # Beetle PSX / Beetle PSX HW
 
-## Progress: **60%**
+## Progress: **67%**
 
 > Native PS5 port progress, scored from reproducible engineering evidence — not upstream emulator compatibility. See [progress scoring](../../docs/PROGRESS-SCORING.md).
 
@@ -9,11 +9,11 @@
 
 ## Why this core is tracked
 
-mihawk-99/PS5_BeetlePSX is the current PS5 scene reference.
+`libretro/beetle-psx-libretro@ed87921996c67658d7a70814f73034bbca08786a` is the canonical source. Mihawk's earlier PS5_BeetlePSX work remains historical feasibility evidence, but the native port no longer depends on that now-unavailable fork.
 
 ## Host architecture
 
-CPU dynarec/interpreter + HW renderer variants.
+Release CPU path: **Lightrec + GNU Lightning x86-64 recompilation on PS5 Zen 2**. Interpreter modes are diagnostic only. Hardware rendering uses Beetle's Vulkan RHI through the native PS5 Vulkan host.
 
 The PS5 adaptation should use the shared project services whenever possible:
 
