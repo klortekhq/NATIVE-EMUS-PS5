@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
-"""Enable Beetle PSX HW Lightrec on PS5 using ps5rt executable memory.
+"""Adapt upstream Beetle PSX HW to the native PS5 Lightrec/ps5rt path.
 
-Pinned donor:
-  mihawk-99/PS5_BeetlePSX@e43b3980e031c47066917c941be6ace6f51ed24f
+Canonical upstream:
+  libretro/beetle-psx-libretro@ed87921996c67658d7a70814f73034bbca08786a
 
-The donor deliberately disables Lightrec on PS5 until its code buffer can be
-allocated from console executable memory. This transform changes only that
-platform boundary: PSX RAM/BIOS/scratch continue using the core's normal
-fallback allocations, while Lightrec's TLSF code pool is backed by ps5rt.
+The PS5 CPU policy is intentionally strict:
+  R3000A -> Lightrec -> GNU Lightning x86-64 -> PS5 Zen 2.
+
+PSX RAM/BIOS/scratch remain on Beetle's ordinary heap-backed fallback path on
+Prospero. Only the Lightrec code pool requires executable console memory and is
+allocated through ps5rt. This avoids carrying desktop mmap/memfd semantics into
+the PS5 title while preserving the native recompiler.
 """
 
 from __future__ import annotations
+
 import argparse
 import pathlib
 import subprocess
 
-EXPECTED = "e43b3980e031c47066917c941be6ace6f51ed24f"
+EXPECTED = "ed87921996c67658d7a70814f73034bbca08786a"
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -25,92 +29,128 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
+def wrap_lightrec_mapping_for_ps5(text: str) -> str:
+    start_marker = "#ifdef HAVE_LIGHTREC\n/* Address-space strategy:"
+    end_marker = "#endif /* HAVE_LIGHTREC */\n\n/* LED interface */"
+
+    start = text.find(start_marker)
+    end = text.find(end_marker, start)
+    if start < 0 or end < 0:
+        raise RuntimeError("Lightrec mmap section markers not found")
+
+    outer_prefix = "#ifdef HAVE_LIGHTREC\n"
+    inner_start = start + len(outer_prefix)
+    inner = text[inner_start:end]
+
+    wrapped = (
+        "#ifdef HAVE_LIGHTREC\n"
+        "#if defined(__PROSPERO__)\n"
+        "/* PS5 uses heap-backed guest RAM and a ps5rt executable code pool. */\n"
+        "int lightrec_init_mmap(void)\n"
+        "{\n"
+        "\treturn 0;\n"
+        "}\n\n"
+        "void lightrec_free_mmap(void)\n"
+        "{\n"
+        "\t/* No desktop mmap mappings are created on Prospero. */\n"
+        "}\n"
+        "#else\n"
+        + inner +
+        "#endif /* !__PROSPERO__ */\n"
+        "#endif /* HAVE_LIGHTREC */\n\n"
+        "/* LED interface */"
+    )
+    return text[:start] + wrapped + text[end + len(end_marker):]
+
+
 def transform(root: pathlib.Path) -> dict[pathlib.Path, str]:
     out: dict[pathlib.Path, str] = {}
 
     makefile = root / "Makefile"
     text = makefile.read_text()
+
+    ps5_block = """# PlayStation 5 native static engine
+else ifeq ($(platform), ps5)
+   TARGET := $(TARGET_NAME)_libretro_ps5.a
+   fpic := -fPIC
+   STATIC_LINKING = 1
+   IS_X86 = 1
+   HAVE_VULKAN = 1
+   HAVE_OPENGL = 0
+   HAVE_CDROM = 0
+   HAVE_LIGHTREC = 1
+   THREADED_RECOMPILER = 1
+   LINK_STATIC_LIBCPLUSPLUS = 0
+   NEED_THREADING = 1
+   FLAGS += -D__PROSPERO__ -DHAVE_HW
+   FLAGS += -march=znver2 -msse4.1 -mavx2 -mno-vzeroupper
+
+"""
     text = replace_once(
         text,
-        """ifeq ($(platform), ps5)
-   HAVE_VULKAN = 1
-   HAVE_OPENGL = 0
-   HAVE_CDROM = 0
-   HAVE_LIGHTREC = 0
-   LINK_STATIC_LIBCPLUSPLUS = 0
-endif
-""",
-        """ifeq ($(platform), ps5)
-   HAVE_VULKAN = 1
-   HAVE_OPENGL = 0
-   HAVE_CDROM = 0
-   # NATIVE-EMUS-PS5: Lightrec is the required final CPU path.
-   # Its code pool is supplied by ps5rt in libretro.c.
-   HAVE_LIGHTREC = 1
-   LINK_STATIC_LIBCPLUSPLUS = 0
-endif
-""",
-        "PS5 Lightrec enable",
+        "# GCW0\nelse ifeq ($(platform), gcw0)\n",
+        ps5_block + "# GCW0\nelse ifeq ($(platform), gcw0)\n",
+        "PS5 Makefile platform block",
     )
     out[makefile] = text
 
     libretro = root / "libretro.c"
     text = libretro.read_text()
 
-    text = replace_once(
-        text,
-        """#ifdef HAVE_LIGHTREC
+    old_include = """#ifdef HAVE_LIGHTREC
 #include <lightrec-config.h>
-""",
-        """#ifdef HAVE_LIGHTREC
+#define _GNU_SOURCE /* For MFD_HUGETLB feature test macro define */
+#include <sys/mman.h>
+
+#ifdef HAVE_ASHMEM
+#include <sys/ioctl.h>
+#include <linux/ashmem.h>
+#include <dlfcn.h>
+#endif
+
+#if defined(HAVE_SHM) || defined(HAVE_ASHMEM)
+#include <sys/syscall.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#endif
+
+#ifdef HAVE_WIN_SHM
+#include <windows.h>
+#endif
+#endif /* HAVE_LIGHTREC */
+"""
+    new_include = """#ifdef HAVE_LIGHTREC
 #include <lightrec-config.h>
 #if defined(__PROSPERO__)
 #include <ps5rt/c/exec.h>
-#endif
-""",
-        "ps5rt executable-memory include",
-    )
-
-    # The donor's generic lightrec_init_mmap() still references the desktop
-    # SHM/memfd setup even though PS5 never calls that path after this transform.
-    # Stub it on Prospero so enabling HAVE_LIGHTREC does not drag the desktop
-    # mmap allocator into the PS5 compile.
-    text = replace_once(
-        text,
-        """int lightrec_init_mmap(void)
-{
-\tint ret = 0;
-""",
-        """int lightrec_init_mmap(void)
-{
-#if defined(__PROSPERO__)
-\treturn 0;
 #else
-\tint ret = 0;
-""",
-        "PS5 lightrec_init_mmap stub",
-    )
+#define _GNU_SOURCE /* For MFD_HUGETLB feature test macro define */
+#include <sys/mman.h>
+
+#ifdef HAVE_ASHMEM
+#include <sys/ioctl.h>
+#include <linux/ashmem.h>
+#include <dlfcn.h>
+#endif
+
+#if defined(HAVE_SHM) || defined(HAVE_ASHMEM)
+#include <sys/syscall.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#endif
+
+#ifdef HAVE_WIN_SHM
+#include <windows.h>
+#endif
+#endif /* __PROSPERO__ */
+#endif /* HAVE_LIGHTREC */
+"""
     text = replace_once(
-        text,
-        """#ifdef HAVE_WIN_SHM
-\tCloseHandle(memfd);
-#endif
-\treturn ret;
-}
-
-void lightrec_free_mmap(void)
-""",
-        """#ifdef HAVE_WIN_SHM
-\tCloseHandle(memfd);
-#endif
-\treturn ret;
-#endif
-}
-
-void lightrec_free_mmap(void)
-""",
-        "PS5 lightrec_init_mmap stub end",
+        text, old_include, new_include,
+        "PS5 Lightrec executable-memory include",
     )
+
+    text = wrap_lightrec_mapping_for_ps5(text)
 
     old_init = """#ifdef HAVE_LIGHTREC
    /* try hugetlb then fallback if mmap fails */
@@ -140,12 +180,10 @@ void lightrec_free_mmap(void)
     new_init = """#ifdef HAVE_LIGHTREC
 #if defined(__PROSPERO__)
    /*
-    * PS5: keep the donor's ordinary heap-backed PSX RAM path, but place the
-    * Lightrec TLSF code pool in real executable console memory. Lightrec then
-    * calls jit_set_code() on slices of this pool, so GNU Lightning emits
-    * native x86-64 machine code directly into PS5 executable memory.
-    *
-    * No interpreter substitution and no Linux mmap compatibility layer.
+    * Native PS5 path:
+    *   - guest RAM/BIOS/scratch stay heap-backed;
+    *   - the Lightrec TLSF code pool is real executable console memory;
+    *   - GNU Lightning emits x86-64 directly for Zen 2.
     */
    psx_mmap = 0;
    if (!lightrec_codebuffer)
@@ -185,7 +223,10 @@ void lightrec_free_mmap(void)
       BIOSROM = MultiAccessSizeMem_New(BIOS_SIZE);
    }
 """
-    text = replace_once(text, old_init, new_init, "PS5 Lightrec code-pool init")
+    text = replace_once(
+        text, old_init, new_init,
+        "PS5 Lightrec code-pool initialization",
+    )
 
     old_cleanup = """   MainRAM    = NULL;
    ScratchRAM = NULL;
@@ -209,7 +250,10 @@ void lightrec_free_mmap(void)
 #endif
 #else
 """
-    text = replace_once(text, old_cleanup, new_cleanup, "PS5 Lightrec code-pool cleanup")
+    text = replace_once(
+        text, old_cleanup, new_cleanup,
+        "PS5 Lightrec code-pool cleanup",
+    )
 
     out[libretro] = text
     return out
@@ -226,9 +270,13 @@ def main() -> int:
         ["git", "-C", str(root), "rev-parse", "HEAD"], text=True
     ).strip()
     if head != EXPECTED:
-        raise SystemExit(f"wrong PS5_BeetlePSX revision: {head}; expected {EXPECTED}")
-    if subprocess.run(["git", "-C", str(root), "diff", "--quiet"]).returncode:
-        raise SystemExit("PS5_BeetlePSX checkout has local modifications")
+        raise SystemExit(
+            f"wrong Beetle PSX revision: {head}; expected {EXPECTED}"
+        )
+    if subprocess.run(
+        ["git", "-C", str(root), "diff", "--quiet"]
+    ).returncode:
+        raise SystemExit("Beetle PSX checkout has local modifications")
 
     try:
         outputs = transform(root)
@@ -236,14 +284,20 @@ def main() -> int:
         raise SystemExit(str(exc))
 
     if args.check:
-        print(f"PS5_BeetlePSX {EXPECTED}: Lightrec -> ps5rt transform matched")
+        print(
+            f"Beetle PSX {EXPECTED}: upstream -> native PS5 Lightrec "
+            f"transform matched ({len(outputs)} files)"
+        )
         return 0
 
     for path, content in outputs.items():
         path.write_text(content)
 
     (root / ".native-emus-ps5-lightrec").write_text(EXPECTED + "\n")
-    print("Beetle PSX HW PS5: Lightrec executable pool retargeted to ps5rt")
+    print(
+        "Beetle PSX upstream: native PS5 Lightrec executable pool "
+        "retargeted to ps5rt"
+    )
     return 0
 
 
