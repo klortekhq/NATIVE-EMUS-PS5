@@ -177,7 +177,7 @@
       "core": "Beetle PSX HW + Lightrec",
       "status": "engine-cross-built",
       "group": "m8-baseline",
-      "note": "80% native PS5 port: public Beetle PSX HW + Lightrec/GNU Lightning x86-64 engine, Vulkan host, local multi-disc M3U and mixed-sector media gates are green; full pinned RADV-linked title and physical-console validation remain"
+      "note": "83% native PS5 port: public Beetle PSX HW + Lightrec/GNU Lightning x86-64 engine, Vulkan host, guarded slot-0 save states, local M3U and Beetle disk-control are green; full pinned RADV-linked title and physical-console validation remain"
     },
     {
       "id": "ps2",
