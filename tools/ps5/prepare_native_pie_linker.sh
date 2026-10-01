@@ -22,10 +22,10 @@ fi
 echo "$SHA256  $SOURCE" | sha256sum -c - >&2
 
 # BlackBear's native converter requires its page-separated PT_LOAD layout.
-# ps5-payload-dev/sdk's libunwind additionally references the four EH-frame
-# boundary symbols provided by its stock host/elf_x86_64.x linker script.
-# Derive a local linker script from the verified BlackBear source and add only
-# those exact PROVIDE_HIDDEN contracts.
+# ps5-payload-dev/sdk additionally references the EH-frame and BSS boundary
+# symbols provided by its stock host/elf_x86_64.x linker script. Derive a local
+# linker script from the verified BlackBear source and add only those exact
+# PROVIDE_HIDDEN contracts.
 python3 - "$SOURCE" "$SCRIPT" <<'PY'
 from pathlib import Path
 import sys
@@ -51,7 +51,25 @@ new_hdr = """    .eh_frame_hdr : ALIGN(CONSTANT(MAXPAGESIZE)) {
 """
 if source.count(old_hdr) != 1:
     raise SystemExit("unexpected BlackBear EH-frame linker layout")
-out.write_text(source.replace(old_hdr, new_hdr, 1))
+source = source.replace(old_hdr, new_hdr, 1)
+
+old_bss = """    .bss : {
+        *(.bss .bss.*)
+        *(COMMON)
+    } : data
+"""
+new_bss = """    .bss : {
+        PROVIDE_HIDDEN(__bss_start = .);
+        *(.bss .bss.*)
+        *(COMMON)
+        PROVIDE_HIDDEN(__bss_end = .);
+    } : data
+"""
+if source.count(old_bss) != 1:
+    raise SystemExit("unexpected BlackBear BSS linker layout")
+source = source.replace(old_bss, new_bss, 1)
+
+out.write_text(source)
 PY
 
 printf '%s\n' "$SCRIPT"
