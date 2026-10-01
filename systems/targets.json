@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated": "2026-09-30",
+  "updated": "2026-10-01",
   "baseline_m8_count": 43,
   "targets": [
     {
@@ -174,10 +174,10 @@
     {
       "id": "ps1",
       "name": "PlayStation",
-      "core": "Beetle PSX HW / DuckStation",
-      "status": "research",
+      "core": "Beetle PSX HW + Lightrec",
+      "status": "engine-cross-built",
       "group": "m8-baseline",
-      "note": "PS5_BeetlePSX exists; standalone native target"
+      "note": "78% native PS5 port: Lightrec + GNU Lightning x86-64 engine and Vulkan host are green in CI; full RADV-linked ELF and physical-console validation remain"
     },
     {
       "id": "ps2",
