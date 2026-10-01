@@ -15,6 +15,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 extern "C" {
 int sceNetInit();
@@ -55,6 +56,7 @@ struct HttpRuntime {
   bool registered{};
   std::string token{};
   std::string user_agent{"NATIVE-EMUS-PS5/1"};
+  std::size_t read_ahead_bytes{};
 };
 
 HttpRuntime g_http{};
@@ -122,7 +124,8 @@ Result add_common_headers(int req) noexcept {
 
 class EmuServerReader final : public RandomAccessReader {
 public:
-  explicit EmuServerReader(std::string url) : url_(std::move(url)) {}
+  explicit EmuServerReader(std::string url, std::size_t read_ahead_bytes)
+      : url_(std::move(url)), read_ahead_bytes_(read_ahead_bytes) {}
 
   ~EmuServerReader() override {
     std::scoped_lock lock(mutex_);
@@ -154,9 +157,11 @@ public:
           return reopened;
       }
 
-      auto result = read_once_locked(offset, destination, out_read);
+      auto result = read_with_read_ahead_locked(offset, destination, out_read);
       if (result)
         return result;
+
+      clear_read_ahead_locked();
 
       // Retry exactly once only for native transport failures. Positive HTTP
       // status codes (404/416/500...) are server responses and must not be
@@ -179,6 +184,90 @@ private:
            result.native_code < 0 &&
            (result.code == ErrorCode::io_error ||
             result.code == ErrorCode::system_error);
+  }
+
+  void clear_read_ahead_locked() noexcept {
+    cache_.clear();
+    cache_offset_ = 0;
+    cache_valid_ = 0;
+    cache_etag_.clear();
+  }
+
+  bool copy_from_read_ahead_locked(
+      std::uint64_t offset,
+      std::span<std::byte> destination,
+      std::size_t wanted,
+      std::size_t& out_read) noexcept {
+    if (wanted == 0 || cache_valid_ == 0 || cache_etag_ != etag_ ||
+        offset < cache_offset_) {
+      return false;
+    }
+
+    const auto relative64 = offset - cache_offset_;
+    if (relative64 > static_cast<std::uint64_t>(cache_valid_))
+      return false;
+    const auto relative = static_cast<std::size_t>(relative64);
+    if (wanted > cache_valid_ - relative)
+      return false;
+
+    std::memcpy(
+        destination.data(),
+        cache_.data() + relative,
+        wanted);
+    out_read = wanted;
+    return true;
+  }
+
+  Result read_with_read_ahead_locked(
+      std::uint64_t offset,
+      std::span<std::byte> destination,
+      std::size_t& out_read) noexcept {
+    out_read = 0;
+    if (offset > size_)
+      return {ErrorCode::invalid_argument, 0, "server read offset past EOF"};
+    if (destination.empty() || offset == size_)
+      return Result::success();
+
+    const auto remaining = size_ - offset;
+    const auto wanted64 = std::min<std::uint64_t>(
+        remaining, static_cast<std::uint64_t>(destination.size()));
+    if (wanted64 > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
+      return {ErrorCode::invalid_argument, 0, "server read size overflow"};
+    const auto wanted = static_cast<std::size_t>(wanted64);
+
+    if (copy_from_read_ahead_locked(offset, destination, wanted, out_read))
+      return Result::success();
+
+    if (read_ahead_bytes_ == 0 || wanted >= read_ahead_bytes_)
+      return read_once_locked(offset, destination, out_read);
+
+    const auto fetch64 = std::min<std::uint64_t>(
+        remaining, static_cast<std::uint64_t>(read_ahead_bytes_));
+    if (fetch64 > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
+      return {ErrorCode::invalid_argument, 0, "server read-ahead size overflow"};
+    const auto fetch_size = static_cast<std::size_t>(fetch64);
+
+    cache_.assign(fetch_size, std::byte{});
+    std::size_t fetched = 0;
+    auto result = read_once_locked(
+        offset,
+        std::span<std::byte>(cache_.data(), cache_.size()),
+        fetched);
+    if (!result) {
+      clear_read_ahead_locked();
+      out_read = 0;
+      return result;
+    }
+
+    cache_offset_ = offset;
+    cache_valid_ = fetched;
+    cache_etag_ = etag_;
+
+    if (!copy_from_read_ahead_locked(offset, destination, wanted, out_read)) {
+      clear_read_ahead_locked();
+      return {ErrorCode::io_error, 0, "server read-ahead cache fill mismatch"};
+    }
+    return Result::success();
   }
 
   Result read_once_locked(
@@ -324,12 +413,18 @@ private:
       close_connection();
       return {ErrorCode::io_error, rc, "server content length unavailable"};
     }
-    size_ = length;
-
     char* headers = nullptr;
     std::size_t headers_size = 0;
+    std::string refreshed_etag;
     if (sceHttpGetAllResponseHeaders(req, &headers, &headers_size) >= 0)
-      etag_ = header_value(headers, headers_size, "ETag");
+      refreshed_etag = header_value(headers, headers_size, "ETag");
+
+    if ((size_ != 0 && size_ != length) ||
+        (!etag_.empty() && etag_ != refreshed_etag)) {
+      clear_read_ahead_locked();
+    }
+    size_ = length;
+    etag_ = std::move(refreshed_etag);
 
     delete_req();
     return Result::success();
@@ -346,6 +441,11 @@ private:
   std::string url_{};
   std::string etag_{};
   std::uint64_t size_{};
+  std::size_t read_ahead_bytes_{};
+  std::vector<std::byte> cache_{};
+  std::string cache_etag_{};
+  std::uint64_t cache_offset_{};
+  std::size_t cache_valid_{};
   int conn_{-1};
 };
 
@@ -361,7 +461,8 @@ Result open_emu_server(
   if (!emus_to_http(uri, url))
     return {ErrorCode::invalid_argument, 0, "invalid emus:// URI"};
 
-  auto reader = std::make_unique<EmuServerReader>(std::move(url));
+  auto reader = std::make_unique<EmuServerReader>(
+      std::move(url), g_http.read_ahead_bytes);
   auto result = reader->open();
   if (!result)
     return result;
@@ -388,6 +489,7 @@ void cleanup_after_failed_init() noexcept {
     g_http.net_pool = -1;
   }
   g_http.token.clear();
+  g_http.read_ahead_bytes = 0;
 }
 
 } // namespace
@@ -427,6 +529,9 @@ Result initialize_emu_server_backend(const EmuServerConfig& config) noexcept {
           ? std::string("NATIVE-EMUS-PS5/1")
           : std::string(config.user_agent);
   g_http.token.assign(config.bearer_token);
+  constexpr std::size_t kMaxReadAhead = 8 * 1024 * 1024;
+  g_http.read_ahead_bytes =
+      std::min(config.read_ahead_bytes, kMaxReadAhead);
 
   g_http.tmpl = sceHttpCreateTemplate(
       g_http.http, g_http.user_agent.c_str(), 2, 0);
