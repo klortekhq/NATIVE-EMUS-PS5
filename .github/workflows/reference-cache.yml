@@ -1,0 +1,49 @@
+name: reference-cache
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "upstreams/scene-cache.json"
+      - "tools/ps5/cache_scene_references.sh"
+      - ".github/workflows/reference-cache.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "23 3 * * 0"
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate scene reference manifest
+        run: |
+          set -euo pipefail
+          python3 -m json.tool upstreams/scene-cache.json >/dev/null
+
+      - name: Materialize exact pinned source snapshots
+        run: |
+          set -euo pipefail
+          bash tools/ps5/cache_scene_references.sh             --output build/ps5-scene-reference-cache
+
+      - name: Verify cache hashes
+        run: |
+          set -euo pipefail
+          cd build/ps5-scene-reference-cache
+          sha256sum --check --strict SHA256SUMS
+          test -s CACHE-INDEX.tsv
+          test -s CACHE-METADATA.json
+
+      - name: Upload PS5 scene reference cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: ps5-scene-reference-cache-${{ github.sha }}
+          path: build/ps5-scene-reference-cache/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
