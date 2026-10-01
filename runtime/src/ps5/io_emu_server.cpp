@@ -80,17 +80,17 @@ std::string header_value(
   std::string_view block(headers, size);
   std::size_t pos = 0;
   while (pos < block.size()) {
-    const auto end = block.find('\\n', pos);
+    const auto end = block.find('\n', pos);
     auto line = block.substr(
         pos, end == std::string_view::npos ? block.size() - pos : end - pos);
-    if (!line.empty() && line.back() == '\\r')
+    if (!line.empty() && line.back() == '\r')
       line.remove_suffix(1);
 
     if (starts_with_ci(line, name) &&
         line.size() > name.size() &&
         line[name.size()] == ':') {
       auto value = line.substr(name.size() + 1);
-      while (!value.empty() && (value.front() == ' ' || value.front() == '\\t'))
+      while (!value.empty() && (value.front() == ' ' || value.front() == '\t'))
         value.remove_prefix(1);
       return std::string(value);
     }
@@ -128,7 +128,7 @@ bool emus_to_http(std::string_view uri, std::string& out) {
       return false;
   }
 
-  if (authority.find_first_of(" \\t\\r\\n?#") != std::string_view::npos)
+  if (authority.find_first_of(" \t\r\n?#") != std::string_view::npos)
     return false;
 
   out = "http://";
