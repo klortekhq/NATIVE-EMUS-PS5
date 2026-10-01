@@ -9,6 +9,8 @@ on:
       - 'runtime/**'
       - 'corehost/**'
       - 'tools/ps5/build_radv_bundle_from_pins.sh'
+      - 'tools/ps5/apply_beetle_psx_ps5.py'
+      - 'tools/ps5/write_artifact_manifest.py'
       - 'tools/ps5/prepare_radv_source_stack.sh'
       - 'tools/ps5/freeze_radv_bundle.py'
       - 'tools/ps5/validate_radv_bundle.py'
