@@ -57,9 +57,19 @@ int main() {
   std::filesystem::remove_all(root);
   std::filesystem::create_directories(root);
   const auto cue = root / "Ridge Test.cue";
+  const auto disc1 = root / "disc1.chd";
+  const auto disc2 = root / "disc2.cue";
   {
     std::ofstream f(cue);
     f << "FILE \"track.bin\" BINARY\n";
+  }
+  {
+    std::ofstream f(disc1, std::ios::binary);
+    f << "CHD";
+  }
+  {
+    std::ofstream f(disc2);
+    f << "FILE \"disc2.bin\" BINARY\n";
   }
 
   ContentLayout layout;
@@ -73,6 +83,37 @@ int main() {
   assert(prepared.local_file);
   assert(prepared.core_path == cue.string());
   assert(prepared.save_ram_path.filename() == "Ridge Test.srm");
+
+  const auto playlist = root / "Final Fantasy Test.m3u";
+  {
+    std::ofstream f(playlist);
+    f << "# multi-disc regression\n";
+    f << "disc1.chd\n";
+    f << "disc2.cue\n";
+  }
+  PreparedContent multi;
+  assert(prepare_content(playlist.string(), layout, multi, error));
+  assert(multi.playlist_entries.size() == 2);
+  assert(multi.playlist_entries[0] == disc1);
+  assert(multi.playlist_entries[1] == disc2);
+  assert(multi.save_ram_path.filename() == "Final Fantasy Test.srm");
+
+  const auto bad_playlist = root / "bad.m3u";
+  {
+    std::ofstream f(bad_playlist);
+    f << "smb://server/share/disc1.chd\n";
+  }
+  PreparedContent bad_multi;
+  assert(!prepare_content(bad_playlist.string(), layout, bad_multi, error));
+  assert(error == "PS1 M3U network entries require the ps5rt VFS bridge");
+
+  const auto nested_playlist = root / "nested.m3u";
+  {
+    std::ofstream f(nested_playlist);
+    f << "Final Fantasy Test.m3u\n";
+  }
+  assert(!prepare_content(nested_playlist.string(), layout, bad_multi, error));
+  assert(error == "nested PS1 M3U playlists are not supported");
 
   PreparedContent rejected;
   assert(!prepare_content("smb://server/share/game.chd", layout, rejected, error));
