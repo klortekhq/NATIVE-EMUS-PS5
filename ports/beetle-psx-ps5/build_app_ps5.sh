@@ -187,9 +187,20 @@ PIE="$OUT/artifacts/beetle_psx_hw_ps5_pie.elf"
 
 # IMPORTANT: radv-link.sh is an LLD recipe. Do not pass these arrays to
 # clang++: --whole-archive/--defsym/version scripts are linker arguments.
-"$LLD" "${radv_linker_script[@]}" --eh-frame-hdr   "${radv_link_flags[@]}"   --version-script "$ROOT/tools/ps5/app-hidden.map"   --exclude-libs=ALL   -e _start -o "$PIE"   "$OUT/obj/app_crt.o"   "$OUT/obj/app_cpp_runtime.o"   "${OBJECTS[@]}"   "$ENGINE"   "$OUT/stubs/libSceAgc.so"   "$OUT/stubs/libSceAgcDriver.so"   "${radv_link_inputs[@]}"   --as-needed "$PS5_PAYLOAD_SDK"/target/lib/*.so
+# Mesa generates weak driver-prefixed declarations for entry points that are
+# satisfied by vk_common_* at runtime. They are optional intra-driver symbols,
+# not PS5 loader imports. Keep unresolved weak symbols local/null so the native
+# title converter only sees genuine SDK/module imports.
+"$LLD" "${radv_linker_script[@]}" --eh-frame-hdr -z nodynamic-undefined-weak   "${radv_link_flags[@]}"   --version-script "$ROOT/tools/ps5/app-hidden.map"   --exclude-libs=ALL   -e _start -o "$PIE"   "$OUT/obj/app_crt.o"   "$OUT/obj/app_cpp_runtime.o"   "${OBJECTS[@]}"   "$ENGINE"   "$OUT/stubs/libSceAgc.so"   "$OUT/stubs/libSceAgcDriver.so"   "${radv_link_inputs[@]}"   --as-needed "$PS5_PAYLOAD_SDK"/target/lib/*.so
 
 [[ -s "$PIE" ]] || { echo "PS1 native PS5 PIE missing" >&2; exit 7; }
+
+if command -v readelf >/dev/null 2>&1; then
+  if readelf -Ws "$PIE" | grep -Eq ' UND .*WEAK.*radv_| WEAK .* UND .*radv_'; then
+    echo "weak RADV entry points leaked into the PS5 dynamic import surface" >&2
+    exit 7
+  fi
+fi
 
 # Architecture gate: final app may not silently lose the native recompiler.
 if command -v nm >/dev/null 2>&1; then
