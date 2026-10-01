@@ -93,6 +93,7 @@ SOURCES=(
   "$ROOT/runtime/src/ps5/video.cpp"
   "$ROOT/corehost/src/static_core.cpp"
   "$ROOT/corehost/src/ps5rt_bridge.cpp"
+  "$ROOT/corehost/src/vfs.cpp"
   "$ROOT/corehost/src/linked_core.cpp"
   "$ROOT/corehost/src/ps5_runner.cpp"
   "$ROOT/ports/freeintv-ps5/main.cpp"
