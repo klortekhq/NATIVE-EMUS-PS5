@@ -376,6 +376,62 @@ jobs:
           path: build/ps5/runtime-probes/artifacts/*
           if-no-files-found: error
 
+      - name: Stage emulated-TLS hardware smoke
+        run: |
+          set -euo pipefail
+          SRC="$GITHUB_WORKSPACE/build/ps5/runtime-probes/ps5rt-emutls-probe"
+          OUT="$GITHUB_WORKSPACE/build/ps5/emutls-hardware-smoke"
+          test -s "$SRC"
+          readelf -h "$SRC" | grep -q 'Class:.*ELF64'
+          readelf -h "$SRC" | grep -q 'Machine:.*X86-64'
+          readelf -Ws "$SRC" | grep -q '__emutls_get_address'
+          mkdir -p "$OUT"
+          cp "$SRC" "$OUT/ps5rt-emutls-probe.elf"
+          cat > "$OUT/HARDWARE-TEST.txt" <<'EOF'
+          ps5rt compiler-rt emulated TLS hardware smoke
+
+          This probe contains no commercial game data.
+
+          Run ps5rt-emutls-probe.elf with the already-installed PS5 ELF loader.
+
+          The probe:
+          1. initializes ps5rt in compiler_rt_emutls mode;
+          2. keeps one thread_local 64-bit value on the main thread;
+          3. creates two ps5rt-managed pthreads with 2 MiB stacks;
+          4. gives each worker a different thread_local value;
+          5. holds both workers alive at the same time;
+          6. verifies all three values remain isolated;
+          7. joins both workers and performs ps5rt TLS policy shutdown.
+
+          Expected final line:
+            ps5rt-emutls-probe: PASS isolated=3
+
+          Any earlier FAILED line, crash, hang, loader error or missing final
+          PASS is a hardware failure to report. Include firmware/loader, the
+          last visible log line and whether the process exited cleanly.
+
+          A PASS validates this small compiler-rt emutls/thread-local smoke only.
+          It does not by itself validate every emulator's TLS usage.
+          EOF
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "source=runtime/probes/emutls_probe.cpp"
+            echo "compile_flag=-femulated-tls"
+            echo "backend=ps5rt::TlsMode::compiler_rt_emutls"
+            echo "physical_ps5_validation=pending"
+          } > "$OUT/BUILD-INFO.txt"
+          (
+            cd "$OUT"
+            sha256sum ps5rt-emutls-probe.elf HARDWARE-TEST.txt BUILD-INFO.txt > SHA256SUMS
+          )
+
+      - name: Upload emulated-TLS hardware smoke
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ps5rt-emutls-hardware-smoke-${{ github.sha }}
+          path: build/ps5/emutls-hardware-smoke/
+          if-no-files-found: error
+
   ps5-cross-build-dynarmic-engine:
     runs-on: ubuntu-latest
     steps:
