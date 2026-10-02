@@ -77,19 +77,6 @@ std::int32_t sceAudioOutClose(std::int32_t handle) {
 
 namespace {
 
-bool wait_for_samples(std::size_t count) {
-  for (int attempt = 0; attempt < 500; ++attempt) {
-    {
-      std::lock_guard<std::mutex> lock(g_mutex);
-      if (g_samples.size() >= count)
-        return true;
-    }
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds(1));
-  }
-  return false;
-}
-
 void clear_samples() {
   std::lock_guard<std::mutex> lock(g_mutex);
   g_samples.clear();
@@ -151,22 +138,13 @@ int main() {
   };
   result = audio.write(std::as_bytes(std::span{source}));
   assert(result);
-  assert(wait_for_samples(256 * 2));
-
-  {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    assert(g_samples[0] == -32767);
-    assert(g_samples[1] == -32767);
-    assert(g_samples[2] == -16384);
-    assert(g_samples[3] == 0);
-    assert(g_samples[4] == 16384);
-    assert(g_samples[5] == 32767);
-    assert(g_samples[6] == 32767);
-    assert(
-        std::abs(
-            static_cast<int>(g_samples[7]) -
-            8192) <= 1);
-  }
+  const std::array<std::int16_t, 8> expected_f32{
+      -32767, -32767,
+      -16384, 0,
+      16384, 32767,
+      32767, 8192,
+  };
+  assert(wait_for_sequence(expected_f32));
 
   clear_samples();
   const std::array<float, 4> unaligned_f32_source{
@@ -215,19 +193,13 @@ int main() {
   };
   result = audio.write(std::as_bytes(std::span{s16}));
   assert(result);
-  assert(wait_for_samples(256 * 2));
-
-  {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    assert(g_samples[0] == 100);
-    assert(g_samples[1] == -100);
-    assert(g_samples[2] == 100);
-    assert(g_samples[3] == -100);
-    assert(g_samples[4] == 200);
-    assert(g_samples[5] == -200);
-    assert(g_samples[6] == 200);
-    assert(g_samples[7] == -200);
-  }
+  const std::array<std::int16_t, 8> expected_s16{
+      100, -100,
+      100, -100,
+      200, -200,
+      200, -200,
+  };
+  assert(wait_for_sequence(expected_s16));
 
   clear_samples();
   const std::array<std::int16_t, 4> unaligned_s16_source{
