@@ -22,6 +22,8 @@ std::unordered_map<void*, std::size_t> mappings;
 std::unordered_map<void*, bool> mapping_owned;
 std::size_t pool_capacity = 0;
 std::size_t pool_committed = 0;
+std::size_t direct_available_bytes =
+    1536ull * 1024 * 1024;
 unsigned long long next_pool_physical = 0x40000000ull;
 int last_pool_reserve_flags = -1;
 }
@@ -79,6 +81,23 @@ extern "C" int sceKernelAvailableFlexibleMemorySize(unsigned long long* out) {
 
 extern "C" long long sceKernelGetDirectMemorySize(void) {
   return 2ll * 1024 * 1024 * 1024;
+}
+extern "C" int sceKernelAvailableDirectMemorySize(
+    long long search_start,
+    long long search_end,
+    std::size_t alignment,
+    long long* direct_start,
+    std::size_t* size) {
+  if (!direct_start || !size ||
+      search_start < 0 ||
+      search_end <= search_start ||
+      alignment == 0) {
+    return -1;
+  }
+
+  *direct_start = 0x4000;
+  *size = direct_available_bytes;
+  return 0;
 }
 extern "C" int sceKernelAllocateDirectMemory(long long, long long, unsigned long long size,
                                               unsigned long long, int, long long* out) {
@@ -388,6 +407,19 @@ int main() {
     std::size_t bytes = 0;
     assert(ps5rt::query_available_memory(ps5rt::MemoryKind::flexible, bytes));
     assert(bytes == 256ull * 1024 * 1024);
+
+    assert(ps5rt::query_available_memory(ps5rt::MemoryKind::direct, bytes));
+    assert(bytes == direct_available_bytes);
+
+    assert(ps5rt::query_available_memory(ps5rt::MemoryKind::pooled, bytes));
+    assert(bytes == pool_capacity - pool_committed);
+
+    const auto exec_query =
+        ps5rt::query_available_memory(
+            ps5rt::MemoryKind::executable,
+            bytes);
+    assert(!exec_query);
+    assert(bytes == 0);
   }
 
   return 0;

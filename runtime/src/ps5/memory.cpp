@@ -22,6 +22,11 @@ int sceKernelReleaseFlexibleMemory(void* address, std::size_t size);
 int sceKernelAvailableFlexibleMemorySize(unsigned long long* size);
 
 long long sceKernelGetDirectMemorySize(void);
+int sceKernelAvailableDirectMemorySize(long long search_start,
+                                       long long search_end,
+                                       std::size_t alignment,
+                                       long long* direct_start,
+                                       std::size_t* size);
 int sceKernelAllocateDirectMemory(long long search_start, long long search_end,
                                   unsigned long long size, unsigned long long alignment,
                                   int memory_type, long long* direct_start);
@@ -938,15 +943,46 @@ Result release_memory(Mapping& mapping) noexcept {
 
 Result query_available_memory(MemoryKind kind, std::size_t& out_bytes) noexcept {
   out_bytes = 0;
-  if (kind != MemoryKind::flexible)
-    return {ErrorCode::unsupported, 0, "available-size query not implemented for this memory kind"};
 
-  unsigned long long bytes = 0;
-  const int rc = sceKernelAvailableFlexibleMemorySize(&bytes);
-  if (rc != 0)
-    return {ErrorCode::system_error, rc, "flexible memory size query failed"};
-  out_bytes = static_cast<std::size_t>(bytes);
-  return Result::success();
+  if (kind == MemoryKind::flexible) {
+    unsigned long long bytes = 0;
+    const int rc = sceKernelAvailableFlexibleMemorySize(&bytes);
+    if (rc != 0)
+      return {ErrorCode::system_error, rc,
+              "flexible memory size query failed"};
+    out_bytes = static_cast<std::size_t>(bytes);
+    return Result::success();
+  }
+
+  if (kind == MemoryKind::direct) {
+    const long long total = sceKernelGetDirectMemorySize();
+    if (total <= 0)
+      return {ErrorCode::system_error, 0,
+              "direct memory aperture unavailable"};
+
+    long long block_start = 0;
+    std::size_t block_bytes = 0;
+    const int rc = sceKernelAvailableDirectMemorySize(
+        0, total, kPageSize, &block_start, &block_bytes);
+    if (rc != 0)
+      return {ErrorCode::system_error, rc,
+              "direct memory availability query failed"};
+
+    out_bytes = block_bytes;
+    return Result::success();
+  }
+
+  if (kind == MemoryKind::pooled) {
+    std::scoped_lock lock(g_registry_mutex);
+    out_bytes =
+        g_pool_capacity >= g_pool_committed
+            ? g_pool_capacity - g_pool_committed
+            : 0;
+    return Result::success();
+  }
+
+  return {ErrorCode::unsupported, 0,
+          "available-size query not implemented for executable memory"};
 }
 
 Result create_jit_region(const JitRequest& request, JitRegion& out) noexcept {

@@ -25,14 +25,15 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [x] public memory/JIT API contract
 - [x] flexible-memory implementation
 - [x] direct-memory implementation
-- [ ] pooled-memory implementation
+- [x] pooled-memory implementation
 - [x] JIT shared-memory implementation
 - [x] dual RW/RX mapping
 - [x] instruction-cache flush implementation
 - [x] large virtual-range reservation
 - [x] sparse fixed-address direct-memory arena
 - [ ] physical-PS5 sparse-arena validation
-- [ ] address-space diagnostics
+- [x] direct/flexible/pool availability diagnostics
+- [ ] address-space fragmentation diagnostics
 - [ ] configurable JIT cache sizing
 
 ### Threading / TLS
