@@ -789,7 +789,7 @@ Result allocate_memory(MemoryKind kind,
         request.preferred_address,
         static_cast<unsigned long long>(pool_size),
         static_cast<unsigned long long>(pool_alignment),
-        request.fixed_address ? kVirtualMapFixed : 0,
+        0,
         &address);
     if (reserve_rc != 0 || !address)
       return {ErrorCode::out_of_memory, reserve_rc,

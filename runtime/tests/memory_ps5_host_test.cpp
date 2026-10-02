@@ -23,6 +23,7 @@ std::unordered_map<void*, bool> mapping_owned;
 std::size_t pool_capacity = 0;
 std::size_t pool_committed = 0;
 unsigned long long next_pool_physical = 0x40000000ull;
+int last_pool_reserve_flags = -1;
 }
 
 extern "C" int sceKernelJitCreateSharedMemory(int, unsigned long long size, int, int* out) {
@@ -152,8 +153,9 @@ extern "C" int sceKernelMemoryPoolReserve(
     void* requested,
     unsigned long long size,
     unsigned long long,
-    int,
+    int flags,
     void** out) {
+  last_pool_reserve_flags = flags;
   if (!out || size == 0) return -1;
   const bool owned = requested == nullptr;
   void* address = requested;
@@ -354,6 +356,8 @@ int main() {
     assert(mapping.size == 4ull * 1024 * 1024);
     assert(pool_capacity == 4ull * 1024 * 1024);
     assert(pool_committed == mapping.size);
+
+    assert(last_pool_reserve_flags == 0);
 
     std::memset(mapping.address, 0x5a, 4096);
     assert(static_cast<unsigned char*>(mapping.address)[0] == 0x5a);
