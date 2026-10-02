@@ -15,9 +15,29 @@ struct ThreadConfig {
   std::int32_t affinity_hint{-1};
 };
 
+using ThreadEntry = void (*)(void*) noexcept;
+
+struct ThreadHandle {
+  std::uintptr_t native{};
+  bool joinable{};
+
+  [[nodiscard]] explicit operator bool() const noexcept {
+    return joinable;
+  }
+};
+
 Result set_current_thread_name(const char* name) noexcept;
 Result set_current_thread_affinity(std::int32_t cpu) noexcept;
 Result query_current_thread_stack(std::size_t& out_bytes) noexcept;
+
+Result create_thread(
+    ThreadHandle& out,
+    const ThreadConfig& config,
+    ThreadEntry entry,
+    void* argument) noexcept;
+
+Result join_thread(ThreadHandle& thread) noexcept;
+Result detach_thread(ThreadHandle& thread) noexcept;
 
 // Used by ports that need to override small host/default stacks without
 // replacing std::thread throughout an upstream core.
