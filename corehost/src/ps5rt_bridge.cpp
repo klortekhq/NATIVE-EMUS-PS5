@@ -49,11 +49,51 @@ unsigned hid_to_retro(unsigned hid) noexcept {
     case 54: return ',';
     case 55: return '.';
     case 56: return '/';
+    case 57: return 301; // Caps Lock
+    case 58: return 282; // F1
+    case 59: return 283; // F2
+    case 60: return 284; // F3
+    case 61: return 285; // F4
+    case 62: return 286; // F5
+    case 63: return 287; // F6
+    case 64: return 288; // F7
+    case 65: return 289; // F8
+    case 66: return 290; // F9
+    case 67: return 291; // F10
+    case 68: return 292; // F11
+    case 69: return 293; // F12
+    case 70: return 316; // Print Screen
+    case 71: return 302; // Scroll Lock
+    case 72: return 19;  // Pause
+    case 73: return 277; // Insert
+    case 74: return 278; // Home
+    case 75: return 280; // Page Up
     case 76: return 127; // Delete
+    case 77: return 279; // End
+    case 78: return 281; // Page Down
     case 79: return 275; // Right
     case 80: return 276; // Left
     case 81: return 274; // Down
     case 82: return 273; // Up
+    case 83: return 300; // Num Lock
+    case 84: return 267; // Keypad /
+    case 85: return 268; // Keypad *
+    case 86: return 269; // Keypad -
+    case 87: return 270; // Keypad +
+    case 88: return 271; // Keypad Enter
+    case 89: return 257; // Keypad 1
+    case 90: return 258; // Keypad 2
+    case 91: return 259; // Keypad 3
+    case 92: return 260; // Keypad 4
+    case 93: return 261; // Keypad 5
+    case 94: return 262; // Keypad 6
+    case 95: return 263; // Keypad 7
+    case 96: return 264; // Keypad 8
+    case 97: return 265; // Keypad 9
+    case 98: return 256; // Keypad 0
+    case 99: return 266; // Keypad .
+    case 101: return 319; // Application/Menu
+    case 103: return 272; // Keypad =
     case 224: return 306; // LCtrl
     case 225: return 304; // LShift
     case 226: return 308; // LAlt

@@ -31,6 +31,9 @@ There is no dynamic core loader and no RetroArch process/frontend.
 - stereo s16 audio callbacks
 - joypad bitmask
 - analog sticks/triggers
+- USB HID keyboard translation for alphanumeric, navigation, function,
+  keypad and modifier keys
+- mouse movement/buttons/wheel on player 1
 - system/save directories
 - libretro v0 variables/options
 - save-state serialize/unserialize

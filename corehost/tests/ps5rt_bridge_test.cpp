@@ -16,9 +16,11 @@ int main() {
   pad.l2 = 1.0f;
 
   snapshot.keyboard.connected = true;
-  // USB HID usage 4 = A, 40 = Return.
-  snapshot.keyboard.pressed[4u >> 6u] |= std::uint64_t{1} << (4u & 63u);
-  snapshot.keyboard.pressed[40u >> 6u] |= std::uint64_t{1} << (40u & 63u);
+  // USB HID usage examples: A, Return, F1, Home, keypad 1, keypad Enter.
+  for (const unsigned hid : {4u, 40u, 58u, 74u, 89u, 88u}) {
+    snapshot.keyboard.pressed[hid >> 6u] |=
+        std::uint64_t{1} << (hid & 63u);
+  }
 
   snapshot.mouse.connected = true;
   snapshot.mouse.delta_x = 12;
@@ -38,6 +40,10 @@ int main() {
   assert(state.l2 == 32767);
   assert(state.key_down('a'));
   assert(state.key_down(13));
+  assert(state.key_down(282)); // RETROK_F1
+  assert(state.key_down(278)); // RETROK_HOME
+  assert(state.key_down(257)); // RETROK_KP1
+  assert(state.key_down(271)); // RETROK_KP_ENTER
   assert(state.mouse_x == 12);
   assert(state.mouse_y == -9);
   assert(state.mouse_wheel_y == 1);
@@ -51,6 +57,9 @@ int main() {
   const auto player_two = corehost::translate_ps5rt_input(snapshot, 1);
   assert(player_two.joypad_mask & (1u << 8));
   assert(!(player_two.joypad_mask & (1u << 0)));
+  // Keyboard/mouse are global host devices and must not leak into player 2.
+  assert(!player_two.key_down('a'));
+  assert(player_two.mouse_x == 0);
 
   assert(corehost::translate_pixel_format(corehost::lr::PixelFormat::rgb565) ==
          ps5rt::PixelFormat::rgb565);
