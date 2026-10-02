@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <unordered_map>
+#include <vector>
 
 namespace {
 int next_fd = 10;
@@ -101,12 +102,28 @@ extern "C" int sceKernelReleaseDirectMemory(long long start, unsigned long long)
 extern "C" int sceKernelMprotect(const void*, unsigned long long, int) {
   return 0;
 }
-extern "C" int sceKernelMunmap(void* p, unsigned long long) {
-  auto it = mappings.find(p);
-  if (it != mappings.end()) {
-    if (mapping_owned[p]) std::free(p);
-    mapping_owned.erase(p);
-    mappings.erase(it);
+extern "C" int sceKernelMunmap(
+    void* p,
+    unsigned long long size) {
+  const auto begin =
+      reinterpret_cast<std::uintptr_t>(p);
+  const auto end =
+      begin + static_cast<std::uintptr_t>(size);
+
+  std::vector<void*> erase;
+  for (const auto& [address, mapped_size] : mappings) {
+    (void)mapped_size;
+    const auto value =
+        reinterpret_cast<std::uintptr_t>(address);
+    if (value >= begin && value < end)
+      erase.push_back(address);
+  }
+
+  for (void* address : erase) {
+    if (mapping_owned[address] && address == p)
+      std::free(address);
+    mapping_owned.erase(address);
+    mappings.erase(address);
   }
   return 0;
 }
