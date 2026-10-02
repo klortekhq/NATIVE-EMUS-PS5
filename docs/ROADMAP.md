@@ -37,7 +37,9 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 
 ### Threading / TLS
 - [x] public thread/TLS API contract
-- [ ] explicit PS5 stack-size implementation
+- [x] current-thread name/affinity/stack-query PS5 backend + cross-build probe
+- [x] PS5 JIT/recompiler stack-size recommendation policy + host regression test
+- [ ] explicit PS5 thread-creation stack-size implementation
 - [ ] compiler-rt emulated TLS evaluation
 - [ ] thread registration / cleanup
 - [ ] thread naming/diagnostics
