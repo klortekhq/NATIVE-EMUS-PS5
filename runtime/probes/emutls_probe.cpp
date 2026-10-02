@@ -1,4 +1,5 @@
 #include <ps5rt/thread.hpp>
+#include <ps5rt/tls.hpp>
 
 #include <atomic>
 #include <cstdint>
@@ -20,6 +21,15 @@ void tls_worker(void* raw) noexcept {
   auto& state =
       *static_cast<WorkerState*>(raw);
 
+  const auto registration =
+      ps5rt::register_current_thread_tls();
+  if (!registration) {
+    state.ready->fetch_add(
+        1,
+        std::memory_order_acq_rel);
+    return;
+  }
+
   g_tls_value = state.expected;
   state.ready->fetch_add(
       1,
@@ -32,6 +42,7 @@ void tls_worker(void* raw) noexcept {
   state.ok.store(
       g_tls_value == state.expected,
       std::memory_order_release);
+  ps5rt::unregister_current_thread_tls();
 }
 
 } // namespace
@@ -39,6 +50,34 @@ void tls_worker(void* raw) noexcept {
 int main() {
   std::printf("ps5rt-emutls-probe: start\n");
   std::fflush(stdout);
+
+  ps5rt::TlsInfo tls_info{};
+  const auto initialized =
+      ps5rt::initialize_tls(
+          ps5rt::TlsMode::compiler_rt_emutls,
+          tls_info);
+  if (!initialized ||
+      tls_info.mode !=
+          ps5rt::TlsMode::compiler_rt_emutls ||
+      tls_info.thread_registration_required) {
+    std::printf(
+        "ps5rt-emutls-probe: initialize FAILED rc=%d mode=%u registration=%d\n",
+        static_cast<int>(initialized.native_code),
+        static_cast<unsigned>(tls_info.mode),
+        tls_info.thread_registration_required ? 1 : 0);
+    std::fflush(stdout);
+    return 1;
+  }
+
+  const auto main_registration =
+      ps5rt::register_current_thread_tls();
+  if (!main_registration) {
+    std::printf(
+        "ps5rt-emutls-probe: main registration FAILED rc=%d\n",
+        static_cast<int>(main_registration.native_code));
+    std::fflush(stdout);
+    return 2;
+  }
 
   constexpr std::uint64_t main_value =
       UINT64_C(0xa5a5a5a55a5a5a5a);
@@ -81,7 +120,7 @@ int main() {
         static_cast<int>(
             first_created.native_code));
     std::fflush(stdout);
-    return 1;
+    return 3;
   }
 
   const auto second_created =
@@ -101,7 +140,7 @@ int main() {
         static_cast<int>(
             second_created.native_code));
     std::fflush(stdout);
-    return 2;
+    return 4;
   }
 
   while (ready.load(
@@ -139,8 +178,11 @@ int main() {
         second.ok.load(
             std::memory_order_acquire) ? 1 : 0);
     std::fflush(stdout);
-    return 3;
+    return 5;
   }
+
+  ps5rt::unregister_current_thread_tls();
+  ps5rt::shutdown_tls();
 
   std::printf(
       "ps5rt-emutls-probe: PASS isolated=3\n");

@@ -44,8 +44,8 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [x] PS5 JIT/recompiler stack-size recommendation policy + host regression test
 - [x] explicit PS5 thread-creation stack-size implementation + join/detach contract
 - [x] compiler-rt emulated TLS compile/link gate (`-femulated-tls` + SDK libc `__emutls_get_address`)
+- [x] ps5rt emutls policy backend: initialize/register/unregister/shutdown contract, with libc-owned pthread-key cleanup and host regression tests
 - [ ] execute emulated-TLS thread-isolation probe on physical PS5
-- [ ] thread registration / cleanup
 - [ ] thread naming/diagnostics
 - [ ] shutdown ordering helpers
 

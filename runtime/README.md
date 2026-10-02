@@ -62,8 +62,8 @@ Desktop defaults are not always safe on PS5.
 Required research:
 
 - explicit pthread stack sizes (**implemented in the native PS5 thread factory; physical execution pending**)
-- emulated TLS via compiler-rt
-- thread-local initialization
+- emulated TLS via compiler-rt (**ps5rt policy backend + `-femulated-tls` cross-build implemented; physical isolation probe pending**)
+- thread-local initialization (**covered by the same three-thread synthetic probe; physical execution pending**)
 - affinity and scheduling
 - clean shutdown ordering
 

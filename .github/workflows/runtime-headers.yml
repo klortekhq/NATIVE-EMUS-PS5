@@ -133,6 +133,7 @@ jobs:
             runtime/src/ps5/input_hid.cpp \
             runtime/src/ps5/log.cpp \
             runtime/src/ps5/memory.cpp \
+            runtime/src/ps5/tls.cpp \
             runtime/src/ps5/vfs.cpp \
             runtime/src/ps5/video.cpp; do
             obj="build/smoke/$(basename "${src%.cpp}").o"
