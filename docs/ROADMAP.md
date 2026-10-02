@@ -51,7 +51,8 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 
 ### Native services
 - [x] public audio/input/VFS/app contracts
-- [ ] AudioOut backend
+- [x] AudioOut backend + host-mocked conversion/resampling/lifecycle regression test
+- [ ] physical-PS5 AudioOut validation
 - [ ] DualSense backend
 - [ ] multi-user controller enumeration
 - [ ] keyboard/mouse optional backend

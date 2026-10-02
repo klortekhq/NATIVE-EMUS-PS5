@@ -69,7 +69,11 @@ Required research:
 
 ### Audio
 
-Preferred output is direct libSceAudioOut, with a small backend adapter.
+The native backend now targets direct libSceAudioOut with a bounded stereo
+ring, background grain submission, f32->s16 conversion, and stateful source
+rate conversion to the 48 kHz hardware path. Host-mocked regression tests cover
+open/close, pause/flush, clipping/conversion, and 24->48 kHz resampling.
+Physical-console AudioOut behavior remains a separate validation gate.
 
 ### Input
 
