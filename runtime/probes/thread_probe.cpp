@@ -88,6 +88,7 @@ int main() {
   const auto joined =
       ps5rt::join_thread(child);
   if (!joined ||
+      ps5rt::managed_thread_count() != 0 ||
       !state.ran.load(
           std::memory_order_acquire) ||
       !state.stack_ok.load(

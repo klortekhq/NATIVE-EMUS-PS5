@@ -78,6 +78,7 @@ int main() {
       static_cast<std::uint32_t>(ps5rt::Button::create));
   assert(snapshot.controllers[1].connected);
   assert(snapshot.controllers[1].user_id == 20);
+  assert(ps5rt::connected_controller_count() == 2);
 
   assert(ps5rt::set_rumble(0, 0.5f, 1.0f));
   assert(last_rumble[0] == 110);
@@ -89,6 +90,7 @@ int main() {
   std::memcpy(states[1].data(), &intercepted, sizeof(intercepted));
   assert(ps5rt::poll_input(snapshot));
   assert(!snapshot.controllers[0].connected);
+  assert(ps5rt::connected_controller_count() == 1);
   assert(last_rumble[1] == 0 && last_rumble[2] == 0);
 
   // User churn: remove 10, keep 20, add a pad whose handle already exists.
@@ -102,6 +104,7 @@ int main() {
 
   const auto closed_before = closed.size();
   ps5rt::shutdown_input();
+  assert(ps5rt::connected_controller_count() == 0);
 
   // Owned user 20 closes; borrowed user 30 does not.
   assert(closed.size() == closed_before + 1);
