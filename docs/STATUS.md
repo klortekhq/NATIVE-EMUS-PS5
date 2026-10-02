@@ -73,7 +73,7 @@ These are especially useful for hardening AudioOut, DualSense, VFS, packaging an
 |---|---|---|
 | public runtime contract | **Implemented + evolving** | C++20 contracts plus native PS5 app/audio/input/io/video backends are in `runtime/` |
 | executable/JIT memory | **native backend + sparse fixed-address arena implemented** | JIT shared memory, direct fallback, dual RW/RX aliases and incremental direct-memory commits inside reserved VA now exist. Flycast rec-x64 and RPCS3 PPU/SPU engines cross-build; the RPCS3 2 GiB sparse arena probe cross-builds with Prospero and awaits physical validation |
-| flexible/direct/pooled memory | **flexible/direct + sparse arena implemented; pooled pending** | virtual ranges, shared/direct mappings, fixed mapping helpers and sparse fixed-offset direct-memory chunks are in the PS5 backend |
+| flexible/direct/pooled memory | **implemented; hardware characterization pending** | flexible/direct/pooled mappings, sparse fixed-offset arenas and runtime pressure diagnostics are in the PS5 backend; a no-game-data probe reports flexible availability, direct aperture/largest block, pool usage and tracked mapping/arena bytes |
 | TLS | interface defined | compiler-rt emutls and PS5-specific shims need implementation/evaluation |
 | thread policy | interface defined | explicit stack handling is proven necessary by PS5SX2 |
 | AudioOut | **native backend implemented** | 48 kHz PS5 output with stateful source-rate conversion; cross-build proven |

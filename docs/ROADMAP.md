@@ -33,7 +33,9 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [x] sparse fixed-address direct-memory arena
 - [ ] physical-PS5 sparse-arena validation
 - [x] direct/flexible/pool availability diagnostics
-- [ ] address-space fragmentation diagnostics
+- [x] runtime memory pressure diagnostics (largest direct block + tracked mappings/arenas)
+- [ ] physical-PS5 memory diagnostics capture
+- [ ] full virtual-address-space fragmentation walk
 - [ ] configurable JIT cache sizing
 
 ### Threading / TLS

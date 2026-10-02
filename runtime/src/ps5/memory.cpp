@@ -985,6 +985,91 @@ Result query_available_memory(MemoryKind kind, std::size_t& out_bytes) noexcept 
           "available-size query not implemented for executable memory"};
 }
 
+Result query_memory_diagnostics(MemoryDiagnostics& out) noexcept {
+  out = {};
+
+  unsigned long long flexible_bytes = 0;
+  int rc = sceKernelAvailableFlexibleMemorySize(&flexible_bytes);
+  if (rc != 0)
+    return {ErrorCode::system_error, rc,
+            "flexible memory diagnostics query failed"};
+
+  const long long direct_total = sceKernelGetDirectMemorySize();
+  if (direct_total <= 0)
+    return {ErrorCode::system_error, 0,
+            "direct memory aperture unavailable"};
+
+  long long direct_block_start = 0;
+  std::size_t direct_block_bytes = 0;
+  rc = sceKernelAvailableDirectMemorySize(
+      0, direct_total, kPageSize,
+      &direct_block_start, &direct_block_bytes);
+  if (rc != 0)
+    return {ErrorCode::system_error, rc,
+            "direct memory diagnostics query failed"};
+
+  MemoryDiagnostics snapshot{};
+  snapshot.flexible_available_bytes =
+      static_cast<std::size_t>(flexible_bytes);
+  snapshot.direct_aperture_bytes =
+      static_cast<std::size_t>(direct_total);
+  snapshot.direct_largest_available_block_bytes =
+      direct_block_bytes;
+
+  {
+    std::scoped_lock lock(g_registry_mutex);
+
+    snapshot.pool_capacity_bytes = g_pool_capacity;
+    snapshot.pool_committed_bytes = g_pool_committed;
+    snapshot.pool_available_bytes =
+        g_pool_capacity >= g_pool_committed
+            ? g_pool_capacity - g_pool_committed
+            : 0;
+
+    snapshot.tracked_direct_mapping_count =
+        g_direct_records.size();
+    for (const auto& [address, record] : g_direct_records) {
+      (void)address;
+      snapshot.tracked_direct_bytes += record.size;
+    }
+
+    snapshot.tracked_pool_mapping_count =
+        g_pool_records.size();
+    for (const auto& [address, record] : g_pool_records) {
+      (void)address;
+      snapshot.tracked_pool_bytes += record.size;
+    }
+
+    snapshot.tracked_executable_mapping_count =
+        g_exec_records.size();
+    for (const auto& [address, record] : g_exec_records) {
+      (void)address;
+      snapshot.tracked_executable_bytes += record.size;
+    }
+
+    for (const auto& [address, record] : g_dual_jit_records) {
+      if (address != record.execute_view)
+        continue;
+      ++snapshot.tracked_dual_jit_region_count;
+      snapshot.tracked_dual_jit_bytes += record.size;
+    }
+
+    snapshot.tracked_sparse_arena_count =
+        g_sparse_arenas.size();
+    for (const auto& [base, arena] : g_sparse_arenas) {
+      (void)base;
+      snapshot.tracked_sparse_reserved_bytes += arena.size;
+      for (const auto& [offset, chunk] : arena.chunks) {
+        (void)offset;
+        snapshot.tracked_sparse_committed_bytes += chunk.size;
+      }
+    }
+  }
+
+  out = snapshot;
+  return Result::success();
+}
+
 Result create_jit_region(const JitRequest& request, JitRegion& out) noexcept {
   out = {};
   if (request.size == 0)

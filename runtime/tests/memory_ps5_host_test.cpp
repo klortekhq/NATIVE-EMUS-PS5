@@ -422,5 +422,35 @@ int main() {
     assert(bytes == 0);
   }
 
+  {
+    ps5rt::MemoryDiagnostics diagnostics{};
+    assert(ps5rt::query_memory_diagnostics(diagnostics));
+    assert(
+        diagnostics.flexible_available_bytes ==
+        256ull * 1024 * 1024);
+    assert(
+        diagnostics.direct_aperture_bytes ==
+        2ull * 1024 * 1024 * 1024);
+    assert(
+        diagnostics.direct_largest_available_block_bytes ==
+        direct_available_bytes);
+    assert(diagnostics.pool_capacity_bytes == pool_capacity);
+    assert(diagnostics.pool_committed_bytes == pool_committed);
+    assert(
+        diagnostics.pool_available_bytes ==
+        pool_capacity - pool_committed);
+    assert(diagnostics.tracked_direct_mapping_count == 0);
+    assert(diagnostics.tracked_direct_bytes == 0);
+    assert(diagnostics.tracked_pool_mapping_count == 0);
+    assert(diagnostics.tracked_pool_bytes == 0);
+    assert(diagnostics.tracked_executable_mapping_count == 0);
+    assert(diagnostics.tracked_executable_bytes == 0);
+    assert(diagnostics.tracked_dual_jit_region_count == 0);
+    assert(diagnostics.tracked_dual_jit_bytes == 0);
+    assert(diagnostics.tracked_sparse_arena_count == 0);
+    assert(diagnostics.tracked_sparse_reserved_bytes == 0);
+    assert(diagnostics.tracked_sparse_committed_bytes == 0);
+  }
+
   return 0;
 }
