@@ -36,6 +36,8 @@ struct MemoryDiagnostics {
 
 struct RuntimeDiagnostics {
   MemoryDiagnostics memory{};
+
+  // Counts owned by ps5rt, not every thread/device in the process.
   std::uint32_t active_threads{};
   std::uint32_t active_controllers{};
 };

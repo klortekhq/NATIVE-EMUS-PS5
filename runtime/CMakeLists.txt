@@ -55,6 +55,7 @@ if(PS5RT_BUILD_PS5_BACKEND)
   add_library(ps5rt_ps5 STATIC
     src/ps5/app.cpp
     src/ps5/audio.cpp
+    src/ps5/diagnostics.cpp
     src/ps5/input.cpp
     src/ps5/input_hid.cpp
     src/ps5/log.cpp
