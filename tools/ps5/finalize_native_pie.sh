@@ -33,6 +33,46 @@ fi
 git -C "$DONOR" fetch --depth 1 origin "$PIN"
 git -C "$DONOR" checkout --detach "$PIN"
 
+# Seed the donor's zlib cache ourselves with a byte-verified release archive.
+# The donor pins the same 1.3.2 digest, but its single zlib.net download path
+# can occasionally return a transient/non-archive response in CI. Keep the
+# donor source untouched and provide the exact archive it already expects.
+ZLIB_VERSION="1.3.2"
+ZLIB_SHA256="bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"
+ZLIB_CACHE="$DONOR/.deps/native/zlib"
+ZLIB_ARCHIVE="$ZLIB_CACHE/zlib-$ZLIB_VERSION.tar.gz"
+
+seed_verified_zlib_archive() {
+  mkdir -p "$ZLIB_CACHE"
+
+  if [[ -f "$ZLIB_ARCHIVE" ]] &&
+      printf '%s  %s\n' "$ZLIB_SHA256" "$ZLIB_ARCHIVE" |
+        sha256sum --check --strict >/dev/null 2>&1; then
+    return 0
+  fi
+
+  rm -f "$ZLIB_ARCHIVE" "$ZLIB_ARCHIVE.download"
+
+  local url
+  for url in \
+    "https://github.com/madler/zlib/releases/download/v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz" \
+    "https://zlib.net/fossils/zlib-$ZLIB_VERSION.tar.gz"; do
+    rm -f "$ZLIB_ARCHIVE.download"
+    if wget -q --tries=3 --timeout=30 "$url" -O "$ZLIB_ARCHIVE.download" &&
+        printf '%s  %s\n' "$ZLIB_SHA256" "$ZLIB_ARCHIVE.download" |
+          sha256sum --check --strict >/dev/null 2>&1; then
+      mv "$ZLIB_ARCHIVE.download" "$ZLIB_ARCHIVE"
+      return 0
+    fi
+  done
+
+  rm -f "$ZLIB_ARCHIVE.download"
+  echo "unable to fetch verified zlib $ZLIB_VERSION source archive" >&2
+  return 1
+}
+
+seed_verified_zlib_archive
+
 # The host converter is GPL tooling kept in this isolated donor checkout.
 # It is not copied or linked into NATIVE-EMUS-PS5.
 (
