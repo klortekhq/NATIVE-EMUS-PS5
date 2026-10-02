@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <ps5rt/diagnostics.hpp>
 #include <ps5rt/result.hpp>
 
 namespace ps5rt {
@@ -45,9 +46,6 @@ struct MemoryRequest {
   bool fixed_address{false};
   const char* debug_name{};
 };
-
-struct MemoryDiagnostics;
-
 
 Result allocate_memory(MemoryKind kind, const MemoryRequest& request, Mapping& out) noexcept;
 Result release_memory(Mapping& mapping) noexcept;

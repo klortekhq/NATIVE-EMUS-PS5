@@ -1,3 +1,4 @@
+#include <ps5rt/memory.hpp>
 #include <ps5rt/ps5rt.hpp>
 
 #include <type_traits>
