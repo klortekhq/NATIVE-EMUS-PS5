@@ -39,6 +39,10 @@ Result create_thread(
 Result join_thread(ThreadHandle& thread) noexcept;
 Result detach_thread(ThreadHandle& thread) noexcept;
 
+// Number of currently executing threads created through ps5rt::create_thread.
+// This intentionally excludes unrelated process/libc threads.
+[[nodiscard]] std::uint32_t managed_thread_count() noexcept;
+
 // Used by ports that need to override small host/default stacks without
 // replacing std::thread throughout an upstream core.
 [[nodiscard]] std::size_t recommended_stack_size(

@@ -4,6 +4,7 @@
 #include <pthread_np.h>
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -24,6 +25,8 @@ static_assert(std::is_trivially_copyable_v<pthread_t>);
 static_assert(sizeof(pthread_t) <= sizeof(std::uintptr_t));
 
 constexpr std::size_t kThreadNameBytes = 64;
+
+std::atomic<std::uint32_t> g_managed_threads{0};
 
 struct ThreadStart {
   ThreadEntry entry{};
@@ -88,6 +91,9 @@ void* thread_trampoline(void* raw) noexcept {
   }
 
   entry(argument);
+  g_managed_threads.fetch_sub(
+      1,
+      std::memory_order_acq_rel);
   return nullptr;
 }
 
@@ -266,6 +272,9 @@ Result create_thread(
   }
 
   pthread_t thread{};
+  g_managed_threads.fetch_add(
+      1,
+      std::memory_order_acq_rel);
   rc = pthread_create(
       &thread,
       &attributes,
@@ -276,6 +285,9 @@ Result create_thread(
       &attributes);
 
   if (rc != 0) {
+    g_managed_threads.fetch_sub(
+        1,
+        std::memory_order_acq_rel);
     delete start;
     return {
         ErrorCode::system_error,
@@ -310,6 +322,11 @@ Result join_thread(
 
   thread = {};
   return Result::success();
+}
+
+std::uint32_t managed_thread_count() noexcept {
+  return g_managed_threads.load(
+      std::memory_order_acquire);
 }
 
 Result detach_thread(
