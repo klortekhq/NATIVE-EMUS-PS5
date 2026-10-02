@@ -346,7 +346,7 @@ jobs:
             -DPS5RT_ENABLE_EMU_SERVER=OFF
           /opt/ps5-payload-sdk/bin/prospero-cmake \
             --build build/ps5/runtime-probes \
-            --target ps5rt-jit-alias-probe ps5rt-flycast-jit-probe ps5rt-rpcs3-sparse-jit-probe ps5rt-pool-memory-probe ps5rt-memory-diagnostics-probe ps5rt-thread-probe ps5rt-emutls-probe \
+            --target ps5rt-jit-alias-probe ps5rt-flycast-jit-probe ps5rt-rpcs3-sparse-jit-probe ps5rt-pool-memory-probe ps5rt-memory-diagnostics-probe ps5rt-thread-probe ps5rt-emutls-probe ps5rt-audioout-probe \
             --parallel 2
           test -s build/ps5/runtime-probes/ps5rt-jit-alias-probe
           test -s build/ps5/runtime-probes/ps5rt-flycast-jit-probe
@@ -355,6 +355,7 @@ jobs:
           test -s build/ps5/runtime-probes/ps5rt-memory-diagnostics-probe
           test -s build/ps5/runtime-probes/ps5rt-thread-probe
           test -s build/ps5/runtime-probes/ps5rt-emutls-probe
+          test -s build/ps5/runtime-probes/ps5rt-audioout-probe
           readelf -Ws build/ps5/runtime-probes/ps5rt-emutls-probe \
             | grep -q '__emutls_get_address'
           mkdir -p build/ps5/runtime-probes/artifacts
@@ -365,6 +366,7 @@ jobs:
              build/ps5/runtime-probes/ps5rt-memory-diagnostics-probe \
              build/ps5/runtime-probes/ps5rt-thread-probe \
              build/ps5/runtime-probes/ps5rt-emutls-probe \
+             build/ps5/runtime-probes/ps5rt-audioout-probe \
              build/ps5/runtime-probes/artifacts/
           sha256sum build/ps5/runtime-probes/artifacts/* > \
             build/ps5/runtime-probes/artifacts/SHA256SUMS
@@ -430,6 +432,60 @@ jobs:
         with:
           name: native-ps5rt-emutls-hardware-smoke-${{ github.sha }}
           path: build/ps5/emutls-hardware-smoke/
+          if-no-files-found: error
+
+      - name: Stage AudioOut hardware smoke
+        run: |
+          set -euo pipefail
+          SRC="$GITHUB_WORKSPACE/build/ps5/runtime-probes/ps5rt-audioout-probe"
+          OUT="$GITHUB_WORKSPACE/build/ps5/audioout-hardware-smoke"
+          test -s "$SRC"
+          readelf -h "$SRC" > "$GITHUB_WORKSPACE/build/ps5/audioout-elf-header.txt"
+          readelf -Ws "$SRC" > "$GITHUB_WORKSPACE/build/ps5/audioout-symbols.txt"
+          grep -q 'Class:.*ELF64' "$GITHUB_WORKSPACE/build/ps5/audioout-elf-header.txt"
+          grep -q 'Type:.*DYN' "$GITHUB_WORKSPACE/build/ps5/audioout-elf-header.txt"
+          grep -q 'Machine:.*X86-64' "$GITHUB_WORKSPACE/build/ps5/audioout-elf-header.txt"
+          grep -q 'sceAudioOutOutput' "$GITHUB_WORKSPACE/build/ps5/audioout-symbols.txt"
+          mkdir -p "$OUT"
+          cp "$SRC" "$OUT/ps5rt-audioout-probe.elf"
+          cat > "$OUT/HARDWARE-TEST.txt" <<'EOF'
+          ps5rt AudioOut hardware smoke
+
+          This probe contains no commercial game data.
+
+          Run ps5rt-audioout-probe.elf with the already-installed PS5 ELF loader.
+          Keep console/TV volume low: the probe emits a quiet square-wave tone
+          for roughly 1.5 seconds through the ps5rt AudioOut backend.
+
+          Expected log:
+            ps5rt-audioout-probe: start
+            ps5rt-audioout-probe: PASS grains=280 frames=71680
+
+          Any open/write/pause FAILED line, crash, hang, missing final PASS, or
+          silence despite PASS must be recorded. Report firmware/loader and the
+          last visible line.
+
+          A PASS validates only the small ps5rt AudioOut open/write/drain/close
+          path on that hardware/runtime combination. It does not validate an
+          emulator's complete audio timing or latency.
+          EOF
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "source=runtime/probes/audioout_probe.cpp"
+            echo "backend=ps5rt::AudioDevice/libSceAudioOut"
+            echo "format=f32-stereo-48000-to-s16-hardware-path"
+            echo "physical_ps5_validation=pending"
+          } > "$OUT/BUILD-INFO.txt"
+          (
+            cd "$OUT"
+            sha256sum ps5rt-audioout-probe.elf HARDWARE-TEST.txt BUILD-INFO.txt > SHA256SUMS
+          )
+
+      - name: Upload AudioOut hardware smoke
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ps5rt-audioout-hardware-smoke-${{ github.sha }}
+          path: build/ps5/audioout-hardware-smoke/
           if-no-files-found: error
 
   ps5-cross-build-dynarmic-engine:

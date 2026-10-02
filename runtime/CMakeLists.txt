@@ -130,6 +130,10 @@ if(PS5RT_BUILD_PS5_BACKEND)
     target_link_libraries(ps5rt-emutls-probe PRIVATE ps5rt::ps5)
     target_compile_features(ps5rt-emutls-probe PRIVATE cxx_std_20)
     target_compile_options(ps5rt-emutls-probe PRIVATE -femulated-tls)
+
+    add_executable(ps5rt-audioout-probe probes/audioout_probe.cpp)
+    target_link_libraries(ps5rt-audioout-probe PRIVATE ps5rt::ps5)
+    target_compile_features(ps5rt-audioout-probe PRIVATE cxx_std_20)
   endif()
 endif()
 
