@@ -43,7 +43,8 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [x] current-thread name/affinity/stack-query PS5 backend + cross-build probe
 - [x] PS5 JIT/recompiler stack-size recommendation policy + host regression test
 - [x] explicit PS5 thread-creation stack-size implementation + join/detach contract
-- [ ] compiler-rt emulated TLS evaluation
+- [x] compiler-rt emulated TLS compile/link gate (`-femulated-tls` + SDK libc `__emutls_get_address`)
+- [ ] execute emulated-TLS thread-isolation probe on physical PS5
 - [ ] thread registration / cleanup
 - [ ] thread naming/diagnostics
 - [ ] shutdown ordering helpers

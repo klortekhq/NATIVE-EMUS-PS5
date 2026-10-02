@@ -124,6 +124,11 @@ if(PS5RT_BUILD_PS5_BACKEND)
     add_executable(ps5rt-thread-probe probes/thread_probe.cpp)
     target_link_libraries(ps5rt-thread-probe PRIVATE ps5rt::ps5)
     target_compile_features(ps5rt-thread-probe PRIVATE cxx_std_20)
+
+    add_executable(ps5rt-emutls-probe probes/emutls_probe.cpp)
+    target_link_libraries(ps5rt-emutls-probe PRIVATE ps5rt::ps5)
+    target_compile_features(ps5rt-emutls-probe PRIVATE cxx_std_20)
+    target_compile_options(ps5rt-emutls-probe PRIVATE -femulated-tls)
   endif()
 endif()
 

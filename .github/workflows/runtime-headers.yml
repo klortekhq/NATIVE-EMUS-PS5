@@ -345,7 +345,7 @@ jobs:
             -DPS5RT_ENABLE_EMU_SERVER=OFF
           /opt/ps5-payload-sdk/bin/prospero-cmake \
             --build build/ps5/runtime-probes \
-            --target ps5rt-jit-alias-probe ps5rt-flycast-jit-probe ps5rt-rpcs3-sparse-jit-probe ps5rt-pool-memory-probe ps5rt-memory-diagnostics-probe ps5rt-thread-probe \
+            --target ps5rt-jit-alias-probe ps5rt-flycast-jit-probe ps5rt-rpcs3-sparse-jit-probe ps5rt-pool-memory-probe ps5rt-memory-diagnostics-probe ps5rt-thread-probe ps5rt-emutls-probe \
             --parallel 2
           test -s build/ps5/runtime-probes/ps5rt-jit-alias-probe
           test -s build/ps5/runtime-probes/ps5rt-flycast-jit-probe
@@ -353,6 +353,9 @@ jobs:
           test -s build/ps5/runtime-probes/ps5rt-pool-memory-probe
           test -s build/ps5/runtime-probes/ps5rt-memory-diagnostics-probe
           test -s build/ps5/runtime-probes/ps5rt-thread-probe
+          test -s build/ps5/runtime-probes/ps5rt-emutls-probe
+          readelf -Ws build/ps5/runtime-probes/ps5rt-emutls-probe \
+            | grep -q '__emutls_get_address'
           mkdir -p build/ps5/runtime-probes/artifacts
           cp build/ps5/runtime-probes/ps5rt-jit-alias-probe \
              build/ps5/runtime-probes/ps5rt-flycast-jit-probe \
@@ -360,6 +363,7 @@ jobs:
              build/ps5/runtime-probes/ps5rt-pool-memory-probe \
              build/ps5/runtime-probes/ps5rt-memory-diagnostics-probe \
              build/ps5/runtime-probes/ps5rt-thread-probe \
+             build/ps5/runtime-probes/ps5rt-emutls-probe \
              build/ps5/runtime-probes/artifacts/
           sha256sum build/ps5/runtime-probes/artifacts/* > \
             build/ps5/runtime-probes/artifacts/SHA256SUMS
