@@ -66,7 +66,7 @@ constexpr std::size_t kPageSize = 0x4000;
 constexpr std::size_t kLargeAlignment = 0x200000;
 constexpr int kDirectMemoryTypeCached = 11;
 constexpr int kDirectMemoryTypeCachedShared = 12;
-constexpr int kPoolMemoryTypeCached = 0;
+constexpr int kPoolMemoryTypeCachedShared = 12;
 constexpr std::size_t kPoolAlignment = 0x200000;
 constexpr int kFlexibleMapFixed = 0x1;
 constexpr int kVirtualMapFixed = 0x10;
@@ -807,7 +807,7 @@ Result allocate_memory(MemoryKind kind,
     const int commit_rc = sceKernelMemoryPoolCommit(
         address,
         static_cast<unsigned long long>(pool_size),
-        kPoolMemoryTypeCached,
+        kPoolMemoryTypeCachedShared,
         protection,
         0);
     if (commit_rc != 0) {
