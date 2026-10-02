@@ -95,6 +95,22 @@ void clear_samples() {
   g_samples.clear();
 }
 
+bool wait_for_sequence(std::span<const std::int16_t> expected) {
+  for (int attempt = 0; attempt < 500; ++attempt) {
+    {
+      std::lock_guard<std::mutex> lock(g_mutex);
+      if (std::search(
+              g_samples.begin(),
+              g_samples.end(),
+              expected.begin(),
+              expected.end()) != g_samples.end())
+        return true;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  return false;
+}
+
 }  // namespace
 
 int main() {
@@ -152,6 +168,26 @@ int main() {
             8192) <= 1);
   }
 
+  clear_samples();
+  const std::array<float, 4> unaligned_f32_source{
+      0.25F, -0.25F,
+      0.75F, -0.75F,
+  };
+  std::array<std::byte, sizeof(unaligned_f32_source) + 1> unaligned_f32{};
+  std::memcpy(
+      unaligned_f32.data() + 1,
+      unaligned_f32_source.data(),
+      sizeof(unaligned_f32_source));
+  result = audio.write(std::span<const std::byte>{
+      unaligned_f32.data() + 1,
+      sizeof(unaligned_f32_source)});
+  assert(result);
+  const std::array<std::int16_t, 4> unaligned_f32_expected{
+      8192, -8192,
+      24575, -24575,
+  };
+  assert(wait_for_sequence(unaligned_f32_expected));
+
   result = audio.set_paused(true);
   assert(result);
   assert(g_flush_calls >= 1);
@@ -192,6 +228,28 @@ int main() {
     assert(g_samples[6] == 200);
     assert(g_samples[7] == -200);
   }
+
+  clear_samples();
+  const std::array<std::int16_t, 4> unaligned_s16_source{
+      300, -300,
+      400, -400,
+  };
+  std::array<std::byte, sizeof(unaligned_s16_source) + 1> unaligned_s16{};
+  std::memcpy(
+      unaligned_s16.data() + 1,
+      unaligned_s16_source.data(),
+      sizeof(unaligned_s16_source));
+  result = audio.write(std::span<const std::byte>{
+      unaligned_s16.data() + 1,
+      sizeof(unaligned_s16_source)});
+  assert(result);
+  const std::array<std::int16_t, 8> unaligned_s16_expected{
+      300, -300,
+      300, -300,
+      400, -400,
+      400, -400,
+  };
+  assert(wait_for_sequence(unaligned_s16_expected));
 
   audio.close();
   assert(g_close_calls == 2);

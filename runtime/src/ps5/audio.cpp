@@ -251,17 +251,26 @@ Result AudioDevice::write(std::span<const std::byte> bytes) noexcept {
   if (impl_->requested.format == SampleFormat::s16) {
     if (bytes.size() % (sizeof(std::int16_t) * kChannels) != 0)
       return error(ErrorCode::invalid_argument, 0, "unaligned s16 stereo audio buffer");
-    const auto* p = reinterpret_cast<const std::int16_t*>(bytes.data());
-    return impl_->push_source_s16(p, bytes.size() / (sizeof(std::int16_t) * kChannels));
+
+    // The public API accepts raw bytes, so callers are not required to provide
+    // storage aligned for int16_t. Copy into typed storage before decoding to
+    // avoid undefined behavior on deliberately or accidentally unaligned spans.
+    std::vector<std::int16_t> samples(bytes.size() / sizeof(std::int16_t));
+    std::memcpy(samples.data(), bytes.data(), bytes.size());
+    return impl_->push_source_s16(samples.data(), samples.size() / kChannels);
   }
 
   if (bytes.size() % (sizeof(float) * kChannels) != 0)
     return error(ErrorCode::invalid_argument, 0, "unaligned f32 stereo audio buffer");
   const auto frames = bytes.size() / (sizeof(float) * kChannels);
-  const auto* in = reinterpret_cast<const float*>(bytes.data());
   std::vector<std::int16_t> tmp(frames * kChannels);
   for (std::size_t i = 0; i < tmp.size(); ++i) {
-    const float x = std::max(-1.0f, std::min(1.0f, in[i]));
+    float sample = 0.0f;
+    std::memcpy(
+        &sample,
+        bytes.data() + i * sizeof(float),
+        sizeof(sample));
+    const float x = std::max(-1.0f, std::min(1.0f, sample));
     tmp[i] = static_cast<std::int16_t>(std::lrintf(x * 32767.0f));
   }
   return impl_->push_source_s16(tmp.data(), frames);
