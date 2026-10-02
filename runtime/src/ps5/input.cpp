@@ -66,6 +66,7 @@ struct Slot {
 
 std::array<Slot, InputSnapshot::max_controllers> g_slots{};
 std::int32_t g_initial_user{-1};
+std::uint32_t g_connected_controllers{};
 bool g_initialized{};
 
 float axis(std::uint8_t raw) noexcept {
@@ -221,6 +222,7 @@ Result initialize_input() noexcept {
 
 Result poll_input(InputSnapshot& out) noexcept {
   out = {};
+  g_connected_controllers = 0;
   if (!g_initialized)
     return {ErrorCode::system_error, 0, "input not initialized"};
 
@@ -244,6 +246,8 @@ Result poll_input(InputSnapshot& out) noexcept {
     if (!decode_state(bytes, controller)) {
       stop_vibration(slot);
       controller = {};
+    } else {
+      ++g_connected_controllers;
     }
   }
 
@@ -251,6 +255,10 @@ Result poll_input(InputSnapshot& out) noexcept {
     detail::hid_poll(out);
 
   return Result::success();
+}
+
+std::uint32_t connected_controller_count() noexcept {
+  return g_connected_controllers;
 }
 
 Result set_rumble(std::size_t controller, float low, float high) noexcept {
@@ -278,6 +286,7 @@ void shutdown_input() noexcept {
   for (auto& slot : g_slots)
     close_slot(slot);
   g_initial_user = -1;
+  g_connected_controllers = 0;
   g_initialized = false;
 
   // Do not terminate UserService here. It is process-wide and may be shared

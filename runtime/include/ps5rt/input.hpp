@@ -94,6 +94,7 @@ struct InputSnapshot {
 Result initialize_input() noexcept;
 Result poll_input(InputSnapshot& out) noexcept;
 Result set_rumble(std::size_t controller, float low, float high) noexcept;
+[[nodiscard]] std::uint32_t connected_controller_count() noexcept;
 void shutdown_input() noexcept;
 
 } // namespace ps5rt
