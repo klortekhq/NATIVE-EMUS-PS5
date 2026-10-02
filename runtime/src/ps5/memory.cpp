@@ -1,3 +1,4 @@
+#include <ps5rt/diagnostics.hpp>
 #include <ps5rt/jit.hpp>
 #include <ps5rt/memory.hpp>
 
@@ -1009,12 +1010,14 @@ Result query_memory_diagnostics(MemoryDiagnostics& out) noexcept {
             "direct memory diagnostics query failed"};
 
   MemoryDiagnostics snapshot{};
-  snapshot.flexible_available_bytes =
+  snapshot.flexible_available =
       static_cast<std::size_t>(flexible_bytes);
+  snapshot.direct_available =
+      direct_block_bytes;
+  snapshot.largest_known_free_range =
+      direct_block_bytes;
   snapshot.direct_aperture_bytes =
       static_cast<std::size_t>(direct_total);
-  snapshot.direct_largest_available_block_bytes =
-      direct_block_bytes;
 
   {
     std::scoped_lock lock(g_registry_mutex);
@@ -1062,8 +1065,15 @@ Result query_memory_diagnostics(MemoryDiagnostics& out) noexcept {
       for (const auto& [offset, chunk] : arena.chunks) {
         (void)offset;
         snapshot.tracked_sparse_committed_bytes += chunk.size;
+        if (chunk.protection & kProtExec)
+          snapshot.tracked_sparse_executable_bytes += chunk.size;
       }
     }
+
+    snapshot.executable_reserved =
+        snapshot.tracked_executable_bytes +
+        snapshot.tracked_dual_jit_bytes +
+        snapshot.tracked_sparse_executable_bytes;
   }
 
   out = snapshot;

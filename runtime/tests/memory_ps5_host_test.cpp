@@ -1,3 +1,4 @@
+#include <ps5rt/diagnostics.hpp>
 #include <ps5rt/jit.hpp>
 #include <ps5rt/memory.hpp>
 #include <ps5rt/c/exec.h>
@@ -426,14 +427,17 @@ int main() {
     ps5rt::MemoryDiagnostics diagnostics{};
     assert(ps5rt::query_memory_diagnostics(diagnostics));
     assert(
-        diagnostics.flexible_available_bytes ==
+        diagnostics.flexible_available ==
         256ull * 1024 * 1024);
+    assert(
+        diagnostics.direct_available ==
+        direct_available_bytes);
+    assert(
+        diagnostics.largest_known_free_range ==
+        direct_available_bytes);
     assert(
         diagnostics.direct_aperture_bytes ==
         2ull * 1024 * 1024 * 1024);
-    assert(
-        diagnostics.direct_largest_available_block_bytes ==
-        direct_available_bytes);
     assert(diagnostics.pool_capacity_bytes == pool_capacity);
     assert(diagnostics.pool_committed_bytes == pool_committed);
     assert(
@@ -450,6 +454,8 @@ int main() {
     assert(diagnostics.tracked_sparse_arena_count == 0);
     assert(diagnostics.tracked_sparse_reserved_bytes == 0);
     assert(diagnostics.tracked_sparse_committed_bytes == 0);
+    assert(diagnostics.tracked_sparse_executable_bytes == 0);
+    assert(diagnostics.executable_reserved == 0);
   }
 
   return 0;

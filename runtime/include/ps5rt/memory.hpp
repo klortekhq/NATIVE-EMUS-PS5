@@ -46,8 +46,8 @@ struct MemoryRequest {
   const char* debug_name{};
 };
 
-struct MemoryDiagnostics {
-  std::size_t flexible_available_bytes{};
+struct MemoryDiagnostics;
+
   std::size_t direct_aperture_bytes{};
   std::size_t direct_largest_available_block_bytes{};
 

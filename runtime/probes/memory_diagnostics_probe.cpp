@@ -1,3 +1,4 @@
+#include <ps5rt/diagnostics.hpp>
 #include <ps5rt/memory.hpp>
 
 #include <cstdio>
@@ -23,9 +24,9 @@ int main() {
       "exec_maps=%zu exec_bytes=%zu "
       "dual_jit=%zu dual_jit_bytes=%zu "
       "sparse_arenas=%zu sparse_reserved=%zu sparse_committed=%zu\n",
-      diagnostics.flexible_available_bytes,
+      diagnostics.flexible_available,
       diagnostics.direct_aperture_bytes,
-      diagnostics.direct_largest_available_block_bytes,
+      diagnostics.direct_available,
       diagnostics.pool_capacity_bytes,
       diagnostics.pool_committed_bytes,
       diagnostics.pool_available_bytes,
@@ -42,7 +43,7 @@ int main() {
       diagnostics.tracked_sparse_committed_bytes);
 
   if (diagnostics.direct_aperture_bytes == 0 ||
-      diagnostics.direct_largest_available_block_bytes >
+      diagnostics.direct_available >
           diagnostics.direct_aperture_bytes ||
       diagnostics.pool_committed_bytes >
           diagnostics.pool_capacity_bytes) {
