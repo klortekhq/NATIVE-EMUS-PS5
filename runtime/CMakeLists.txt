@@ -112,6 +112,10 @@ if(PS5RT_BUILD_PS5_BACKEND)
     target_link_libraries(ps5rt-rpcs3-sparse-jit-probe PRIVATE ps5rt::ps5)
     target_compile_features(ps5rt-rpcs3-sparse-jit-probe PRIVATE cxx_std_20)
 
+    add_executable(ps5rt-pool-memory-probe probes/pool_memory_probe.cpp)
+    target_link_libraries(ps5rt-pool-memory-probe PRIVATE ps5rt::ps5)
+    target_compile_features(ps5rt-pool-memory-probe PRIVATE cxx_std_20)
+
     add_executable(ps5rt-thread-probe probes/thread_probe.cpp)
     target_link_libraries(ps5rt-thread-probe PRIVATE ps5rt::ps5)
     target_compile_features(ps5rt-thread-probe PRIVATE cxx_std_20)

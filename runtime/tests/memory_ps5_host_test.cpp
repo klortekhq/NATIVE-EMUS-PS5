@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdlib>
+#include <cstring>
 #include <unordered_map>
 
 namespace {
@@ -18,6 +19,9 @@ std::unordered_map<int, std::size_t> jit_handles;
 std::unordered_map<long long, std::size_t> direct_blocks;
 std::unordered_map<void*, std::size_t> mappings;
 std::unordered_map<void*, bool> mapping_owned;
+std::size_t pool_capacity = 0;
+std::size_t pool_committed = 0;
+unsigned long long next_pool_physical = 0x40000000ull;
 }
 
 extern "C" int sceKernelJitCreateSharedMemory(int, unsigned long long size, int, int* out) {
@@ -112,6 +116,57 @@ extern "C" int sceKernelReserveVirtualRange(void** out, unsigned long long size,
   if (!*out) return -1;
   mapping_owned[*out] = owned;
   mappings[*out] = static_cast<std::size_t>(size);
+  return 0;
+}
+
+extern "C" int sceKernelMemoryPoolExpand(
+    unsigned long long,
+    unsigned long long,
+    unsigned long long size,
+    unsigned long long,
+    unsigned long long* out) {
+  if (!out || size == 0) return -1;
+  *out = next_pool_physical;
+  next_pool_physical += size;
+  pool_capacity += static_cast<std::size_t>(size);
+  return 0;
+}
+extern "C" int sceKernelMemoryPoolReserve(
+    void* requested,
+    unsigned long long size,
+    unsigned long long,
+    int,
+    void** out) {
+  if (!out || size == 0) return -1;
+  const bool owned = requested == nullptr;
+  void* address = requested;
+  if (!address) address = std::malloc(static_cast<std::size_t>(size));
+  if (!address) return -1;
+  *out = address;
+  mapping_owned[address] = owned;
+  mappings[address] = static_cast<std::size_t>(size);
+  return 0;
+}
+extern "C" int sceKernelMemoryPoolCommit(
+    void* address,
+    unsigned long long size,
+    int,
+    int,
+    int) {
+  if (!address || !mappings.contains(address)) return -1;
+  if (pool_committed + static_cast<std::size_t>(size) > pool_capacity)
+    return -1;
+  pool_committed += static_cast<std::size_t>(size);
+  return 0;
+}
+extern "C" int sceKernelMemoryPoolDecommit(
+    void* address,
+    unsigned long long size,
+    int) {
+  if (!address || !mappings.contains(address)) return -1;
+  const auto bytes = static_cast<std::size_t>(size);
+  if (bytes > pool_committed) return -1;
+  pool_committed -= bytes;
   return 0;
 }
 
@@ -266,6 +321,46 @@ int main() {
 
     ps5rt_sparse_arena_destroy(&arena);
     assert(!arena.base && direct_blocks.empty());
+  }
+
+  {
+    ps5rt::MemoryRequest request{};
+    request.size = 3ull * 1024 * 1024;
+    request.alignment = 2ull * 1024 * 1024;
+    request.protection =
+        ps5rt::Protection::read | ps5rt::Protection::write;
+
+    ps5rt::Mapping mapping{};
+    assert(ps5rt::allocate_memory(
+        ps5rt::MemoryKind::pooled, request, mapping));
+    assert(mapping);
+    assert(mapping.size == 4ull * 1024 * 1024);
+    assert(pool_capacity == 4ull * 1024 * 1024);
+    assert(pool_committed == mapping.size);
+
+    std::memset(mapping.address, 0x5a, 4096);
+    assert(static_cast<unsigned char*>(mapping.address)[0] == 0x5a);
+    assert(ps5rt::release_memory(mapping));
+    assert(!mapping);
+    assert(pool_committed == 0);
+    assert(mappings.empty());
+
+    request.size = 1ull * 1024 * 1024;
+    assert(ps5rt::allocate_memory(
+        ps5rt::MemoryKind::pooled, request, mapping));
+    assert(mapping.size == 2ull * 1024 * 1024);
+    assert(pool_capacity == 4ull * 1024 * 1024);
+    assert(pool_committed == mapping.size);
+    assert(ps5rt::release_memory(mapping));
+    assert(pool_committed == 0);
+    assert(mappings.empty());
+
+    request.protection =
+        ps5rt::Protection::read | ps5rt::Protection::execute;
+    const auto exec_result = ps5rt::allocate_memory(
+        ps5rt::MemoryKind::pooled, request, mapping);
+    assert(!exec_result);
+    assert(!mapping);
   }
 
   {

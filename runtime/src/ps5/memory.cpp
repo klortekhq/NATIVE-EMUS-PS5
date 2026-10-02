@@ -34,6 +34,25 @@ int sceKernelMunmap(void* address, unsigned long long size);
 int sceKernelReserveVirtualRange(void** address, unsigned long long size,
                                  int flags, unsigned long long alignment);
 
+int sceKernelMemoryPoolExpand(unsigned long long search_start,
+                              unsigned long long search_end,
+                              unsigned long long size,
+                              unsigned long long alignment,
+                              unsigned long long* physical_start);
+int sceKernelMemoryPoolReserve(void* address,
+                               unsigned long long size,
+                               unsigned long long alignment,
+                               int flags,
+                               void** out);
+int sceKernelMemoryPoolCommit(void* address,
+                              unsigned long long size,
+                              int memory_type,
+                              int protection,
+                              int flags);
+int sceKernelMemoryPoolDecommit(void* address,
+                                unsigned long long size,
+                                int flags);
+
 int sceKernelJitCreateSharedMemory(int flags, unsigned long long size,
                                    int protection, int* destination_handle);
 int sceKernelJitMapSharedMemory(int handle, int protection, void** destination);
@@ -47,6 +66,8 @@ constexpr std::size_t kPageSize = 0x4000;
 constexpr std::size_t kLargeAlignment = 0x200000;
 constexpr int kDirectMemoryTypeCached = 11;
 constexpr int kDirectMemoryTypeCachedShared = 12;
+constexpr int kPoolMemoryTypeCached = 0;
+constexpr std::size_t kPoolAlignment = 0x200000;
 constexpr int kFlexibleMapFixed = 0x1;
 constexpr int kVirtualMapFixed = 0x10;
 constexpr int kVirtualMapNoOverwrite = 0x80;
@@ -97,6 +118,11 @@ struct DirectRecord {
   std::size_t size{};
 };
 
+struct PoolRecord {
+  std::size_t size{};
+  bool committed{true};
+};
+
 struct ExecRecord {
   enum class Backend : std::uint8_t { jit_shared, direct } backend{Backend::jit_shared};
   int jit_handle{-1};
@@ -129,6 +155,9 @@ struct SparseArenaRecord {
 
 std::mutex g_registry_mutex;
 std::unordered_map<void*, DirectRecord> g_direct_records;
+std::unordered_map<void*, PoolRecord> g_pool_records;
+std::size_t g_pool_capacity = 0;
+std::size_t g_pool_committed = 0;
 std::unordered_map<void*, ExecRecord> g_exec_records;
 std::unordered_map<void*, DualJitRecord> g_dual_jit_records;
 std::unordered_map<void*, SparseArenaRecord> g_sparse_arenas;
@@ -719,6 +748,82 @@ Result allocate_memory(MemoryKind kind,
     return Result::success();
   }
 
+  if (kind == MemoryKind::pooled) {
+    if (protection & kProtExec)
+      return {ErrorCode::invalid_argument, 0,
+              "pooled memory cannot be executable"};
+
+    const auto pool_size = round_up(request.size, kPoolAlignment);
+    const auto pool_alignment =
+        std::max(round_up(alignment, kPoolAlignment), kPoolAlignment);
+
+    std::scoped_lock lock(g_registry_mutex);
+
+    const auto available =
+        g_pool_capacity >= g_pool_committed
+            ? g_pool_capacity - g_pool_committed
+            : 0;
+    if (available < pool_size) {
+      const auto expansion = round_up(pool_size - available, kPoolAlignment);
+      const long long direct_total = sceKernelGetDirectMemorySize();
+      if (direct_total <= 0)
+        return {ErrorCode::out_of_memory, 0,
+                "pooled memory backing unavailable"};
+
+      unsigned long long physical_start = 0;
+      const int expand_rc = sceKernelMemoryPoolExpand(
+          0,
+          static_cast<unsigned long long>(direct_total),
+          static_cast<unsigned long long>(expansion),
+          static_cast<unsigned long long>(pool_alignment),
+          &physical_start);
+      if (expand_rc != 0)
+        return {ErrorCode::out_of_memory, expand_rc,
+                "pooled memory expansion failed"};
+
+      g_pool_capacity += expansion;
+    }
+
+    void* address = request.preferred_address;
+    const int reserve_rc = sceKernelMemoryPoolReserve(
+        request.preferred_address,
+        static_cast<unsigned long long>(pool_size),
+        static_cast<unsigned long long>(pool_alignment),
+        request.fixed_address ? kVirtualMapFixed : 0,
+        &address);
+    if (reserve_rc != 0 || !address)
+      return {ErrorCode::out_of_memory, reserve_rc,
+              "pooled virtual reservation failed"};
+
+    if (request.fixed_address &&
+        address != request.preferred_address) {
+      (void)sceKernelMunmap(
+          address,
+          static_cast<unsigned long long>(pool_size));
+      return {ErrorCode::system_error, 0,
+              "fixed pooled reservation moved"};
+    }
+
+    const int commit_rc = sceKernelMemoryPoolCommit(
+        address,
+        static_cast<unsigned long long>(pool_size),
+        kPoolMemoryTypeCached,
+        protection,
+        0);
+    if (commit_rc != 0) {
+      (void)sceKernelMunmap(
+          address,
+          static_cast<unsigned long long>(pool_size));
+      return {ErrorCode::out_of_memory, commit_rc,
+              "pooled memory commit failed"};
+    }
+
+    g_pool_records[address] = {pool_size, true};
+    g_pool_committed += pool_size;
+    out = {address, pool_size, kind, request.protection};
+    return Result::success();
+  }
+
   if (kind == MemoryKind::direct) {
     long long direct_start = -1;
     int rc = allocate_direct_block(size, alignment, kDirectMemoryTypeCached, direct_start);
@@ -757,6 +862,52 @@ Result release_memory(Mapping& mapping) noexcept {
     const int rc = sceKernelReleaseFlexibleMemory(mapping.address, mapping.size);
     if (rc != 0)
       return {ErrorCode::system_error, rc, "flexible memory release failed"};
+    mapping = {};
+    return Result::success();
+  }
+
+  if (mapping.kind == MemoryKind::pooled) {
+    PoolRecord record{};
+    {
+      std::scoped_lock lock(g_registry_mutex);
+      const auto it = g_pool_records.find(mapping.address);
+      if (it == g_pool_records.end())
+        return {ErrorCode::invalid_argument, 0,
+                "unknown pooled mapping"};
+      record = it->second;
+    }
+
+    if (record.committed) {
+      const int decommit_rc = sceKernelMemoryPoolDecommit(
+          mapping.address,
+          static_cast<unsigned long long>(record.size),
+          0);
+      if (decommit_rc != 0)
+        return {ErrorCode::system_error, decommit_rc,
+                "pooled memory decommit failed"};
+
+      std::scoped_lock lock(g_registry_mutex);
+      const auto it = g_pool_records.find(mapping.address);
+      if (it != g_pool_records.end() && it->second.committed) {
+        it->second.committed = false;
+        if (g_pool_committed >= it->second.size)
+          g_pool_committed -= it->second.size;
+        else
+          g_pool_committed = 0;
+      }
+    }
+
+    const int unmap_rc = sceKernelMunmap(
+        mapping.address,
+        static_cast<unsigned long long>(record.size));
+    if (unmap_rc != 0)
+      return {ErrorCode::system_error, unmap_rc,
+              "pooled virtual reservation release failed"};
+
+    {
+      std::scoped_lock lock(g_registry_mutex);
+      g_pool_records.erase(mapping.address);
+    }
     mapping = {};
     return Result::success();
   }
