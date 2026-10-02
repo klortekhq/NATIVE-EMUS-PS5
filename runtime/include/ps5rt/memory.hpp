@@ -48,25 +48,6 @@ struct MemoryRequest {
 
 struct MemoryDiagnostics;
 
-  std::size_t direct_aperture_bytes{};
-  std::size_t direct_largest_available_block_bytes{};
-
-  std::size_t pool_capacity_bytes{};
-  std::size_t pool_committed_bytes{};
-  std::size_t pool_available_bytes{};
-
-  std::size_t tracked_direct_mapping_count{};
-  std::size_t tracked_direct_bytes{};
-  std::size_t tracked_pool_mapping_count{};
-  std::size_t tracked_pool_bytes{};
-  std::size_t tracked_executable_mapping_count{};
-  std::size_t tracked_executable_bytes{};
-  std::size_t tracked_dual_jit_region_count{};
-  std::size_t tracked_dual_jit_bytes{};
-  std::size_t tracked_sparse_arena_count{};
-  std::size_t tracked_sparse_reserved_bytes{};
-  std::size_t tracked_sparse_committed_bytes{};
-};
 
 Result allocate_memory(MemoryKind kind, const MemoryRequest& request, Mapping& out) noexcept;
 Result release_memory(Mapping& mapping) noexcept;
