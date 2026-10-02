@@ -55,6 +55,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate native finalizer dependency pin
+        run: |
+          set -euo pipefail
+          bash -n tools/ps5/finalize_native_pie.sh
+          grep -q 'bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16' tools/ps5/finalize_native_pie.sh
+          grep -q 'madler/zlib/releases/download/v' tools/ps5/finalize_native_pie.sh
+
       - name: Install public PS5 SDK bundle
         run: |
           set -euo pipefail
