@@ -22,6 +22,12 @@ struct ThreadName {
   std::array<char, max_thread_name_bytes> value{};
 };
 
+struct ThreadDiagnostics {
+  ThreadName name{};
+  std::size_t stack_bytes{};
+  std::uint32_t managed_thread_count{};
+};
+
 using ThreadEntry = void (*)(void*) noexcept;
 
 struct ThreadHandle {
@@ -37,6 +43,7 @@ Result set_current_thread_name(const char* name) noexcept;
 Result query_current_thread_name(ThreadName& out) noexcept;
 Result set_current_thread_affinity(std::int32_t cpu) noexcept;
 Result query_current_thread_stack(std::size_t& out_bytes) noexcept;
+Result query_current_thread_diagnostics(ThreadDiagnostics& out) noexcept;
 
 Result create_thread(
     ThreadHandle& out,

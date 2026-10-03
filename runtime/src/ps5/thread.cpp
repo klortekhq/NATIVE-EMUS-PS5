@@ -222,6 +222,30 @@ Result query_current_thread_stack(
   return Result::success();
 }
 
+Result query_current_thread_diagnostics(
+    ThreadDiagnostics& out) noexcept {
+  out = {};
+
+  const auto name_result =
+      query_current_thread_name(out.name);
+  if (!name_result) {
+    out = {};
+    return name_result;
+  }
+
+  const auto stack_result =
+      query_current_thread_stack(
+          out.stack_bytes);
+  if (!stack_result) {
+    out = {};
+    return stack_result;
+  }
+
+  out.managed_thread_count =
+      managed_thread_count();
+  return Result::success();
+}
+
 Result create_thread(
     ThreadHandle& out,
     const ThreadConfig& config,

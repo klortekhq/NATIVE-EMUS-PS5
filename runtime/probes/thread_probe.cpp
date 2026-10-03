@@ -80,6 +80,27 @@ int main() {
     return 3;
   }
 
+  ps5rt::ThreadDiagnostics diagnostics{};
+  const auto diagnostics_result =
+      ps5rt::query_current_thread_diagnostics(
+          diagnostics);
+  if (!diagnostics_result ||
+      std::strcmp(
+          diagnostics.name.value.data(),
+          "ps5rt-probe") != 0 ||
+      diagnostics.stack_bytes != stack_bytes ||
+      diagnostics.managed_thread_count != 0) {
+    std::printf(
+        "ps5rt-thread-probe: diagnostics FAILED rc=%d name=%s stack=%zu managed=%u\n",
+        static_cast<int>(
+            diagnostics_result.native_code),
+        diagnostics.name.value.data(),
+        diagnostics.stack_bytes,
+        diagnostics.managed_thread_count);
+    std::fflush(stdout);
+    return 4;
+  }
+
   ProbeState state{};
   ps5rt::ThreadHandle child{};
   ps5rt::ThreadConfig config{};
@@ -99,7 +120,7 @@ int main() {
         static_cast<int>(
             created.native_code));
     std::fflush(stdout);
-    return 4;
+    return 5;
   }
 
   const auto joined =
@@ -119,7 +140,7 @@ int main() {
         state.stack_ok.load(
             std::memory_order_acquire) ? 1 : 0);
     std::fflush(stdout);
-    return 5;
+    return 6;
   }
 
   std::printf(

@@ -150,3 +150,13 @@ core -> audio -> input -> video -> app/UserService
 
 This is lifecycle cleanup only; it is intentionally independent of signal/crash
 handling so it cannot consume emulator JIT fault signals.
+
+
+### Thread diagnostics
+
+`ps5rt::query_current_thread_diagnostics()` snapshots the current native
+thread name, stack size and ps5rt-managed worker count using the same concrete
+PS5 APIs as the lower-level thread contract. The native thread probe compiles
+this combined path and verifies it agrees with the individual queries before
+creating a managed worker. Physical execution of that probe remains a separate
+hardware gate.
