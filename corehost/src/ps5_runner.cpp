@@ -6,6 +6,7 @@
 #include <ps5rt/app.hpp>
 #include <ps5rt/audio.hpp>
 #include <ps5rt/input.hpp>
+#include <ps5rt/lifecycle.hpp>
 #include <ps5rt/vfs.hpp>
 #include <ps5rt/video.hpp>
 
@@ -150,6 +151,8 @@ int run_linked_core_ps5(
   std::setvbuf(stderr, nullptr, _IONBF, 0);
   std::fprintf(stderr, "\n=== %s start ===\n", config.app_name);
 
+  ps5rt::ShutdownStack shutdown;
+
   ps5rt::AppInfo app{};
   const ps5rt::AppConfig app_config{
       config.app_name,
@@ -163,20 +166,39 @@ int run_linked_core_ps5(
     log_result("app init failed", app_result);
     return 10;
   }
+  if (!shutdown.push(
+          [](void*) noexcept {
+            ps5rt::shutdown_app();
+          })) {
+    ps5rt::shutdown_app();
+    return 10;
+  }
 
   ps5rt::VideoDevice video;
   const auto video_result = video.open();
   if (!video_result) {
     log_result("video init failed", video_result);
-    ps5rt::shutdown_app();
+    return 11;
+  }
+  if (!shutdown.push(
+          [](void* raw) noexcept {
+            static_cast<ps5rt::VideoDevice*>(raw)->close();
+          },
+          &video)) {
+    video.close();
     return 11;
   }
 
   const auto input_result = ps5rt::initialize_input();
   if (!input_result) {
     log_result("input init failed", input_result);
-    video.close();
-    ps5rt::shutdown_app();
+    return 12;
+  }
+  if (!shutdown.push(
+          [](void*) noexcept {
+            ps5rt::shutdown_input();
+          })) {
+    ps5rt::shutdown_input();
     return 12;
   }
 
@@ -254,9 +276,6 @@ int run_linked_core_ps5(
   std::string error;
   if (!core.initialize(error)) {
     std::fprintf(stderr, "core init failed: %s\n", error.c_str());
-    ps5rt::shutdown_input();
-    video.close();
-    ps5rt::shutdown_app();
     return 20;
   }
 
@@ -267,9 +286,6 @@ int run_linked_core_ps5(
   if (!core.load_path(content, error)) {
     std::fprintf(stderr, "content load failed: %s\n", error.c_str());
     core.shutdown();
-    ps5rt::shutdown_input();
-    video.close();
-    ps5rt::shutdown_app();
     return 21;
   }
 
@@ -293,9 +309,26 @@ int run_linked_core_ps5(
   if (!audio_result) {
     log_result("audio init failed", audio_result);
     core.shutdown();
-    ps5rt::shutdown_input();
-    video.close();
-    ps5rt::shutdown_app();
+    return 22;
+  }
+
+  // Push audio before the core so LIFO teardown exactly preserves the
+  // established order: core -> audio -> input -> video -> app.
+  if (!shutdown.push(
+          [](void* raw) noexcept {
+            static_cast<ps5rt::AudioDevice*>(raw)->close();
+          },
+          &audio)) {
+    audio.close();
+    core.shutdown();
+    return 22;
+  }
+  if (!shutdown.push(
+          [](void* raw) noexcept {
+            static_cast<StaticCore*>(raw)->shutdown();
+          },
+          &core)) {
+    core.shutdown();
     return 22;
   }
 
@@ -320,11 +353,7 @@ int run_linked_core_ps5(
   }
 
   save_sram(core, sram);
-  core.shutdown();
-  audio.close();
-  ps5rt::shutdown_input();
-  video.close();
-  ps5rt::shutdown_app();
+  shutdown.run();
 
   if (!runtime_error.empty()) {
     std::fprintf(stderr, "runtime error: %s\n", runtime_error.c_str());

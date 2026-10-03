@@ -47,7 +47,7 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [x] ps5rt emutls policy backend: initialize/register/unregister/shutdown contract, with libc-owned pthread-key cleanup and host regression tests
 - [ ] execute emulated-TLS thread-isolation probe on physical PS5
 - [ ] thread naming/diagnostics
-- [ ] shutdown ordering helpers
+- [x] bounded LIFO shutdown ordering helper + standalone core-runner integration and host regression test
 
 ### Native services
 - [x] public audio/input/VFS/app contracts

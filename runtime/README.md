@@ -135,3 +135,18 @@ Minimum targets:
 ## Rule
 
 If a new emulator needs a PS5-specific workaround that is not actually emulator-specific, it should graduate into this runtime instead of being copied into another port.
+
+
+### Lifecycle / shutdown ordering
+
+`ps5rt::ShutdownStack` is a bounded allocation-free LIFO cleanup sequence for
+standalone native runners. Callbacks are idempotently drained by `run()` or
+the stack destructor. The shared static-core PS5 runner now uses it while
+preserving its established teardown order:
+
+```text
+core -> audio -> input -> video -> app/UserService
+```
+
+This is lifecycle cleanup only; it is intentionally independent of signal/crash
+handling so it cannot consume emulator JIT fault signals.

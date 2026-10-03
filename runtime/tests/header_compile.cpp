@@ -9,6 +9,7 @@ static_assert(sizeof(ps5rt::MemoryRequest) > 0);
 static_assert(sizeof(ps5rt::MemoryDiagnostics) > 0);
 static_assert(std::is_trivially_copyable_v<ps5rt::MemoryDiagnostics>);
 static_assert(sizeof(ps5rt::JitRequest) > 0);
+static_assert(sizeof(ps5rt::ShutdownStack) > 0);
 static_assert(sizeof(ps5rt::KeyboardState) > 0);
 static_assert(sizeof(ps5rt::DiscTrack) > 0);
 static_assert(sizeof(ps5rt::VideoFrame) > 0);
