@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
@@ -15,6 +16,12 @@ struct ThreadConfig {
   std::int32_t affinity_hint{-1};
 };
 
+inline constexpr std::size_t max_thread_name_bytes = 64;
+
+struct ThreadName {
+  std::array<char, max_thread_name_bytes> value{};
+};
+
 using ThreadEntry = void (*)(void*) noexcept;
 
 struct ThreadHandle {
@@ -27,6 +34,7 @@ struct ThreadHandle {
 };
 
 Result set_current_thread_name(const char* name) noexcept;
+Result query_current_thread_name(ThreadName& out) noexcept;
 Result set_current_thread_affinity(std::int32_t cpu) noexcept;
 Result query_current_thread_stack(std::size_t& out_bytes) noexcept;
 
