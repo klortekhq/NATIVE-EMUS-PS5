@@ -14,3 +14,5 @@ username=ps5
 password=
 domain=WORKGROUP
 timeout_seconds=10
+# Recovered PS5SX2 transport used 512 KiB read-ahead. Set 0 for exact reads.
+read_ahead_kib=512

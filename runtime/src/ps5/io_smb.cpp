@@ -2,6 +2,8 @@
 
 #include <ps5rt/io.hpp>
 
+#include "smb_read_ahead.hpp"
+
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wzero-length-array"
@@ -19,9 +21,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 #include <string_view>
 
 namespace ps5rt {
@@ -32,6 +36,8 @@ constexpr const char* kConfigPath =
 constexpr int kDefaultPort = 445;
 constexpr int kDefaultTimeoutSeconds = 10;
 constexpr std::uint32_t kFallbackReadSize = 512u * 1024u;
+constexpr std::size_t kDefaultReadAheadBytes = 512u * 1024u;
+constexpr std::size_t kMaxReadAheadBytes = 8u * 1024u * 1024u;
 
 struct SmbConfig {
   bool enabled{true};
@@ -42,6 +48,7 @@ struct SmbConfig {
   std::string password{};
   std::string domain{"WORKGROUP"};
   int timeout_seconds{kDefaultTimeoutSeconds};
+  std::size_t read_ahead_bytes{kDefaultReadAheadBytes};
 };
 
 struct ParsedSmbUri {
@@ -139,6 +146,11 @@ bool load_config(SmbConfig& config) noexcept {
     } else if (equal_ascii_ci(key, "timeout_seconds")) {
       config.timeout_seconds =
           std::clamp(std::atoi(value.c_str()), 1, 120);
+    } else if (equal_ascii_ci(key, "read_ahead_kib")) {
+      const auto kib =
+          std::clamp(std::atoi(value.c_str()), 0, 8192);
+      config.read_ahead_bytes =
+          static_cast<std::size_t>(kib) * 1024u;
     }
   }
   std::fclose(file);
@@ -239,7 +251,11 @@ smb2_context* connect_share(const SmbConfig& config) noexcept {
 class SmbReader final : public RandomAccessReader {
 public:
   SmbReader(SmbConfig config, std::string path) noexcept
-      : config_(std::move(config)), path_(std::move(path)) {}
+      : config_(std::move(config)),
+        path_(std::move(path)),
+        read_ahead_(std::min(
+            config_.read_ahead_bytes,
+            kMaxReadAheadBytes)) {}
 
   ~SmbReader() override {
     std::scoped_lock lock(mutex_);
@@ -271,31 +287,110 @@ public:
     if (offset >= size_)
       return Result::success();
 
-    std::size_t wanted = destination.size();
-    wanted = static_cast<std::size_t>(
-        std::min<std::uint64_t>(wanted, size_ - offset));
+    const auto wanted = static_cast<std::size_t>(
+        std::min<std::uint64_t>(
+            destination.size(),
+            size_ - offset));
 
-    auto* dst = reinterpret_cast<std::uint8_t*>(destination.data());
+    if (read_ahead_.copy(
+            offset,
+            destination,
+            wanted,
+            out_read)) {
+      return Result::success();
+    }
+
+    const auto remaining = static_cast<std::size_t>(
+        std::min<std::uint64_t>(
+            size_ - offset,
+            static_cast<std::uint64_t>(
+                std::numeric_limits<std::size_t>::max())));
+    const auto fetch_size =
+        read_ahead_.fetch_size(wanted, remaining);
+
+    if (fetch_size <= wanted) {
+      read_ahead_.clear();
+      return read_remote_locked(
+          offset,
+          destination.first(wanted),
+          out_read);
+    }
+
+    std::vector<std::byte> fetched_bytes(
+        fetch_size,
+        std::byte{});
+    std::size_t fetched = 0;
+    auto result = read_remote_locked(
+        offset,
+        std::span<std::byte>{
+            fetched_bytes.data(),
+            fetched_bytes.size()},
+        fetched);
+    if (!result) {
+      read_ahead_.clear();
+      return result;
+    }
+
+    read_ahead_.store(
+        offset,
+        std::move(fetched_bytes),
+        fetched);
+
+    if (!read_ahead_.copy(
+            offset,
+            destination,
+            wanted,
+            out_read)) {
+      read_ahead_.clear();
+      return {
+          ErrorCode::io_error,
+          0,
+          "SMB read-ahead cache fill mismatch"};
+    }
+
+    return Result::success();
+  }
+
+private:
+  Result read_remote_locked(
+      std::uint64_t offset,
+      std::span<std::byte> destination,
+      std::size_t& out_read) noexcept {
+    out_read = 0;
+    auto* dst =
+        reinterpret_cast<std::uint8_t*>(
+            destination.data());
     std::size_t done = 0;
     bool retried = false;
 
-    while (done < wanted) {
-      std::uint32_t max_read = smb2_get_max_read_size(ctx_);
+    while (done < destination.size()) {
+      std::uint32_t max_read =
+          smb2_get_max_read_size(ctx_);
       if (max_read == 0)
         max_read = kFallbackReadSize;
 
-      const auto request = static_cast<std::uint32_t>(
-          std::min<std::size_t>(wanted - done, max_read));
+      const auto request =
+          static_cast<std::uint32_t>(
+              std::min<std::size_t>(
+                  destination.size() - done,
+                  max_read));
 
       const int rc = smb2_pread(
-          ctx_, fh_, dst + done, request, offset + done);
+          ctx_,
+          fh_,
+          dst + done,
+          request,
+          offset + done);
 
       if (rc < 0) {
         if (!retried && reconnect_locked()) {
           retried = true;
           continue;
         }
-        return {ErrorCode::io_error, rc, "SMB pread failed"};
+        return {
+            ErrorCode::io_error,
+            rc,
+            "SMB pread failed"};
       }
 
       if (rc == 0)
@@ -309,7 +404,6 @@ public:
     return Result::success();
   }
 
-private:
   bool open_locked() noexcept {
     ctx_ = connect_share(config_);
     if (!ctx_)
@@ -332,6 +426,7 @@ private:
   }
 
   void close_locked() noexcept {
+    read_ahead_.clear();
     if (ctx_ && fh_)
       (void)smb2_close(ctx_, fh_);
     fh_ = nullptr;
@@ -348,6 +443,7 @@ private:
 
   SmbConfig config_{};
   std::string path_{};
+  detail::SmbReadAheadCache read_ahead_{0};
   smb2_context* ctx_{};
   smb2fh* fh_{};
   std::uint64_t size_{};
