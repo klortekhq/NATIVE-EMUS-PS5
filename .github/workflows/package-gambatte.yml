@@ -11,6 +11,7 @@ on:
       - 'tools/ps5/prepare_native_pie_linker.sh'
       - 'tools/ps5/app-hidden.map'
       - '.github/workflows/package-gambatte.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
   pull_request:
     paths:
       - 'ports/gambatte-ps5/**'
@@ -20,6 +21,7 @@ on:
       - 'tools/ps5/prepare_native_pie_linker.sh'
       - 'tools/ps5/app-hidden.map'
       - '.github/workflows/package-gambatte.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
   workflow_dispatch:
 
 concurrency:
@@ -35,8 +37,7 @@ jobs:
       - name: Install public PS5 SDK bundle
         run: |
           set -euo pipefail
-          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
-          sudo tar xf ps5-payload-dev.tar.gz -C /
+          bash tools/ps5/install_pinned_payload_sdk.sh
           test -x /opt/ps5-payload-sdk/bin/prospero-clang++
 
       - name: Cross-build Game Boy and Game Boy Color PIEs

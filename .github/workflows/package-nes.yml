@@ -7,6 +7,7 @@ on:
       - 'corehost/**'
       - 'runtime/**'
       - 'tools/ps5/finalize_native_pie.sh'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
       - 'tools/ps5/app-hidden.map'
       - '.github/workflows/package-nes.yml'
   pull_request:
@@ -15,6 +16,7 @@ on:
       - 'corehost/**'
       - 'runtime/**'
       - 'tools/ps5/finalize_native_pie.sh'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
       - 'tools/ps5/app-hidden.map'
       - '.github/workflows/package-nes.yml'
   workflow_dispatch:
@@ -29,13 +31,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install public PS5 SDK bundle
-        run: |
-          set -euo pipefail
-          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
-          sudo tar xf ps5-payload-dev.tar.gz -C /
-          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
-          test -d /opt/ps5-payload-sdk/target/lib
+      - name: Install pinned public PS5 SDK bundle
+        run: bash tools/ps5/install_pinned_payload_sdk.sh
 
       - name: Cross-build NES PIE
         env:

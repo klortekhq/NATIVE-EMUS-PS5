@@ -13,6 +13,7 @@ on:
       - 'tools/ps5/prepare_native_pie_linker.sh'
       - 'tools/ps5/app-hidden.map'
       - '.github/workflows/package-small.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
   pull_request:
     paths:
       - 'ports/snes9x-ps5/**'
@@ -25,6 +26,7 @@ on:
       - 'tools/ps5/prepare_native_pie_linker.sh'
       - 'tools/ps5/app-hidden.map'
       - '.github/workflows/package-small.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
   workflow_dispatch:
 
 concurrency:
@@ -65,8 +67,7 @@ jobs:
       - name: Install public PS5 SDK bundle
         run: |
           set -euo pipefail
-          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
-          sudo tar xf ps5-payload-dev.tar.gz -C /
+          bash tools/ps5/install_pinned_payload_sdk.sh
           test -x /opt/ps5-payload-sdk/bin/prospero-clang++
       - name: Cross-build ${{ matrix.id }} PIE
         env:
@@ -100,8 +101,7 @@ jobs:
       - name: Install public PS5 SDK bundle
         run: |
           set -euo pipefail
-          wget -q https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
-          sudo tar xf ps5-payload-dev.tar.gz -C /
+          bash tools/ps5/install_pinned_payload_sdk.sh
       - name: Cross-build Genesis Plus GX family
         env:
           PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
