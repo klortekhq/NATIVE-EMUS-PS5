@@ -53,13 +53,14 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [x] public audio/input/VFS/app contracts
 - [x] AudioOut backend + host-mocked conversion/resampling/lifecycle regression test
 - [ ] physical-PS5 AudioOut validation
-- [ ] DualSense backend
-- [ ] multi-user controller enumeration
-- [ ] keyboard/mouse optional backend
+- [x] DualSense backend + host-mocked lifecycle/rumble regression test
+- [x] multi-user controller enumeration + stable four-player mapping
+- [x] optional keyboard/mouse dynamic HID backend
+- [ ] physical-PS5 controller/HID validation
 - [ ] filesystem/storage discovery
 - [ ] SMB VFS rebase from recovered PS5SX2 patch
 - [ ] logging/crash reports
-- [ ] user service initialization
+- [x] user service initialization shared with native input lifecycle
 
 ### Vulkan
 - [x] public bootstrap contract

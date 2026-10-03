@@ -204,9 +204,12 @@ Result initialize_input() noexcept {
   if (rc < 0)
     return {ErrorCode::system_error, rc, "sceUserServiceGetInitialUser failed"};
 
-  rc = scePadInit();
-  if (rc < 0)
-    return {ErrorCode::system_error, rc, "scePadInit failed"};
+  // A native title may inherit an already initialized ScePad service from the
+  // loader/process environment. In that case scePadInit can report an error
+  // even though scePadOpen/scePadGetHandle remain usable. Treat controller
+  // acquisition as the real capability probe; no-controller startup is valid
+  // because keyboard/mouse-only and headless emulator configurations exist.
+  (void)scePadInit();
 
   g_initialized = true;
   if (detail::hid_initialize)

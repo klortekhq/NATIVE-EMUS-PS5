@@ -13,6 +13,7 @@ std::vector<std::int32_t> opened;
 std::vector<std::int32_t> closed;
 std::array<int, 3> last_rumble{-1, -1, -1};
 std::int32_t borrowed_user = -1;
+std::int32_t pad_init_result = 0;
 
 std::array<std::uint8_t, 1024>& state_for_handle(std::int32_t handle) {
   const auto user = handle - 100;
@@ -37,7 +38,7 @@ extern "C" std::int32_t sceUserServiceGetLoginUserIdList(std::int32_t* out) {
   std::memcpy(out, users.data(), sizeof(users));
   return 0;
 }
-extern "C" std::int32_t scePadInit() { return 0; }
+extern "C" std::int32_t scePadInit() { return pad_init_result; }
 extern "C" std::int32_t scePadOpen(std::int32_t user, std::int32_t type,
                                    std::int32_t index, const void* params) {
   assert(type == 0 && index == 0 && params == nullptr);
@@ -64,6 +65,10 @@ extern "C" std::int32_t scePadSetVibration(std::int32_t handle, const void* ptr)
 }
 
 int main() {
+  // Loader environments may report ScePad already initialized. A failed
+  // scePadInit must not reject working pad handles.
+  pad_init_result = static_cast<std::int32_t>(0x80920002u);
+
   set_connected(states[0], 0x004000u, 255, 0); // user 20
   set_connected(states[1], 0x001001u);         // initial user 10: triangle + Create
 
