@@ -1,6 +1,6 @@
 # PlayStation 1 emulator workspace
 
-## Progress: **83%**
+## Progress: **86%**
 
 Selected implementation: **Beetle PSX HW + Lightrec**.
 
@@ -60,9 +60,20 @@ The 2026-10-01 hardening pass additionally supplies:
 - one shared FSELF finalizer path with PS1's AGC stubs;
 - a repaired dedicated `ps1-lightrec` workflow.
 
-The next scoring gate remains the complete **RADV-linked native PS5 ELF**,
-followed by FSELF validation and physical-console validation. The media/VFS/save gate has therefore advanced and progress is now **83%**. The Vulkan/title-link gates remain unchanged until a complete pinned RADV-linked PS5 title is produced.
+Workflow **37160191512** completed the immutable pinned RADV bundle, full
+standalone native PS5 link and FSELF finalization. The resulting artifact
+contains the final linked PIE plus `eboot.elf` and `eboot.bin`, while CI
+rechecks that the Lightrec/GNU Lightning x86-64 backend survives the final
+engine. The score advances to **86%**: the title-link gate is complete and the
+RADV integration gate advances, while physical boot/rendering and legal
+test-content validation remain unproven.
 
 Latest evidence: workflow **36835002466** succeeded, including save-state and
 disk-control tests plus the native Lightrec x86-64 PS5 engine cross-build
 (artifact **11148931941**).
+
+
+Latest full-title evidence: workflow **37160191512**, artifact **11287755203**,
+ZIP SHA-256
+`b1ee45cc9afc153dc23d166c11a5b113d8924af54f46029bc606d8acc1653e50`.
+No physical-console success is implied by this build evidence.
