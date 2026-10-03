@@ -180,6 +180,20 @@ if(PS5RT_BUILD_HOST_PLATFORM_TESTS)
   target_compile_features(ps5rt-tls-policy-host-test PRIVATE cxx_std_20)
   add_test(NAME ps5rt-tls-policy-host COMMAND ps5rt-tls-policy-host-test)
 
+  add_executable(ps5rt-emu-server-read-ahead-test
+    tests/emu_server_read_ahead_test.cpp
+  )
+  target_include_directories(
+    ps5rt-emu-server-read-ahead-test
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/ps5
+  )
+  target_link_libraries(ps5rt-emu-server-read-ahead-test PRIVATE ps5rt::ps5rt)
+  target_compile_features(ps5rt-emu-server-read-ahead-test PRIVATE cxx_std_20)
+  add_test(
+    NAME ps5rt-emu-server-read-ahead
+    COMMAND ps5rt-emu-server-read-ahead-test
+  )
+
   add_executable(ps5rt-vfs-host-test
     tests/vfs_host_test.cpp
     src/ps5/vfs.cpp

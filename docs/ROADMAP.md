@@ -59,6 +59,8 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [ ] physical-PS5 controller/HID validation
 - [x] filesystem/storage discovery for app0, data, USB0-7 and configured internal/M.2 candidate roots
 - [ ] physical-PS5 storage discovery validation across internal/M.2/USB layouts
+- [x] EMUS fixed/adaptive read-ahead policy with host-tested sequential growth
+- [ ] tune EMUS read-ahead windows from physical-PS5 + SERVER benchmark evidence
 - [ ] SMB VFS rebase from recovered PS5SX2 patch
 - [ ] logging/crash reports
 - [x] user service initialization shared with native input lifecycle

@@ -15,6 +15,10 @@ struct EmuServerConfig {
   // Hardware benchmarks should choose the final policy rather than hardcoding
   // an emulator-independent guess.
   std::size_t read_ahead_bytes{};
+  // 0 preserves fixed read_ahead_bytes behavior. A larger value enables
+  // deterministic doubling after consecutive logical reads until this cap.
+  // Random seeks reset the window to read_ahead_bytes.
+  std::size_t max_read_ahead_bytes{};
 };
 
 // Registers the read-only emus:// backend.

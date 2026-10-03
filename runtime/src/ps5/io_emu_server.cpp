@@ -2,6 +2,7 @@
 #include <ps5rt/io.hpp>
 
 #include "emu_server_uri.hpp"
+#include "emu_server_read_ahead.hpp"
 
 #include <algorithm>
 #include <array>
@@ -58,6 +59,7 @@ struct HttpRuntime {
   std::string token{};
   std::string user_agent{"NATIVE-EMUS-PS5/1"};
   std::size_t read_ahead_bytes{};
+  std::size_t max_read_ahead_bytes{};
 };
 
 HttpRuntime g_http{};
@@ -125,8 +127,14 @@ Result add_common_headers(int req) noexcept {
 
 class EmuServerReader final : public RandomAccessReader {
 public:
-  explicit EmuServerReader(std::string url, std::size_t read_ahead_bytes)
-      : url_(std::move(url)), read_ahead_bytes_(read_ahead_bytes) {}
+  EmuServerReader(
+      std::string url,
+      std::size_t read_ahead_bytes,
+      std::size_t max_read_ahead_bytes)
+      : url_(std::move(url)),
+        read_ahead_policy_(
+            read_ahead_bytes,
+            max_read_ahead_bytes) {}
 
   ~EmuServerReader() override {
     std::scoped_lock lock(mutex_);
@@ -192,6 +200,7 @@ private:
     cache_offset_ = 0;
     cache_valid_ = 0;
     cache_etag_.clear();
+    read_ahead_policy_.reset();
   }
 
   bool copy_from_read_ahead_locked(
@@ -236,17 +245,19 @@ private:
       return {ErrorCode::invalid_argument, 0, "server read size overflow"};
     const auto wanted = static_cast<std::size_t>(wanted64);
 
+    const auto remaining_size = static_cast<std::size_t>(
+        std::min<std::uint64_t>(
+            remaining,
+            static_cast<std::uint64_t>(
+                std::numeric_limits<std::size_t>::max())));
+    const auto fetch_size =
+        read_ahead_policy_.suggest(offset, wanted, remaining_size);
+
     if (copy_from_read_ahead_locked(offset, destination, wanted, out_read))
       return Result::success();
 
-    if (read_ahead_bytes_ == 0 || wanted >= read_ahead_bytes_)
+    if (fetch_size <= wanted)
       return read_once_locked(offset, destination, out_read);
-
-    const auto fetch64 = std::min<std::uint64_t>(
-        remaining, static_cast<std::uint64_t>(read_ahead_bytes_));
-    if (fetch64 > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
-      return {ErrorCode::invalid_argument, 0, "server read-ahead size overflow"};
-    const auto fetch_size = static_cast<std::size_t>(fetch64);
 
     cache_.assign(fetch_size, std::byte{});
     std::size_t fetched = 0;
@@ -442,7 +453,7 @@ private:
   std::string url_{};
   std::string etag_{};
   std::uint64_t size_{};
-  std::size_t read_ahead_bytes_{};
+  detail::EmuServerReadAheadPolicy read_ahead_policy_{0, 0};
   std::vector<std::byte> cache_{};
   std::string cache_etag_{};
   std::uint64_t cache_offset_{};
@@ -463,7 +474,9 @@ Result open_emu_server(
     return {ErrorCode::invalid_argument, 0, "invalid emus:// URI"};
 
   auto reader = std::make_unique<EmuServerReader>(
-      std::move(url), g_http.read_ahead_bytes);
+      std::move(url),
+      g_http.read_ahead_bytes,
+      g_http.max_read_ahead_bytes);
   auto result = reader->open();
   if (!result)
     return result;
@@ -491,6 +504,7 @@ void cleanup_after_failed_init() noexcept {
   }
   g_http.token.clear();
   g_http.read_ahead_bytes = 0;
+  g_http.max_read_ahead_bytes = 0;
 }
 
 } // namespace
@@ -533,6 +547,12 @@ Result initialize_emu_server_backend(const EmuServerConfig& config) noexcept {
   constexpr std::size_t kMaxReadAhead = 8 * 1024 * 1024;
   g_http.read_ahead_bytes =
       std::min(config.read_ahead_bytes, kMaxReadAhead);
+  g_http.max_read_ahead_bytes =
+      config.max_read_ahead_bytes == 0
+          ? g_http.read_ahead_bytes
+          : std::max(
+                g_http.read_ahead_bytes,
+                std::min(config.max_read_ahead_bytes, kMaxReadAhead));
 
   g_http.tmpl = sceHttpCreateTemplate(
       g_http.http, g_http.user_agent.c_str(), 2, 0);
