@@ -125,8 +125,8 @@ Every port should support useful console-side diagnostics before performance tun
 
 Minimum targets:
 
-- boot log
-- crash/signal log
+- boot log (**persistent append-only file sink implemented; title chooses path**)
+- crash/signal log (**still pending; must not steal JIT/fastmem fault handlers**)
 - renderer timing
 - JIT allocation report
 - thread report

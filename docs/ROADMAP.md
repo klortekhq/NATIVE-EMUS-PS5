@@ -62,7 +62,8 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [x] EMUS fixed/adaptive read-ahead policy with host-tested sequential growth
 - [ ] tune EMUS read-ahead windows from physical-PS5 + SERVER benchmark evidence
 - [x] SMB VFS transport rebase: negotiated MaxReadSize, one reconnect and bounded configurable 512 KiB-default read-ahead from recovered PS5SX2 behavior
-- [ ] logging/crash reports
+- [x] persistent file logging sink with host regression coverage
+- [ ] crash/signal reports (must coexist safely with emulator JIT fault handlers)
 - [x] user service initialization shared with native input lifecycle
 
 ### Vulkan
