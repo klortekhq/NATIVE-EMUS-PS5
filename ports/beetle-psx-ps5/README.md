@@ -235,14 +235,19 @@ Optional read-ahead is configured in `/data/NATIVE-EMUS-PS5/ps1/config.ini`:
 
 ```ini
 server_read_ahead_kib = 0
+server_max_read_ahead_kib = 0
 ```
 
-`0` preserves exact-range reads. Values up to 8192 KiB enable one bounded
-in-memory read-ahead window per open remote file. The default stays disabled
-until physical-PS5 benchmarks establish a useful value. Compare
-`SERVER-EMUS-PS5 /api/v1/metrics` counters such as `range_requests` and
-`bytes_served` while testing candidate values rather than assuming a universal
-prefetch size.
+`server_read_ahead_kib = 0` preserves exact-range reads. A non-zero base up to
+8192 KiB enables one bounded in-memory read-ahead window per open remote file.
+`server_max_read_ahead_kib = 0` preserves fixed-window behavior; a value above
+the base enables the host-tested adaptive policy, which doubles the window on
+consecutive logical reads up to that cap and resets to the base after a seek.
+
+Both defaults stay disabled until physical-PS5 benchmarks establish useful
+values. Compare SERVER-EMUS-PS5 saved read plans plus `/api/v1/metrics`
+counters such as `range_requests` and `bytes_served` while testing candidate
+values rather than assuming a universal prefetch size.
 
 SERVER-EMUS-PS5 keeps the launchable catalog separate from descriptor sidecars:
 a catalog ID anchors virtual relative paths for CUE/CCD/TOC/M3U companions, and

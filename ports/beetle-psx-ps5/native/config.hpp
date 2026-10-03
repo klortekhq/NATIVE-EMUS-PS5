@@ -15,6 +15,7 @@ struct PortConfig {
   std::string internal_resolution{"1x(native)"};
   std::string server_token{};
   std::size_t server_read_ahead_kib{};
+  std::size_t server_max_read_ahead_kib{};
 };
 
 // Missing files are not an error: defaults are intentionally valid.

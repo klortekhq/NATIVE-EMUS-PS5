@@ -75,17 +75,21 @@ bool assign(
     return true;
   }
 
-  if (key == "server_read_ahead_kib") {
+  if (key == "server_read_ahead_kib" ||
+      key == "server_max_read_ahead_kib") {
     std::size_t parsed = 0;
     const auto* begin = value.data();
     const auto* end = begin + value.size();
     const auto result = std::from_chars(begin, end, parsed);
     if (value.empty() || result.ec != std::errc{} || result.ptr != end ||
         parsed > 8192) {
-      error = "invalid PS1 server_read_ahead_kib: " + value;
+      error = "invalid PS1 " + std::string(key) + ": " + value;
       return false;
     }
-    config.server_read_ahead_kib = parsed;
+    if (key == "server_read_ahead_kib")
+      config.server_read_ahead_kib = parsed;
+    else
+      config.server_max_read_ahead_kib = parsed;
     return true;
   }
 

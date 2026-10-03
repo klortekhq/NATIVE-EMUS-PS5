@@ -154,6 +154,7 @@ int main(int argc, char** argv) {
         port_config.server_token,
         "NATIVE-EMUS-PS5-PS1/1",
         port_config.server_read_ahead_kib * 1024u,
+        port_config.server_max_read_ahead_kib * 1024u,
     };
     const auto server_result =
         ps5rt::initialize_emu_server_backend(server_config);
