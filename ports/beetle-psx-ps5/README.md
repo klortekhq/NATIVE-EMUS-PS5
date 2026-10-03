@@ -1,6 +1,6 @@
 # Beetle PSX HW PS5 — native Lightrec x86-64 port
 
-## Progress: **83%**
+## Progress: **86%**
 
 > This percentage describes **our native standalone PS5 port**, not Beetle PSX upstream compatibility or another frontend's PS5 port. It only increases on reproducible engineering evidence.
 
@@ -11,20 +11,21 @@
 | Public upstream pinned + provenance mapped | 10% | **10%** |
 | Reproducible current PS5 engine cross-build | 15% | **15% — green from public upstream** |
 | Native CPU recompiler/JIT | 25% | **25% — Lightrec + GNU Lightning x86-64 verified in current archive** |
-| Native Vulkan host / RADV | 15% | **11%** — environment, provider, display surface and presenter implemented and host-tested |
+| Native Vulkan host / RADV | 15% | **13%** — environment/provider/display/presenter host-tested and exact pinned RADV now links into the standalone title; physical rendering pending |
 | Native audio/input | 10% | **8%** — AudioOut, DualSense, rumble and clean-exit chord wired and host-tested |
 | VFS/disc/saves | 10% | **9%** — local media + multi-disc M3U, atomic SRAM, native EMUS HTTP Range and anchored remote descriptor sidecars implemented; physical network validation pending |
-| Native app shell / title link | 5% | **4%** — standalone lifecycle + shell compile are green; final RADV-linked ELF/title conversion pending |
+| Native app shell / title link | 5% | **5%** — full pinned RADV-linked PIE plus native `eboot.elf` / FSELF `eboot.bin` finalization green in CI |
 | Physical PS5 boot/game validation | 10% | **0%** |
 
-**Total: 83 / 100**
+**Total: 86 / 100**
 
 Current public-upstream engine evidence is green.
 
-### 2026-10-01 hardening
+### 2026-10-01 → 2026-10-03 hardening
 
-The percentage is now **83%**. The increase is limited to the disc/VFS/save gate because the
-standalone path has now passed additional reproducible tests while the full RADV-linked app gate remains open:
+The percentage is now **86%**. In addition to the disc/VFS/save work, the
+standalone path now passes the immutable RADV bundle build, full native title
+link and native ELF/FSELF finalization:
 
 - current native-PS5 references were audited before changing the port;
 - the dedicated `ps1-lightrec` workflow syntax/allocator gate was repaired;
@@ -49,11 +50,10 @@ bash tools/ps5/prepare_radv_source_stack.sh
 ```
 
 That script verifies the PS5_Vulkan, PS5_Mesa and PS5_PayloadSDK revisions used
-by the current lock instead of following any moving branch. As of 2026-10-01
-those exact historical Mihawk repositories/pins are not publicly retrievable.
-The full-link workflow therefore has an explicit provenance preflight: it reports
-the gate as **blocked** and does not claim link evidence until every exact pin is
-available again (or an intentionally reviewed graphics-stack migration lands).
+by the current lock instead of following any moving branch. Those exact pins are now retrievable by CI and are frozen into the validated
+bundle used by workflow **37160191512**. Moving to a newer PS5_Vulkan/Mesa/SDK
+stack remains a separate audited migration rather than an implicit branch
+follow.
 
 To build and freeze the actual immutable link bundle from those exact sources:
 
@@ -296,10 +296,8 @@ That evidence is preserved, but the current build must reproduce the same archit
 
 ## Remaining gates
 
-- restore access to the exact pinned historical RADV sources or deliberately migrate the graphics provider to a newly audited public stack;
-- build/freeze/validate the resulting matching driver + SDK bundle and complete the full standalone Vulkan link with the current Lightrec engine;
-- validate the generated native ELF/FSELF from that complete link;
-- boot on physical PS5;
+- boot the finalized title on physical PS5;
+- validate first-frame Vulkan/RADV presentation and normal teardown on hardware;
 - validate regional BIOS/OpenBIOS with legal test content;
 - validate local and SERVER-EMUS-PS5 CUE/CHD/PBP, mixed-mode discs, remote multi-disc M3U and memory cards on physical hardware;
 - performance/compatibility pass with the native Lightrec backend.
@@ -330,3 +328,21 @@ Lightrec x86-64 engine cross-build.
 The last engine artifact recorded before this networking increment remains
 **11148931941** from workflow **36835002466**; no new progress percentage is
 claimed until physical-network and final Vulkan-title gates pass.
+
+
+## Full native title evidence
+
+Workflow **37160191512** (2026-10-03) completed the pinned RADV source/bundle
+path, final Lightrec title link, native-title conversion and artifact upload.
+
+```text
+artifact 11287755203: ps1-beetle-lightrec-radv-native-title
+ZIP sha256: b1ee45cc9afc153dc23d166c11a5b113d8924af54f46029bc606d8acc1653e50
+PIE:       f0907077558af6a463af8feb0eef96a5acf7f0ed6c3de8be80db244d6b1cb8d6
+eboot.elf: 81fe67d5b06464667f75310591c516c3db655e12fc630c20bc6991ae99967326
+eboot.bin: bcafaed0f883f9499f7754f88ff370b78872711a21b3c53d7562001793d9c4a2
+```
+
+This is reproducible build/title evidence only. It does not mark PS1 as
+Booting, In-game, Playable or Validated until the physical console provides
+that evidence.
