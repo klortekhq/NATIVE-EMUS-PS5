@@ -26,10 +26,25 @@ Result mkdir_one(const std::string& path) noexcept {
   if (path.empty() || path == "/")
     return Result::success();
 
-  if (::mkdir(path.c_str(), 0775) == 0 || errno == EEXIST)
+  if (::mkdir(path.c_str(), 0775) == 0)
     return Result::success();
 
-  return {ErrorCode::io_error, errno, "mkdir failed"};
+  const int mkdir_error = errno;
+  if (mkdir_error != EEXIST)
+    return {ErrorCode::io_error, mkdir_error, "mkdir failed"};
+
+  // EEXIST is success only when the existing object is actually a directory.
+  // Treating a regular file as a directory makes the error surface depend on
+  // whether another path component happens to follow it.
+  struct stat st {};
+  if (::stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+    return Result::success();
+
+  const int stat_error = errno;
+  return {
+      ErrorCode::io_error,
+      stat_error != 0 ? stat_error : ENOTDIR,
+      "path exists and is not a directory"};
 }
 
 } // namespace

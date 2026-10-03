@@ -37,7 +37,9 @@ int main() {
     std::ofstream out(file);
     out << "data";
   }
-  // A regular file cannot be reused as a directory component.
+  // A regular file is not a successful directory target and cannot be reused
+  // as a directory component.
+  assert(!ps5rt::ensure_directory(file.string()));
   assert(!ps5rt::ensure_directory((file / "child").string()));
 
   std::filesystem::remove_all(root, ec);
