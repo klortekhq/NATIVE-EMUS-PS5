@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated": "2026-10-01",
+  "updated": "2026-10-04",
   "baseline_m8_count": 43,
   "targets": [
     {
@@ -175,9 +175,9 @@
       "id": "ps1",
       "name": "PlayStation",
       "core": "Beetle PSX HW + Lightrec",
-      "status": "engine-cross-built",
+      "status": "cross-built",
       "group": "m8-baseline",
-      "note": "83% native PS5 port: public Beetle PSX HW + Lightrec/GNU Lightning x86-64 engine, Vulkan host, guarded slot-0 save states, local M3U and Beetle disk-control are green; full pinned RADV-linked title and physical-console validation remain"
+      "note": "86% native PS5 port: public Beetle PSX HW + Lightrec/GNU Lightning x86-64, immutable pinned RADV full title link and native eboot.elf/FSELF eboot.bin finalization are green; physical-console boot/rendering and legal test-content validation remain"
     },
     {
       "id": "ps2",
