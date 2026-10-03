@@ -95,6 +95,7 @@ COMMON_FLAGS=(
 
 SOURCES=(
   "$ROOT/runtime/src/common/io.cpp"
+  "$ROOT/runtime/src/common/lifecycle.cpp"
   "$ROOT/runtime/src/ps5/app.cpp"
   "$ROOT/runtime/src/ps5/audio.cpp"
   "$ROOT/runtime/src/ps5/input.cpp"
