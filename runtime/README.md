@@ -160,3 +160,16 @@ PS5 APIs as the lower-level thread contract. The native thread probe compiles
 this combined path and verifies it agrees with the individual queries before
 creating a managed worker. Physical execution of that probe remains a separate
 hardware gate.
+
+
+### JIT cache sizing policy
+
+`ps5rt::JitCachePolicy` provides a portable, host-tested way for individual
+emulator ports to expose cache-size overrides without accepting arbitrary or
+unaligned executable-memory requests. A port defines its upstream-safe
+default/minimum/maximum and alignment; `select_jit_cache_size()` clamps and
+aligns an optional user/config override before the existing JIT allocator is
+called.
+
+The policy does not silently resize any emulator. Each port must opt in with
+bounds appropriate to its own recompiler and physical-PS5 memory evidence.

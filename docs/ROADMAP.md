@@ -36,7 +36,7 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [x] runtime memory pressure diagnostics (largest direct block + tracked mappings/arenas)
 - [ ] physical-PS5 memory diagnostics capture
 - [ ] full virtual-address-space fragmentation walk
-- [ ] configurable JIT cache sizing
+- [x] shared configurable JIT cache sizing policy (bounded/aligned override selection; ports opt in explicitly)
 
 ### Threading / TLS
 - [x] public thread/TLS API contract

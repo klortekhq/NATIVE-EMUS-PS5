@@ -16,6 +16,7 @@ target_include_directories(ps5rt
 add_library(ps5rt_common STATIC
   src/common/io.cpp
   src/common/input.cpp
+  src/common/jit_policy.cpp
   src/common/lifecycle.cpp
   src/common/thread.cpp
 )
@@ -48,6 +49,10 @@ if(PS5RT_BUILD_HEADER_TEST)
   add_executable(ps5rt-thread-policy-test tests/thread_policy_test.cpp)
   target_link_libraries(ps5rt-thread-policy-test PRIVATE ps5rt::common)
   add_test(NAME ps5rt-thread-policy COMMAND ps5rt-thread-policy-test)
+
+  add_executable(ps5rt-jit-policy-test tests/jit_policy_test.cpp)
+  target_link_libraries(ps5rt-jit-policy-test PRIVATE ps5rt::common)
+  add_test(NAME ps5rt-jit-policy COMMAND ps5rt-jit-policy-test)
 
   add_executable(ps5rt-lifecycle-test tests/lifecycle_test.cpp)
   target_link_libraries(ps5rt-lifecycle-test PRIVATE ps5rt::common)
