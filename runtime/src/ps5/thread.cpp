@@ -13,6 +13,7 @@
 
 extern "C" {
 int scePthreadSetName(pthread_t thread, const char* name);
+int scePthreadGetname(pthread_t thread, char* name);
 int scePthreadSetaffinity(
     pthread_t thread,
     unsigned long long affinity);
@@ -24,7 +25,7 @@ namespace {
 static_assert(std::is_trivially_copyable_v<pthread_t>);
 static_assert(sizeof(pthread_t) <= sizeof(std::uintptr_t));
 
-constexpr std::size_t kThreadNameBytes = 64;
+constexpr std::size_t kThreadNameBytes = max_thread_name_bytes;
 
 std::atomic<std::uint32_t> g_managed_threads{0};
 
@@ -118,6 +119,33 @@ Result set_current_thread_name(
         rc,
         "scePthreadSetName failed"};
   }
+  return Result::success();
+}
+
+Result query_current_thread_name(
+    ThreadName& out) noexcept {
+  out = {};
+
+  const int rc =
+      scePthreadGetname(
+          pthread_self(),
+          out.value.data());
+  if (rc != 0) {
+    out = {};
+    return {
+        ErrorCode::system_error,
+        rc,
+        "scePthreadGetname failed"};
+  }
+
+  if (out.value.back() != '\0') {
+    out.value.back() = '\0';
+    return {
+        ErrorCode::system_error,
+        0,
+        "thread name was not terminated"};
+  }
+
   return Result::success();
 }
 
