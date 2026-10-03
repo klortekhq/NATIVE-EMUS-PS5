@@ -178,6 +178,7 @@ int run_linked_core_ps5(
   const auto video_result = video.open();
   if (!video_result) {
     log_result("video init failed", video_result);
+    shutdown.run();
     return 11;
   }
   if (!shutdown.push(
@@ -186,12 +187,14 @@ int run_linked_core_ps5(
           },
           &video)) {
     video.close();
+    shutdown.run();
     return 11;
   }
 
   const auto input_result = ps5rt::initialize_input();
   if (!input_result) {
     log_result("input init failed", input_result);
+    shutdown.run();
     return 12;
   }
   if (!shutdown.push(
@@ -199,6 +202,7 @@ int run_linked_core_ps5(
             ps5rt::shutdown_input();
           })) {
     ps5rt::shutdown_input();
+    shutdown.run();
     return 12;
   }
 
@@ -276,6 +280,7 @@ int run_linked_core_ps5(
   std::string error;
   if (!core.initialize(error)) {
     std::fprintf(stderr, "core init failed: %s\n", error.c_str());
+    shutdown.run();
     return 20;
   }
 
@@ -286,6 +291,7 @@ int run_linked_core_ps5(
   if (!core.load_path(content, error)) {
     std::fprintf(stderr, "content load failed: %s\n", error.c_str());
     core.shutdown();
+    shutdown.run();
     return 21;
   }
 
@@ -309,6 +315,7 @@ int run_linked_core_ps5(
   if (!audio_result) {
     log_result("audio init failed", audio_result);
     core.shutdown();
+    shutdown.run();
     return 22;
   }
 
@@ -321,6 +328,7 @@ int run_linked_core_ps5(
           &audio)) {
     audio.close();
     core.shutdown();
+    shutdown.run();
     return 22;
   }
   if (!shutdown.push(
@@ -329,6 +337,7 @@ int run_linked_core_ps5(
           },
           &core)) {
     core.shutdown();
+    shutdown.run();
     return 22;
   }
 
