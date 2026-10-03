@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdio>
+#include <cstring>
 
 namespace {
 
@@ -50,6 +51,22 @@ int main() {
     return 1;
   }
 
+  ps5rt::ThreadName queried{};
+  const auto query =
+      ps5rt::query_current_thread_name(
+          queried);
+  if (!query ||
+      std::strcmp(
+          queried.value.data(),
+          "ps5rt-probe") != 0) {
+    std::printf(
+        "ps5rt-thread-probe: query-name FAILED rc=%d\n",
+        static_cast<int>(
+            query.native_code));
+    std::fflush(stdout);
+    return 2;
+  }
+
   std::size_t stack_bytes = 0;
   const auto stack =
       ps5rt::query_current_thread_stack(
@@ -60,7 +77,7 @@ int main() {
         static_cast<int>(
             stack.native_code));
     std::fflush(stdout);
-    return 2;
+    return 3;
   }
 
   ProbeState state{};
@@ -82,7 +99,7 @@ int main() {
         static_cast<int>(
             created.native_code));
     std::fflush(stdout);
-    return 3;
+    return 4;
   }
 
   const auto joined =
@@ -102,11 +119,12 @@ int main() {
         state.stack_ok.load(
             std::memory_order_acquire) ? 1 : 0);
     std::fflush(stdout);
-    return 4;
+    return 5;
   }
 
   std::printf(
-      "ps5rt-thread-probe: PASS stack=%zu recommended_jit=%zu child_stack>=3145728\n",
+      "ps5rt-thread-probe: PASS name=%s stack=%zu recommended_jit=%zu child_stack>=3145728\n",
+      queried.value.data(),
       stack_bytes,
       ps5rt::recommended_stack_size(
           "jit",
