@@ -127,10 +127,21 @@ Result enumerate_storage(std::vector<StorageRoot>& out) noexcept {
 
   // Only expose roots that really exist on the running console. Mount names
   // vary across jailbreak/storage setups, so absence is not treated as error.
+  // /app0 is the read-only application image. Current PS5SX2 platform code
+  // probes removable storage across /mnt/usb0..7, so keep the common runtime
+  // broad enough for all eight observed USB mount slots instead of silently
+  // ignoring drives above usb1.
   static constexpr Candidate candidates[] = {
+      {StorageKind::app, "/app0"},
       {StorageKind::data, "/data"},
       {StorageKind::usb, "/mnt/usb0"},
       {StorageKind::usb, "/mnt/usb1"},
+      {StorageKind::usb, "/mnt/usb2"},
+      {StorageKind::usb, "/mnt/usb3"},
+      {StorageKind::usb, "/mnt/usb4"},
+      {StorageKind::usb, "/mnt/usb5"},
+      {StorageKind::usb, "/mnt/usb6"},
+      {StorageKind::usb, "/mnt/usb7"},
       {StorageKind::internal, "/mnt/ext0"},
       {StorageKind::m2, "/mnt/ext1"},
   };

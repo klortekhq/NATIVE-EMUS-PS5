@@ -180,6 +180,14 @@ if(PS5RT_BUILD_HOST_PLATFORM_TESTS)
   target_compile_features(ps5rt-tls-policy-host-test PRIVATE cxx_std_20)
   add_test(NAME ps5rt-tls-policy-host COMMAND ps5rt-tls-policy-host-test)
 
+  add_executable(ps5rt-vfs-host-test
+    tests/vfs_host_test.cpp
+    src/ps5/vfs.cpp
+  )
+  target_link_libraries(ps5rt-vfs-host-test PRIVATE ps5rt::ps5rt)
+  target_compile_features(ps5rt-vfs-host-test PRIVATE cxx_std_20)
+  add_test(NAME ps5rt-vfs-host COMMAND ps5rt-vfs-host-test)
+
   add_executable(ps5rt-diagnostics-host-test
     tests/diagnostics_host_test.cpp
     src/ps5/diagnostics.cpp

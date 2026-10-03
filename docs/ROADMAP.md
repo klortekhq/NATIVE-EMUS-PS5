@@ -57,7 +57,8 @@ The API contract exists. The remaining work is the concrete PS5 backend.
 - [x] multi-user controller enumeration + stable four-player mapping
 - [x] optional keyboard/mouse dynamic HID backend
 - [ ] physical-PS5 controller/HID validation
-- [ ] filesystem/storage discovery
+- [x] filesystem/storage discovery for app0, data, USB0-7 and observed internal/M.2 roots
+- [ ] physical-PS5 storage discovery validation across internal/M.2/USB layouts
 - [ ] SMB VFS rebase from recovered PS5SX2 patch
 - [ ] logging/crash reports
 - [x] user service initialization shared with native input lifecycle
