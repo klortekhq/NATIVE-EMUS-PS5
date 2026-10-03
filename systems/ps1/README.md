@@ -1,6 +1,6 @@
 # Sony PlayStation / PS1
 
-## Progress: **83%**
+## Progress: **86%**
 
 > Native standalone PS5 target. The canonical detailed engineering status lives in [ports/beetle-psx-ps5](../../ports/beetle-psx-ps5/README.md).
 
@@ -70,19 +70,23 @@ The driver is linked into the title; the PS5 port does not rely on a desktop Vul
 
 The 2026-10-01 hardening pass added an immutable RADV bundle receipt, native
 mixed-mode sector metadata, explicit region-aware BIOS policy and the shared
-native FSELF finalizer with PS1's AGC import stubs. These improve
-reproducibility but do **not** increase the graphics/title-link score until the complete RADV
-application link is produced and validated.
+native FSELF finalizer with PS1's AGC import stubs.
+
+Workflow **37160191512** subsequently completed the exact pinned RADV build,
+standalone title link and native finalization on the current public Beetle /
+Lightrec path. The run produced a linked PIE plus `eboot.elf` and
+`eboot.bin`; this advances the reproducible graphics/title-link gates but is
+still **not** evidence that the title boots or renders correctly on physical
+PS5 hardware.
 
 ## Remaining gates
 
-1. execute the pinned RADV build and freeze/validate its matching SDK bundle;
-2. finish the full standalone RADV-linked ELF;
-3. validate native ELF/FSELF conversion from that full link;
-4. physical PS5 boot;
-5. BIOS/OpenBIOS and legal test-content validation;
-6. mixed-mode/game/media/save compatibility pass;
-7. performance tuning without dropping Lightrec.
+1. physical PS5 boot of the finalized title;
+2. first-frame / Vulkan presentation validation on hardware;
+3. BIOS/OpenBIOS and legal test-content validation;
+4. mixed-mode/game/media/save compatibility pass;
+5. SERVER-EMUS/SMB seek-read validation and read-ahead tuning on LAN;
+6. performance tuning without dropping Lightrec.
 
 ## Workspaces
 
@@ -96,3 +100,26 @@ Workflow **36835002466** is green. Slot-0 save states are persisted atomically,
 corrupt states are rejected before unserialize, and multi-disc changes use
 Beetle's registered disk-control interface after the frame. The Lightrec x86-64
 PS5 engine was rebuilt in the same run as artifact **11148931941**.
+
+
+### Full native title evidence — 2026-10-03
+
+Workflow **37160191512** completed successfully and uploaded artifact
+**11287755203** (`ps1-beetle-lightrec-radv-native-title`).
+
+Artifact ZIP SHA-256:
+
+```text
+b1ee45cc9afc153dc23d166c11a5b113d8924af54f46029bc606d8acc1653e50
+```
+
+Key output hashes recorded by CI:
+
+```text
+f0907077558af6a463af8feb0eef96a5acf7f0ed6c3de8be80db244d6b1cb8d6  beetle_psx_hw_ps5_pie.elf
+81fe67d5b06464667f75310591c516c3db655e12fc630c20bc6991ae99967326  native/eboot.elf
+bcafaed0f883f9499f7754f88ff370b78872711a21b3c53d7562001793d9c4a2  native/eboot.bin
+```
+
+The run also rechecked that the Lightrec/GNU Lightning x86-64 recompiler
+survives the final engine build. Hardware execution remains the next gate.
