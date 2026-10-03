@@ -1,6 +1,6 @@
 # Project Status
 
-Last reviewed: 2026-10-01
+Last reviewed: 2026-10-04
 
 This document distinguishes **verified public scene progress** from **our repository implementation state**.
 
@@ -94,11 +94,11 @@ These are especially useful for hardening AudioOut, DualSense, VFS, packaging an
 7. **xemu/Xenia/MAME/Jaguar/Amiga:** maintain dedicated deeper-host tracks.
 
 
-### PlayStation / PS1 — 83%
+### PlayStation / PS1 — 86%
 
 - Selected core: Beetle PSX HW.
 - Required CPU backend: Lightrec + GNU Lightning x86-64.
-- Lightrec + GNU Lightning x86-64 engine and standalone Vulkan host are green in CI; full pinned RADV app link + physical PS5 validation remain.
+- Lightrec + GNU Lightning x86-64 engine, immutable pinned RADV bundle, full standalone RADV title link and native FSELF finalization are green in CI; physical PS5 validation remains.
 - Canonical source is `libretro/beetle-psx-libretro@ed87921996c67658d7a70814f73034bbca08786a`; Mihawk's older PS5_BeetlePSX is historical feasibility evidence only.
 - Deterministic transform is green from public upstream; workflow 36833195325 also validates local multi-disc M3U and per-track native sector widths.
 - Transform re-enables Lightrec on PS5 and supplies its TLSF code pool through `ps5rt_exec_allocate()`.
@@ -108,6 +108,6 @@ These are especially useful for hardening AudioOut, DualSense, VFS, packaging an
 - Vulkan host/native service adapters, local media, guarded save states and Beetle-native multi-disc switching are implemented.
 - Native `emus://` random access is implemented with HEAD/Range/ETag, and descriptor-relative CUE/CCD/TOC/M3U sidecars are transported through an opaque catalog anchor without exposing NAS paths. The server side rejects library and symlink escapes.
 - Workflow `36844576020` is green for the current PS1 Lightrec lane, including the Prospero compile of the EMUS backend and remote-content regression coverage.
-- The complete RADV title link remains a separate open gate: its exact historical PS5_Vulkan/PS5_Mesa/PS5_PayloadSDK pins are currently unavailable, so CI now reports that provenance gate as blocked instead of mislabeling it as a code regression. Physical-console validation also remains.
+- Workflow **37160191512** completed the exact pinned RADV build/link and uploaded artifact **11287755203** with PIE + native `eboot.elf` + `eboot.bin`; physical-console boot/rendering remains unverified.
 
 See `systems/ps1/README.md` for the weighted percentage.
