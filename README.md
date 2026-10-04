@@ -55,7 +55,7 @@ Status: **cross-built; physical PS5 validation pending**.
 | PSP | PPSSPP | x86-64 JIT | Vulkan | Existing PS5 port research |
 | Nintendo 64 | Mupen64Plus | x86-64 dynarec | Vulkan-capable plugins | Existing PS5 port research |
 | Nintendo 3DS | Azahar | Dynarmic x86-64 | Vulkan | Existing PS5 scene work |
-| GameCube / Wii | Dolphin | x86-64 JIT | Vulkan | Existing PS5 scene work |
+| GameCube / Wii | Dolphin | Jit64 + x64 DSP JIT | Vulkan | PS5 engine scaffold cross-built; Vulkan compile/link/presentation gates remain |
 
 ## Shared runtime target
 

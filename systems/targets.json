@@ -79,17 +79,17 @@
       "id": "gamecube",
       "name": "Nintendo GameCube",
       "core": "Dolphin",
-      "status": "research",
+      "status": "scaffold",
       "group": "m8-baseline",
-      "note": "x86-64 JIT + Vulkan"
+      "note": "Dolphin PowerPC Jit64 + x64 DSP JIT static engine cross-built for PS5; Vulkan backend compile gate added; no standalone PS5 title or hardware validation yet"
     },
     {
       "id": "wii",
       "name": "Nintendo Wii",
       "core": "Dolphin",
-      "status": "research",
+      "status": "scaffold",
       "group": "m8-baseline",
-      "note": "shared Dolphin core; motion/IR PS5 UX required"
+      "note": "Shared Dolphin Jit64/x64 DSP PS5 engine cross-built; Vulkan backend compile gate added; Wii motion/IR UX, standalone title and hardware validation remain"
     },
     {
       "id": "wiiu",
