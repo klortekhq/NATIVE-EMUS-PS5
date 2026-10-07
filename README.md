@@ -120,3 +120,17 @@ This repository is intended for lawful homebrew and interoperability research. U
 ---
 
 **Klortek · NATIVE-EMUS-PS5**
+
+<!-- KLORTEK-MANAGER:START -->
+## Managed development status
+
+This project follows the current Klortek PROMPTMASTER and its project-specific instructions. Approved user directions take precedence; implementation, tests and recorded evidence drive the next task.
+
+**Verified milestone: 5%** — Scope registered; next milestone awaits verification.
+
+This conservative milestone index is not a measure of all planned features or a promise of release readiness. Existing verified prototypes remain evidence even when a newer experimental build is blocked. Projects shown at 5% have registered scope; additional implementation is not credited until its results are reviewed. Last review: 2026-10-07.
+
+Work on owned repositories uses `main` and the `klortekhq` identity. Preserve active work, validate changes before publication, and keep proprietary assets, dumps, private SDKs and secrets out of GitHub. External references retain their licenses and attribution. Update project state and public progress only from actual results.
+
+[Ecosystem progress](https://klortekhq.github.io/#ps5-projects)
+<!-- KLORTEK-MANAGER:END -->
