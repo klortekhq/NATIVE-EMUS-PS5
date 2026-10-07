@@ -1,0 +1,772 @@
+{
+  "schema_version": 1,
+  "updated": "2026-10-01",
+  "purpose": "Pinned PS5 scene reference cache. Entries are engineering references, not implicit dependencies.",
+  "cache_policy": {
+    "metadata": "Always keep URL, exact commit, relevance and provenance in git.",
+    "source_snapshot": "For cache_source=true, CI materializes an exact source snapshot including initialized submodules when licensing permits.",
+    "integration": "Never import code automatically. Every reuse still requires license/provenance and delta review."
+  },
+  "references": [
+    {
+      "name": "PS5 Vulkan",
+      "repository": "mpereiraesaa/ps5-vulkan",
+      "url": "https://github.com/mpereiraesaa/ps5-vulkan",
+      "pin": "e6d3c3f82f3c8a574e28c174b15b287f9c0ecc6d",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": [
+        "vulkan",
+        "agc",
+        "videoout",
+        "shader-cache",
+        "dxvk",
+        "gpu"
+      ],
+      "relevance": "Primary live PS5 Vulkan/AGC reference: native VideoOut presentation, GFX1013 command work, Mesa/NIR/ACO integration, shader compilation cache, DXVK experiments and physical-console evidence.",
+      "discovered_via": [
+        "direct-audit",
+        "@Jdr8245Jhon"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "AnyPS5",
+      "repository": "boykopovar/AnyPS5",
+      "url": "https://github.com/boykopovar/AnyPS5",
+      "pin": "bc51b337adc4ea11afb56b0265695f74882df0b4",
+      "license": "GPL-2.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": [
+        "agc",
+        "videoout",
+        "shader-recompiler",
+        "shader-cache",
+        "ps5-abi",
+        "vulkan",
+        "x86-relinker"
+      ],
+      "relevance": "Very useful clean-room PS5 ABI and AGC reference. Current tree contains AGC command implementations, VideoOut modelling, persistent shader disk/pipeline cache work and x86 instruction relinking research. The 2026-10-01 refresh also preserves the comparison-image shader-cache fix and current AGC driver module split.",
+      "discovered_via": [
+        "@Jdr8245Jhon"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "DualSenseClient",
+      "repository": "DualSenseClient/DualSenseClient",
+      "url": "https://github.com/DualSenseClient/DualSenseClient",
+      "pin": "7b1009ee7fd1afda9de09264f29c325baeae1d98",
+      "license": "GPL-3.0",
+      "priority": "high",
+      "cache_source": true,
+      "categories": [
+        "dualsense",
+        "hid",
+        "adaptive-triggers",
+        "haptics",
+        "audio"
+      ],
+      "relevance": "Protocol-level DualSense reference for USB/Bluetooth HID reports, adaptive-trigger blocks, haptics/audio transport and Edge fields. Useful to validate ps5rt input/output semantics even though it is a PC client.",
+      "discovered_via": [
+        "@Jdr8245Jhon"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "EVO Player PS5",
+      "repository": "sainsaji/EVO-PLAYER-PS5",
+      "url": "https://github.com/sainsaji/EVO-PLAYER-PS5",
+      "pin": "21524a4a6effa65312be2026042e44a96efca4c6",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": [
+        "ps5-payload-sdk",
+        "videoout",
+        "audioout",
+        "agc",
+        "ffmpeg",
+        "packaging",
+        "media-app"
+      ],
+      "relevance": "Hardware-tested native PS5 application reference: AudioOut/VideoOut, AGC work, FFmpeg cross-build, app-module/media-tile packaging and SDK/toolchain audits.",
+      "discovered_via": [
+        "@Jdr8245Jhon"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5PCEM",
+      "repository": "iStark/PS5PCEM",
+      "url": "https://github.com/iStark/PS5PCEM",
+      "pin": "52fd710141ef6e1bef2e9ba2c28853e612574559",
+      "license": "GPL-3.0",
+      "priority": "high",
+      "cache_source": true,
+      "categories": [
+        "ps5-abi",
+        "agc",
+        "pm4",
+        "rdna2",
+        "videoout",
+        "vulkan",
+        "reverse-engineering"
+      ],
+      "relevance": "Useful PS5 guest-side reverse-engineering reference for AGC/PM4 streams, VideoOut/HLE exports, RDNA2 shader translation and memory/service behavior. Not a host runtime donor.",
+      "discovered_via": [
+        "@Jdr8245Jhon"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5 Payload SDK",
+      "repository": "ps5-payload-dev/sdk",
+      "url": "https://github.com/ps5-payload-dev/sdk",
+      "pin": "f7fd02e6e195902a449b5e664917be8c01888b34",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": [
+        "sdk",
+        "toolchain",
+        "prospero-clang",
+        "linker",
+        "libc",
+        "headers"
+      ],
+      "relevance": "Canonical public PS5 payload SDK/toolchain reference used by the project. Current checked pin adds LLVM 23 support.",
+      "discovered_via": [
+        "direct-audit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5 Native App Boilerplate",
+      "repository": "BlackBearReloaded/ps5-native-app-boilerplate",
+      "url": "https://github.com/BlackBearReloaded/ps5-native-app-boilerplate",
+      "pin": "dd44bbdc75437332ed22e3ba95126733419ef25a",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": [
+        "native-title",
+        "elf",
+        "fself",
+        "linker",
+        "packaging",
+        "runtime"
+      ],
+      "relevance": "Primary public native-title tooling reference: page-separated PIE layout, ELF conversion, FSELF/container tooling and packaging contracts.",
+      "discovered_via": [
+        "direct-audit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5SX2",
+      "repository": "Swordpdf/PS5SX2",
+      "url": "https://github.com/Swordpdf/PS5SX2",
+      "pin": "d96a7031615734cbe4efb1b3953ddfc23e0dd3aa",
+      "license": "review-per-upstream-PCXS2-and-vendored-components",
+      "priority": "critical",
+      "cache_source": false,
+      "categories": [
+        "pcsx2",
+        "jit",
+        "vulkan",
+        "threads",
+        "native-ps5"
+      ],
+      "relevance": "Primary live reference for a large x86-64 JIT emulator running natively on PS5. Metadata/pin cached; source snapshot is disabled until the aggregate license/vendor inventory is reviewed.",
+      "discovered_via": [
+        "direct-audit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5 Dump Image Converter",
+      "repository": "strongt1me/PS5-Dump-Image-Converter",
+      "url": "https://github.com/strongt1me/PS5-Dump-Image-Converter",
+      "pin": "b2e560e9db1ffe4c6ae585bcec5a8ca9b3c223bf",
+      "license": "MIT",
+      "priority": "medium",
+      "cache_source": true,
+      "categories": [
+        "ffpkg",
+        "ffpfsc",
+        "exfat",
+        "image-format",
+        "packaging"
+      ],
+      "relevance": "Useful packaging/image-format reference for FFPKG, FFPFSC and exFAT handling. Not part of emulator runtime but relevant to distribution/storage tooling.",
+      "discovered_via": [
+        "@Jdr8245Jhon"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PlayStation Payload Center",
+      "repository": "Pharaoh2k/PlayStation-Payload-Center",
+      "url": "https://github.com/Pharaoh2k/PlayStation-Payload-Center",
+      "pin": "50fb96d3f32565ec026b2d867768accbcb3956fa",
+      "license": "proprietary-binary-only",
+      "priority": "watch",
+      "cache_source": false,
+      "categories": [
+        "payload-management",
+        "deployment",
+        "catalog"
+      ],
+      "relevance": "Operational reference only. Proprietary binary-only license means we record metadata but do not mirror source/binaries into this project.",
+      "discovered_via": [
+        "@Jdr8245Jhon"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5 OpenGL",
+      "repository": "BlackBearReloaded/ps5-opengl",
+      "url": "https://github.com/BlackBearReloaded/ps5-opengl",
+      "pin": "dce74910af7f4274c48d05e0ae001b3038462588",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": [
+        "opengl",
+        "agc",
+        "mesa",
+        "videoout",
+        "cts",
+        "gpu"
+      ],
+      "relevance": "Hardware-validated PS5 OpenGL/Mesa/AGC reference with complete OpenGL 4.6 CTS evidence, showcase frame capture and recorded 1.0.0 frame-rate evidence; useful for GPU, tiling, shader, presentation and performance cross-checks even where Vulkan is the target renderer.",
+      "discovered_via": [
+        "direct-audit",
+        "scene-cross-reference"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "ProsperoEden",
+      "repository": "BlackBearReloaded/ProsperoEden",
+      "url": "https://github.com/BlackBearReloaded/ProsperoEden",
+      "pin": "183439625ef1d686d531426022d371142b3819bd",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": [
+        "dynarmic",
+        "vulkan",
+        "radv",
+        "native-ps5",
+        "switch",
+        "toolchain"
+      ],
+      "relevance": "Native PS5 Eden-derived reference with pinned dependency builds; useful for Dynarmic, Vulkan/RADV and native application integration patterns.",
+      "discovered_via": [
+        "direct-audit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5Link SDK",
+      "repository": "Rufidj/ps5link-sdk",
+      "url": "https://github.com/Rufidj/ps5link-sdk",
+      "pin": "ea771e535378740b6a058b8e5419eb8a0e0e0ec8",
+      "license": "GPL-3.0",
+      "priority": "high",
+      "cache_source": true,
+      "categories": [
+        "sdk",
+        "libc",
+        "agc",
+        "gpu",
+        "toolchain",
+        "examples"
+      ],
+      "relevance": "Alternative PS5 SDK/catalog reference with hardware-confirmed libc symbols and graphics examples; useful for ABI cross-checking without making it a primary SDK dependency.",
+      "discovered_via": [
+        "direct-audit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "SharpProspero",
+      "repository": "SvenGDK/SharpProspero",
+      "url": "https://github.com/SvenGDK/SharpProspero",
+      "pin": "5dfdb4b0b166e83dc9ae275001afb695f12c7174",
+      "license": "GPL-3.0",
+      "priority": "high",
+      "cache_source": true,
+      "categories": [
+        "toolchain",
+        "elf",
+        "fself",
+        "sdk",
+        "firmware",
+        "packaging"
+      ],
+      "relevance": "Independent PS5 SDK/tooling reference used to cross-check ELF/FSELF metadata, SDK coverage and packaging behavior.",
+      "discovered_via": [
+        "direct-audit",
+        "BlackBear-credit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5 AGC Gears",
+      "repository": "mpereiraesaa/ps5-agc-gears",
+      "url": "https://github.com/mpereiraesaa/ps5-agc-gears",
+      "pin": "1ae1f9182abd2770c131b97419034fb85173c2dc",
+      "license": "GPL-3.0",
+      "priority": "critical",
+      "cache_source": true,
+      "categories": [
+        "agc",
+        "gpu",
+        "videoout",
+        "command-buffer",
+        "synchronization"
+      ],
+      "relevance": "Small hardware-oriented AGC reference used by ps5-vulkan; valuable for command-buffer emission, suspend points, render targets and native presentation primitives.",
+      "discovered_via": [
+        "ps5-vulkan-dependency"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "OpenAGC PPSSPP PS5",
+      "repository": "OpenAGC/ps5-ppsspp",
+      "url": "https://github.com/OpenAGC/ps5-ppsspp",
+      "pin": "6950c0dd51d0ad4993428f6ecc812e83de4bcf6f",
+      "license": "aggregate-license-review-pending",
+      "priority": "high",
+      "cache_source": false,
+      "categories": [
+        "ppsspp",
+        "jit",
+        "opengl",
+        "input",
+        "native-ps5"
+      ],
+      "relevance": "Public PPSSPP PS5 port reference with Prospero build and controller/frontend work. Metadata is pinned now; snapshot remains disabled until aggregate upstream/vendor licensing is reviewed.",
+      "discovered_via": [
+        "direct-audit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 RPCS3",
+      "repository": "mihawk-99/PS5_RPCS3",
+      "url": "https://github.com/mihawk-99/PS5_RPCS3",
+      "pin": "2ada8e453c592d8764d2801a667f3da415794918",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "rpcs3",
+        "ppu",
+        "spu",
+        "llvm",
+        "native-ps5"
+      ],
+      "relevance": "Historical PS5 RPCS3 donor formerly used for PPU/SPU engine bring-up. Exact pin retained so any future mirror can be provenance-checked.",
+      "discovered_via": [
+        "historical-project-pin"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 LLVM",
+      "repository": "mihawk-99/PS5_LLVM",
+      "url": "https://github.com/mihawk-99/PS5_LLVM",
+      "pin": "98b45cc22e98844b7d49bbedefdfee04a740650a",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "llvm",
+        "abi",
+        "alignment",
+        "rpcs3",
+        "toolchain"
+      ],
+      "relevance": "Historical LLVM fork with PS5 alignment fixes used by the old RPCS3 gate. Canonical LLVM now carries equivalent generic alignment contracts; exact old pin is retained for comparison.",
+      "discovered_via": [
+        "historical-project-pin"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 Mesa",
+      "repository": "mihawk-99/PS5_Mesa",
+      "url": "https://github.com/mihawk-99/PS5_Mesa",
+      "pin": "cedb774b27d089fa81f46add28d0a8c13ff0f7d2",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "mesa",
+        "radv",
+        "vulkan",
+        "gpu"
+      ],
+      "relevance": "Historical PS5 Mesa/RADV source pinned by the old graphics bundle. Exact revision remains recorded while the repository is unavailable.",
+      "discovered_via": [
+        "RADV-LOCK"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 Vulkan",
+      "repository": "mihawk-99/PS5_Vulkan",
+      "url": "https://github.com/mihawk-99/PS5_Vulkan",
+      "pin": "71026e7ec1951fe72ae5b9118ff0905216a4c220",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "vulkan",
+        "radv",
+        "videoout",
+        "gpu"
+      ],
+      "relevance": "Historical PS5 Vulkan glue used by the frozen RADV bundle. Exact revision retained for future provenance recovery.",
+      "discovered_via": [
+        "RADV-LOCK"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 PayloadSDK fork",
+      "repository": "mihawk-99/PS5_PayloadSDK",
+      "url": "https://github.com/mihawk-99/PS5_PayloadSDK",
+      "pin": "95c08f27386fc698f6bbe21dde3030140a41d10b",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "sdk",
+        "toolchain",
+        "radv"
+      ],
+      "relevance": "Historical SDK fork paired with the frozen PS5 Mesa/Vulkan stack. Exact revision retained; active development uses ps5-payload-dev/sdk instead.",
+      "discovered_via": [
+        "RADV-LOCK"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 Dynarmic",
+      "repository": "mihawk-99/PS5_Dynarmic",
+      "url": "https://github.com/mihawk-99/PS5_Dynarmic",
+      "pin": "1df2a07e9a86afef73d511a931f40bedb40b30c4",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "dynarmic",
+        "jit",
+        "executable-memory"
+      ],
+      "relevance": "Historical PS5 Dynarmic donor for executable-code allocation. Exact revision retained while current integrations move to verifiable public upstreams.",
+      "discovered_via": [
+        "historical-project-pin"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Historical PS5 Mupen64Plus",
+      "repository": "mihawk-99/PS5_Mupen64Plus",
+      "url": "https://github.com/mihawk-99/PS5_Mupen64Plus",
+      "pin": "98ec1019d191fc3c0e1c2d031f2574e95bd8d30d",
+      "license": "historical-provenance-unavailable",
+      "priority": "historical",
+      "cache_source": false,
+      "availability": "unavailable-2026-10-01",
+      "categories": [
+        "mupen64plus",
+        "jit",
+        "n64"
+      ],
+      "relevance": "Historical PS5 Mupen64Plus donor. Exact revision retained for provenance while CI preserves our transform contract independently.",
+      "discovered_via": [
+        "historical-project-pin"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PSXRecomp",
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp",
+      "pin": "3505f2a014a6424b78b8599d3506362356e4bc7b",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "priority": "high",
+      "cache_source": false,
+      "categories": [
+        "ps1",
+        "static-recompilation",
+        "mips",
+        "aot",
+        "overlays",
+        "interpreter-fallback",
+        "hardware-runtime"
+      ],
+      "relevance": "General-purpose PS1 static-recompilation reference. Especially useful for MIPS-to-C lifting, LLE-first BIOS/runtime structure, AOT overlay sharding, guarded native dispatch, transient interpreter fallback and differential validation. Metadata only: noncommercial license requires an explicit reuse decision before any code import.",
+      "discovered_via": [
+        "user-reference-2026-10-01",
+        "RetroPortingToolKit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "SNESRecomp",
+      "repository": "RetroPortingToolKit/snesrecomp",
+      "url": "https://github.com/RetroPortingToolKit/snesrecomp",
+      "pin": "3fcd8b5031df5009c9b5fb921ca83a971560a314",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "priority": "high",
+      "cache_source": false,
+      "categories": [
+        "snes",
+        "static-recompilation",
+        "65816",
+        "hardware-runtime",
+        "interpreter-fallback",
+        "differential-testing"
+      ],
+      "relevance": "Static 65816-to-C ecosystem with shared SNES hardware runtime and safe interpreter tier. Its separate emulator oracle and frame/state differential workflow are useful references for validating our Snes9x-native path without treating per-game recompilation as a replacement for a general emulator.",
+      "discovered_via": [
+        "user-reference-2026-10-01",
+        "RetroPortingToolKit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "NDSRecomp",
+      "repository": "RetroPortingToolKit/ndsrecomp",
+      "url": "https://github.com/RetroPortingToolKit/ndsrecomp",
+      "pin": "c50d0992029a4a19e251132ed69e87bfa853a5f1",
+      "license": "mixed-PolyForm-NC-MIT-GPL3-review-required",
+      "priority": "high",
+      "cache_source": false,
+      "categories": [
+        "nds",
+        "arm7",
+        "arm9",
+        "static-recompilation",
+        "dual-cpu",
+        "scheduler",
+        "interpreter-fallback",
+        "oracle"
+      ],
+      "relevance": "Early DS static-recompilation framework: ARM7TDMI/ARM946E-S lifting, event-aligned dual-CPU scheduling, bounded interpreter fallback for copied RAM code and a separate melonDS oracle. Useful architecture reference for ARM multi-core scheduling and exact-ROM dispatch gates; aggregate licensing is mixed and must be reviewed per boundary.",
+      "discovered_via": [
+        "user-reference-2026-10-01",
+        "RetroPortingToolKit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Retro Runtime",
+      "repository": "RetroPortingToolKit/Retro-Runtime",
+      "url": "https://github.com/RetroPortingToolKit/Retro-Runtime",
+      "pin": "5d5a83be51c47e41e07e54a515cfe6a469928144",
+      "license": "MIT",
+      "priority": "medium",
+      "cache_source": false,
+      "categories": [
+        "runtime",
+        "core-abi",
+        "runner",
+        "ipc",
+        "savestates",
+        "overlay",
+        "launcher"
+      ],
+      "relevance": "Shared host/core ABI plus out-of-process runner and versioned link protocol. Useful design reference for keeping emulator engines independent from launchers, overlays and updateable runners; not an emulator core donor.",
+      "discovered_via": [
+        "user-reference-2026-10-01",
+        "RetroPortingToolKit"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS3Recomp",
+      "repository": "sp00nznet/ps3recomp",
+      "url": "https://github.com/sp00nznet/ps3recomp",
+      "pin": "a679051ef304555291de2eb3ec8a3dbf64a761a8",
+      "license": "MIT",
+      "priority": "critical",
+      "cache_source": false,
+      "categories": [
+        "ps3",
+        "ppu",
+        "spu",
+        "cell",
+        "static-recompilation",
+        "lv2",
+        "rsx",
+        "hle"
+      ],
+      "relevance": "Direct PS3/Cell static-recompilation reference. It contains PPU and SPU lifters/runtime contexts, SPU local-store/DMA/channel handling, LV2/HLE structure and an RSX abstraction. Particularly valuable for cross-checking RPCS3 PPU/SPU execution semantics and host/runtime boundaries; static per-game recompilation is not a replacement for RPCS3.",
+      "discovered_via": [
+        "Recompendium",
+        "user-reference-2026-10-01"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS2Recomp",
+      "repository": "ran-j/PS2Recomp",
+      "url": "https://github.com/ran-j/PS2Recomp",
+      "pin": "c5a9d02573410a2085a4b4b831b0b68ba3515440",
+      "license": "GPL-3.0",
+      "priority": "high",
+      "cache_source": false,
+      "categories": [
+        "ps2",
+        "r5900",
+        "mips",
+        "iop",
+        "static-recompilation",
+        "vu0",
+        "syscalls"
+      ],
+      "relevance": "PS2 static-recompilation reference with R5900/MMI/VU0 code generation, function dispatch, syscall handling and an IOP R3000A execution/HLE boundary. Useful for PCSX2 CPU/IOP architecture cross-checks and JIT-less fallback research.",
+      "discovered_via": [
+        "Recompendium",
+        "user-reference-2026-10-01"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Dolphin RecompCore",
+      "repository": "aharonahdoot/RecompCore",
+      "url": "https://github.com/aharonahdoot/RecompCore",
+      "pin": "283baee01e54b6c3f71e441bb78fc77b260512fa",
+      "license": "GPL-2.0-or-later",
+      "priority": "critical",
+      "cache_source": false,
+      "categories": [
+        "gamecube",
+        "dolphin",
+        "powerpc",
+        "static-recompilation",
+        "interpreter-fallback",
+        "differential-testing"
+      ],
+      "relevance": "Thin Dolphin fork adding a static-recompilation CPU core with transparent interpreter fallback and lockstep differential validation. Extremely useful for our Dolphin path because it demonstrates a no-JIT execution mode while retaining Dolphin's hardware model and measures native-vs-JIT performance explicitly.",
+      "discovered_via": [
+        "Recompendium",
+        "user-reference-2026-10-01"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "ReXGlue SDK",
+      "repository": "rexglue/rexglue-sdk",
+      "url": "https://github.com/rexglue/rexglue-sdk",
+      "pin": "c94f5ebdcb3c9d1a460ca48e04f9758448f8d518",
+      "license": "BSD-3-Clause",
+      "priority": "high",
+      "cache_source": false,
+      "categories": [
+        "xbox360",
+        "powerpc",
+        "static-recompilation",
+        "xenia",
+        "portable-cpp"
+      ],
+      "relevance": "Xbox 360 PPC-to-portable-C++ SDK rooted in Xenia and XenonRecomp. Useful for PowerPC lifting/codegen patterns, host portability and release engineering; also a relevant sibling for PPU-oriented research because of the shared PowerPC lineage.",
+      "discovered_via": [
+        "Recompendium",
+        "user-reference-2026-10-01"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Hagi Decompilation",
+      "repository": "GRAnimated/Hagi",
+      "url": "https://github.com/GRAnimated/Hagi",
+      "pin": "a1d1740e23fa9770da0952523ef47ba59a0ee143",
+      "license": "no-license-detected-review-only",
+      "priority": "medium",
+      "cache_source": false,
+      "categories": [
+        "gamecube",
+        "wii",
+        "emulator",
+        "decompilation",
+        "nintendo",
+        "native-recompilation"
+      ],
+      "relevance": "Decompilation of Nintendo's Hagi GameCube/Wii emulator from Super Mario 3D All-Stars. Valuable historical/architectural evidence because Hagi also shipped Wii titles with natively recompiled code. No license detected, so this is strictly a read-only research reference unless licensing changes.",
+      "discovered_via": [
+        "Recompendium",
+        "user-reference-2026-10-01"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "Recompendium",
+      "repository": "Nio03/unricopie",
+      "url": "https://github.com/Nio03/unricopie",
+      "pin": "5e4b1ce51eb30c412581a685452acf4bde13daf6",
+      "license": "MIT",
+      "priority": "watch",
+      "cache_source": false,
+      "categories": [
+        "catalog",
+        "static-recompilation",
+        "decompilation",
+        "ports",
+        "discovery"
+      ],
+      "relevance": "Live curated discovery index separating recomps, decomps, ports/remakes and tools, with daily GitHub metadata and decomp.dev synchronization. Use to discover candidates; always verify the underlying project repository before treating any entry as an engineering reference.",
+      "discovered_via": [
+        "user-reference-2026-10-01"
+      ],
+      "last_reviewed": "2026-10-01"
+    },
+    {
+      "name": "PS5CEMU-HAR (Wii U / Cemu + Nintendo 3DS / Azahar)",
+      "repository": "premohq/PS5CEMU-HAR",
+      "url": "https://github.com/premohq/PS5CEMU-HAR",
+      "pin": "02d0f59e1d18ce49c311ab08d39735262ce04f8b",
+      "license": "GPL-3.0-or-later (app/port code); Cemu-derived patches: MPL-2.0; Azahar: GPL-2.0-or-later; third-party components retain their own licenses",
+      "priority": "high",
+      "cache_source": true,
+      "categories": [
+        "wii-u",
+        "cemu",
+        "3ds",
+        "azahar",
+        "vulkan",
+        "radv",
+        "jit",
+        "videoout",
+        "audioout",
+        "dualsense",
+        "launcher",
+        "packaging"
+      ],
+      "relevance": "Active native-PS5 emulator reference combining Cemu and Azahar. Useful for RADV/Vulkan/VideoOut, recompiler/JIT memory handling, AudioOut, DualSense multi-user input, launcher/game-library design, diagnostics, in-game settings and title packaging. Upstream 3.0.0 reports Wii U playability on physical PS5 hardware while 3DS is less mature; treat that as external evidence, not validation of Klortek ports. Preserve exact license boundaries and never import code automatically.",
+      "discovered_via": [
+        "user-reference-2026-10-01",
+        "NATIVE-EMUS-PS5-reference-review",
+        "upstream-refresh-2026-10-06"
+      ],
+      "last_reviewed": "2026-10-06"
+    }
+  ]
+}

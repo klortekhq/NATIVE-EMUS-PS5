@@ -1,0 +1,133 @@
+name: package-small-native
+
+on:
+  push:
+    paths:
+      - 'ports/snes9x-ps5/**'
+      - 'ports/freeintv-ps5/**'
+      - 'ports/o2em-ps5/**'
+      - 'ports/genesis-plus-gx-ps5/**'
+      - 'corehost/**'
+      - 'runtime/**'
+      - 'tools/ps5/finalize_native_pie.sh'
+      - 'tools/ps5/prepare_native_pie_linker.sh'
+      - 'tools/ps5/app-hidden.map'
+      - '.github/workflows/package-small.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+  pull_request:
+    paths:
+      - 'ports/snes9x-ps5/**'
+      - 'ports/freeintv-ps5/**'
+      - 'ports/o2em-ps5/**'
+      - 'ports/genesis-plus-gx-ps5/**'
+      - 'corehost/**'
+      - 'runtime/**'
+      - 'tools/ps5/finalize_native_pie.sh'
+      - 'tools/ps5/prepare_native_pie_linker.sh'
+      - 'tools/ps5/app-hidden.map'
+      - '.github/workflows/package-small.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+  workflow_dispatch:
+
+concurrency:
+  group: package-small-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  finalize-single:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: snes
+            build: bash ports/snes9x-ps5/build_ps5.sh
+            pie: build/ps5/snes9x/artifacts/snes9x_pie.elf
+            out: build/ps5/snes9x/native
+            artifact: native-snes-snes9x-ps5-fself
+          - id: intellivision
+            build: bash ports/freeintv-ps5/build_ps5.sh
+            pie: build/ps5/freeintv/artifacts/freeintv_pie.elf
+            out: build/ps5/freeintv/native
+            artifact: native-intellivision-freeintv-ps5-fself
+          - id: odyssey2
+            build: bash ports/o2em-ps5/build_ps5.sh
+            pie: build/ps5/o2em/artifacts/o2em_pie.elf
+            out: build/ps5/o2em/native
+            artifact: native-odyssey2-o2em-ps5-fself
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate native finalizer dependency pin
+        run: |
+          set -euo pipefail
+          bash -n tools/ps5/finalize_native_pie.sh
+          grep -q 'bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16' tools/ps5/finalize_native_pie.sh
+          grep -q 'madler/zlib/releases/download/v' tools/ps5/finalize_native_pie.sh
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+      - name: Cross-build ${{ matrix.id }} PIE
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: ${{ matrix.build }}
+      - name: Verify import-only dynamic symbols
+        run: |
+          set -euo pipefail
+          bad="$(readelf --dyn-syms --wide "${{ matrix.pie }}" | awk 'NR > 3 && $7 != "UND" && $7 != "ABS" {print}')"
+          if [[ -n "$bad" ]]; then
+            printf '%s\n' "$bad" | head -80 >&2
+            exit 20
+          fi
+      - name: Finalize native PS5 executable
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash tools/ps5/finalize_native_pie.sh "${{ matrix.pie }}" "${{ matrix.out }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.out }}/eboot.elf
+            ${{ matrix.out }}/eboot.bin
+            ${{ matrix.out }}/NATIVE_SHA256SUMS
+          if-no-files-found: error
+
+  finalize-sega:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+      - name: Cross-build Genesis Plus GX family
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/genesis-plus-gx-ps5/build_ps5.sh
+      - name: Verify and finalize four native titles
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          set -euo pipefail
+          while IFS='|' read -r id pie; do
+            [[ -n "$id" ]] || continue
+            bad="$(readelf --dyn-syms --wide "$pie" | awk 'NR > 3 && $7 != "UND" && $7 != "ABS" {print}')"
+            if [[ -n "$bad" ]]; then
+              echo "$id still exports application symbols" >&2
+              printf '%s\n' "$bad" | head -80 >&2
+              exit 20
+            fi
+            bash tools/ps5/finalize_native_pie.sh "$pie" "build/ps5/genesis-plus-gx/native/$id"
+          done <<'EOF'
+          sg1000|build/ps5/genesis-plus-gx/artifacts/sg1000_genesis_plus_gx_pie.elf
+          mastersystem|build/ps5/genesis-plus-gx/artifacts/mastersystem_genesis_plus_gx_pie.elf
+          gamegear|build/ps5/genesis-plus-gx/artifacts/gamegear_genesis_plus_gx_pie.elf
+          megadrive|build/ps5/genesis-plus-gx/artifacts/megadrive_genesis_plus_gx_pie.elf
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-sega-genesis-plus-gx-ps5-fself
+          path: build/ps5/genesis-plus-gx/native/**
+          if-no-files-found: error

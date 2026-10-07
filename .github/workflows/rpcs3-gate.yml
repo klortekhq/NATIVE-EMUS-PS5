@@ -1,0 +1,223 @@
+name: rpcs3-ps5-llvm-gate
+
+on:
+  push:
+    paths:
+      - 'tools/ps5/verify_rpcs3_ps5_sources.py'
+      - 'ports/rpcs3-ps5/**'
+      - '.github/workflows/rpcs3-gate.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+  pull_request:
+    paths:
+      - 'tools/ps5/verify_rpcs3_ps5_sources.py'
+      - 'ports/rpcs3-ps5/**'
+      - '.github/workflows/rpcs3-gate.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+  workflow_dispatch:
+
+concurrency:
+  group: rpcs3-ps5-llvm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-and-abi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Fetch canonical pinned RPCS3 CPU stack
+        run: |
+          set -euo pipefail
+          RPCS3_PIN=83b1e072990e839903c67401d1a6d7d1910a5824
+          git clone --filter=blob:none --no-checkout https://github.com/RPCS3/rpcs3.git /tmp/rpcs3
+          git -C /tmp/rpcs3 checkout --detach "$RPCS3_PIN"
+          test "$(git -C /tmp/rpcs3 rev-parse HEAD)" = "$RPCS3_PIN"
+          git -C /tmp/rpcs3 submodule update --init --depth 1             3rdparty/asmjit/asmjit             3rdparty/llvm/llvm
+          test "$(git -C /tmp/rpcs3/3rdparty/asmjit/asmjit rev-parse HEAD)" =             416f7356967c1f66784dc1580fe157f9406d8bff
+          test "$(git -C /tmp/rpcs3/3rdparty/llvm/llvm rev-parse HEAD)" =             ca7933e47d3a3451d81e72ac174dcb5aa28b59d1
+
+      - name: Verify PPU/SPU recompiler source gate
+        run: |
+          python3 "$GITHUB_WORKSPACE/tools/ps5/verify_rpcs3_ps5_sources.py"             /tmp/rpcs3 /tmp/rpcs3/3rdparty/llvm/llvm
+
+      - name: Generate LLVM configuration headers
+        run: |
+          set -euo pipefail
+          cmake -S /tmp/rpcs3/3rdparty/llvm/llvm/llvm -B /tmp/llvm-config -G Ninja             -DLLVM_TARGETS_TO_BUILD=X86             -DLLVM_INCLUDE_TESTS=OFF             -DLLVM_INCLUDE_EXAMPLES=OFF             -DLLVM_INCLUDE_BENCHMARKS=OFF             -DLLVM_ENABLE_TERMINFO=OFF             -DLLVM_ENABLE_ZLIB=OFF             -DLLVM_ENABLE_ZSTD=OFF             -DLLVM_ENABLE_LIBXML2=OFF             -DLLVM_ENABLE_BINDINGS=OFF
+
+      - name: Generate matching LLVM TableGen IR headers
+        run: |
+          set -euo pipefail
+          cmake --build /tmp/llvm-config --target intrinsics_gen analysis_gen vt_gen --parallel 2
+          test -s /tmp/llvm-config/include/llvm/IR/Attributes.inc
+          test -s /tmp/llvm-config/include/llvm/IR/IntrinsicEnums.inc
+          test -s /tmp/llvm-config/include/llvm/IR/IntrinsicImpl.inc
+          test -s /tmp/llvm-config/include/llvm/Analysis/TargetLibraryInfo.inc
+          test -s /tmp/llvm-config/include/llvm/CodeGen/GenVT.inc
+
+      - name: Write PS5 LLVM ABI header probe
+        run: |
+          set -euo pipefail
+          cat >/tmp/ps5_llvm_abi_probe.cpp <<'EOF'
+          #include "llvm/ADT/SmallVector.h"
+          #include "llvm/Support/TrailingObjects.h"
+          #include <cstddef>
+
+          struct alignas(32) Payload {
+            unsigned char bytes[32];
+          };
+
+          class Node final : private llvm::TrailingObjects<Node, Payload> {
+            friend llvm::TrailingObjects<Node, Payload>;
+            int value_{};
+            std::size_t numTrailingObjects(
+                llvm::TrailingObjects<Node, Payload>::OverloadToken<Payload>) const {
+              return 1;
+            }
+          };
+
+          static_assert(alignof(llvm::SmallVector<Payload, 0>) >= alignof(Payload));
+          static_assert(alignof(Node) >= alignof(Payload));
+          // The SCE shim must never lower the natural/base alignment for
+          // ordinary element types while fixing over-aligned payloads.
+          static_assert(alignof(llvm::SmallVector<char, 0>) >= alignof(void*));
+          static_assert(alignof(llvm::SmallVector<int, 4>) >= alignof(void*));
+
+          int ps5_llvm_abi_probe() {
+          #if !defined(__SCE__)
+          #error prospero-clang++ must define __SCE__
+          #endif
+            llvm::SmallVector<Payload, 0> values;
+            return static_cast<int>(values.size());
+          }
+          EOF
+
+      - name: Prove canonical LLVM still exposes the SCE alignment defect
+        run: |
+          set -euo pipefail
+          if /opt/ps5-payload-sdk/bin/prospero-clang++               -std=c++20 -O2 -DNDEBUG               -I/tmp/llvm-config/include               -I/tmp/rpcs3/3rdparty/llvm/llvm/llvm/include               -c /tmp/ps5_llvm_abi_probe.cpp               -o /tmp/ps5_llvm_unpatched_probe.o               >/tmp/ps5_llvm_unpatched.log 2>&1; then
+            echo "::error::Pinned LLVM unexpectedly passed the unpatched SCE ABI probe; review whether the local shim is still required."
+            exit 1
+          fi
+          cat /tmp/ps5_llvm_unpatched.log
+          grep -q "SmallVector<Payload, 0>" /tmp/ps5_llvm_unpatched.log
+          grep -q "alignof(Node)" /tmp/ps5_llvm_unpatched.log
+          grep -q "8 >= 32" /tmp/ps5_llvm_unpatched.log
+          grep -q "4 >= 32" /tmp/ps5_llvm_unpatched.log
+          echo "canonical LLVM SCE misalignment reproduced: PASS"
+
+      - name: Apply minimal SCE LLVM alignment shim
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/tools/ps5/apply_llvm_sce_alignment.py"             /tmp/rpcs3/3rdparty/llvm/llvm
+          python3 "$GITHUB_WORKSPACE/tools/ps5/apply_llvm_sce_alignment.py"             /tmp/rpcs3/3rdparty/llvm/llvm --check
+
+      - name: Cross-compile patched PS5 LLVM ABI header probe
+        run: |
+          set -euo pipefail
+          /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG             -I/tmp/llvm-config/include             -I/tmp/rpcs3/3rdparty/llvm/llvm/llvm/include             -c /tmp/ps5_llvm_abi_probe.cpp             -o /tmp/ps5_llvm_abi_probe.o
+          test -s /tmp/ps5_llvm_abi_probe.o
+          echo "patched PS5 LLVM ABI probe: PASS"
+
+      - name: Fetch pinned RPCS3 AsmJit dependency
+        run: |
+          set -euo pipefail
+          git -C /tmp/rpcs3 submodule update --init --depth 1 3rdparty/asmjit/asmjit
+          test -f /tmp/rpcs3/3rdparty/asmjit/asmjit/src/asmjit/asmjit.h
+
+      - name: Cross-compile RPCS3 ASMJIT runtime object
+        run: |
+          set -euo pipefail
+          CXX=/opt/ps5-payload-sdk/bin/prospero-clang++
+          flags=(
+            -std=c++20 -O2 -DNDEBUG
+            -DARCH_X64
+            -I/tmp/rpcs3
+            -I/tmp/rpcs3/rpcs3
+            -I/tmp/rpcs3/Utilities
+            -I/tmp/rpcs3/3rdparty
+            -I/tmp/rpcs3/3rdparty/asmjit/asmjit/src
+          )
+          "$CXX" "${flags[@]}"             -c /tmp/rpcs3/Utilities/JITASM.cpp             -o /tmp/rpcs3_jitasm_ps5.o
+          test -s /tmp/rpcs3_jitasm_ps5.o
+
+      - name: Cross-compile RPCS3 SPU ASMJIT recompiler object
+        run: |
+          set -euo pipefail
+          CXX=/opt/ps5-payload-sdk/bin/prospero-clang++
+          flags=(
+            -std=c++20 -O2 -DNDEBUG
+            -DARCH_X64
+            -I/tmp/rpcs3
+            -I/tmp/rpcs3/rpcs3
+            -I/tmp/rpcs3/Utilities
+            -I/tmp/rpcs3/3rdparty
+            -I/tmp/rpcs3/3rdparty/asmjit/asmjit/src
+          )
+          "$CXX" "${flags[@]}"             -c /tmp/rpcs3/rpcs3/Emu/Cell/SPUASMJITRecompiler.cpp             -o /tmp/rpcs3_spu_asmjit_ps5.o
+          test -s /tmp/rpcs3_spu_asmjit_ps5.o
+
+      - name: Cross-compile RPCS3 PPU LLVM translator object
+        run: |
+          set -euo pipefail
+          CXX=/opt/ps5-payload-sdk/bin/prospero-clang++
+          flags=(
+            -std=c++20 -O2 -DNDEBUG
+            -DARCH_X64
+            -DLLVM_AVAILABLE
+            -I/tmp/rpcs3
+            -I/tmp/rpcs3/rpcs3
+            -I/tmp/rpcs3/Utilities
+            -I/tmp/rpcs3/3rdparty
+            -I/tmp/rpcs3/3rdparty/asmjit/asmjit/src
+            -I/tmp/llvm-config/include
+            -I/tmp/rpcs3/3rdparty/llvm/llvm/llvm/include
+          )
+          "$CXX" "${flags[@]}"             -c /tmp/rpcs3/rpcs3/Emu/Cell/PPUTranslator.cpp             -o /tmp/rpcs3_ppu_llvm_ps5.o
+          test -s /tmp/rpcs3_ppu_llvm_ps5.o
+
+      - name: Cross-compile RPCS3 SPU LLVM recompiler object
+        run: |
+          set -euo pipefail
+          CXX=/opt/ps5-payload-sdk/bin/prospero-clang++
+          flags=(
+            -std=c++20 -O2 -DNDEBUG
+            -DARCH_X64
+            -DLLVM_AVAILABLE
+            -I/tmp/rpcs3
+            -I/tmp/rpcs3/rpcs3
+            -I/tmp/rpcs3/Utilities
+            -I/tmp/rpcs3/3rdparty
+            -I/tmp/rpcs3/3rdparty/asmjit/asmjit/src
+            -I/tmp/llvm-config/include
+            -I/tmp/rpcs3/3rdparty/llvm/llvm/llvm/include
+          )
+          "$CXX" "${flags[@]}"             -c /tmp/rpcs3/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp             -o /tmp/rpcs3_spu_llvm_ps5.o
+          test -s /tmp/rpcs3_spu_llvm_ps5.o
+
+      - name: Archive compiled RPCS3 PS5 CPU engines
+        run: |
+          set -euo pipefail
+          AR=/opt/ps5-payload-sdk/bin/prospero-ar
+          objects=(
+            /tmp/rpcs3_jitasm_ps5.o
+            /tmp/rpcs3_spu_asmjit_ps5.o
+            /tmp/rpcs3_ppu_llvm_ps5.o
+            /tmp/rpcs3_spu_llvm_ps5.o
+          )
+          for obj in "${objects[@]}"; do test -s "$obj"; done
+          "$AR" rcs /tmp/librpcs3_ps5_cpu_engines.a "${objects[@]}"
+          test -s /tmp/librpcs3_ps5_cpu_engines.a
+          "$AR" t /tmp/librpcs3_ps5_cpu_engines.a
+
+      - name: Upload RPCS3 PS5 CPU engine objects
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-rpcs3-ppu-spu-jit-ps5-engine
+          path: /tmp/librpcs3_ps5_cpu_engines.a
+          if-no-files-found: error

@@ -1,0 +1,24 @@
+build/
+out/
+.cache/
+.vscode/
+.idea/
+*.o
+*.a
+*.so
+*.prx
+*.elf
+*.self
+*.bin
+*.pkg
+*.log
+.DS_Store
+Thumbs.db
+
+# Never commit user/proprietary console data
+bios/
+firmware/
+keys/
+games/
+roms/
+isos/

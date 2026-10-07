@@ -1,0 +1,1349 @@
+#include <ps5rt/diagnostics.hpp>
+#include <ps5rt/jit.hpp>
+#include <ps5rt/memory.hpp>
+
+#include <ps5rt/c/exec.h>
+#include <ps5rt/c/jit.h>
+#include <ps5rt/c/shm.h>
+#include <ps5rt/c/sparse_arena.h>
+#include <ps5rt/c/vmem.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <mutex>
+#include <unordered_map>
+#include <vector>
+
+extern "C" {
+int sceKernelMapFlexibleMemory(void** address, std::size_t size, int protection, int flags);
+int sceKernelMapNamedFlexibleMemory(void** address, std::size_t size, int protection, int flags, const char* name);
+int sceKernelReleaseFlexibleMemory(void* address, std::size_t size);
+int sceKernelAvailableFlexibleMemorySize(unsigned long long* size);
+
+long long sceKernelGetDirectMemorySize(void);
+int sceKernelAvailableDirectMemorySize(long long search_start,
+                                       long long search_end,
+                                       std::size_t alignment,
+                                       long long* direct_start,
+                                       std::size_t* size);
+int sceKernelAllocateDirectMemory(long long search_start, long long search_end,
+                                  unsigned long long size, unsigned long long alignment,
+                                  int memory_type, long long* direct_start);
+int sceKernelMapDirectMemory(void** address, unsigned long long size,
+                             int protection, int flags, long long direct_start,
+                             unsigned long long alignment);
+int sceKernelReleaseDirectMemory(long long direct_start, unsigned long long size);
+int sceKernelMprotect(const void* address, unsigned long long size, int protection);
+int sceKernelMunmap(void* address, unsigned long long size);
+int sceKernelReserveVirtualRange(void** address, unsigned long long size,
+                                 int flags, unsigned long long alignment);
+
+int sceKernelMemoryPoolExpand(unsigned long long search_start,
+                              unsigned long long search_end,
+                              unsigned long long size,
+                              unsigned long long alignment,
+                              unsigned long long* physical_start);
+int sceKernelMemoryPoolReserve(void* address,
+                               unsigned long long size,
+                               unsigned long long alignment,
+                               int flags,
+                               void** out);
+int sceKernelMemoryPoolCommit(void* address,
+                              unsigned long long size,
+                              int memory_type,
+                              int protection,
+                              int flags);
+int sceKernelMemoryPoolDecommit(void* address,
+                                unsigned long long size,
+                                int flags);
+
+int sceKernelJitCreateSharedMemory(int flags, unsigned long long size,
+                                   int protection, int* destination_handle);
+int sceKernelJitMapSharedMemory(int handle, int protection, void** destination);
+int sceKernelJitCreateAliasOfSharedMemory(int handle, int protection, int* destination_handle);
+int sceKernelClose(int fd);
+}
+
+namespace {
+
+constexpr std::size_t kPageSize = 0x4000;
+constexpr std::size_t kLargeAlignment = 0x200000;
+constexpr int kDirectMemoryTypeCached = 11;
+constexpr int kDirectMemoryTypeCachedShared = 12;
+constexpr int kPoolMemoryTypeCachedShared = 12;
+constexpr std::size_t kPoolAlignment = 0x200000;
+constexpr int kFlexibleMapFixed = 0x1;
+constexpr int kVirtualMapFixed = 0x10;
+constexpr int kVirtualMapNoOverwrite = 0x80;
+constexpr int kDirectMapFixed = 0x10;
+
+constexpr int kProtRead = 1;
+constexpr int kProtWrite = 2;
+constexpr int kProtExec = 4;
+constexpr int kProtRW = kProtRead | kProtWrite;
+constexpr int kProtRWX = kProtRW | kProtExec;
+
+std::size_t round_up(std::size_t value, std::size_t alignment) noexcept {
+  if (alignment == 0) alignment = kPageSize;
+  const auto rem = value % alignment;
+  return rem == 0 ? value : value + (alignment - rem);
+}
+
+std::size_t normalize_alignment(std::size_t alignment) noexcept {
+  if (alignment < kPageSize) return kPageSize;
+  // PS5 mappings are page based. Callers asking for non-page multiples get
+  // the next page multiple rather than an under-aligned mapping.
+  return round_up(alignment, kPageSize);
+}
+
+void align_range(void* address,
+                 std::size_t requested_size,
+                 void*& page_address,
+                 std::size_t& page_size) noexcept {
+  const auto start = reinterpret_cast<std::uintptr_t>(address);
+  const auto page_start = start & ~(static_cast<std::uintptr_t>(kPageSize) - 1);
+  const auto end = start + requested_size;
+  const auto page_end = round_up(end, kPageSize);
+  page_address = reinterpret_cast<void*>(page_start);
+  page_size = page_end - page_start;
+}
+
+int to_native_protection(ps5rt::Protection protection) noexcept {
+  const auto bits = static_cast<std::uint8_t>(protection);
+  int result = 0;
+  if (bits & static_cast<std::uint8_t>(ps5rt::Protection::read)) result |= kProtRead;
+  if (bits & static_cast<std::uint8_t>(ps5rt::Protection::write)) result |= kProtWrite;
+  if (bits & static_cast<std::uint8_t>(ps5rt::Protection::execute)) result |= kProtExec;
+  return result;
+}
+
+struct DirectRecord {
+  long long start{-1};
+  std::size_t size{};
+};
+
+struct PoolRecord {
+  std::size_t size{};
+  bool committed{true};
+};
+
+struct ExecRecord {
+  enum class Backend : std::uint8_t { jit_shared, direct } backend{Backend::jit_shared};
+  int jit_handle{-1};
+  long long direct_start{-1};
+  std::size_t size{};
+};
+
+struct DualJitRecord {
+  enum class Backend : std::uint8_t { jit_shared, direct } backend{Backend::jit_shared};
+  int primary_handle{-1};
+  int alias_handle{-1};
+  long long direct_start{-1};
+  void* write_view{};
+  void* execute_view{};
+  std::size_t size{};
+};
+
+struct SparseChunkRecord {
+  std::size_t offset{};
+  std::size_t size{};
+  long long direct_start{-1};
+  int protection{};
+};
+
+struct SparseArenaRecord {
+  std::size_t size{};
+  std::size_t alignment{};
+  std::map<std::size_t, SparseChunkRecord> chunks;
+};
+
+std::mutex g_registry_mutex;
+std::unordered_map<void*, DirectRecord> g_direct_records;
+std::unordered_map<void*, PoolRecord> g_pool_records;
+std::size_t g_pool_capacity = 0;
+std::size_t g_pool_committed = 0;
+std::unordered_map<void*, ExecRecord> g_exec_records;
+std::unordered_map<void*, DualJitRecord> g_dual_jit_records;
+std::unordered_map<void*, SparseArenaRecord> g_sparse_arenas;
+
+int allocate_direct_block(std::size_t size,
+                          std::size_t alignment,
+                          int memory_type,
+                          long long& out_start) noexcept {
+  const long long total = sceKernelGetDirectMemorySize();
+  if (total <= 0) return -1;
+
+  const auto normalized_alignment = std::max(normalize_alignment(alignment), kPageSize);
+  return sceKernelAllocateDirectMemory(
+      0, total, static_cast<unsigned long long>(size),
+      static_cast<unsigned long long>(normalized_alignment),
+      memory_type, &out_start);
+}
+
+int map_direct_block(long long direct_start,
+                     std::size_t size,
+                     std::size_t alignment,
+                     void* preferred,
+                     bool fixed,
+                     int protection,
+                     void** out) noexcept {
+  if (!out) return -1;
+
+  void* address = preferred;
+  const int initial_protection = protection & kProtExec
+      ? (protection & ~kProtExec)
+      : protection;
+
+  const int rc = sceKernelMapDirectMemory(
+      &address, static_cast<unsigned long long>(size),
+      initial_protection, fixed ? kDirectMapFixed : 0,
+      direct_start, static_cast<unsigned long long>(normalize_alignment(alignment)));
+  if (rc != 0) return rc;
+
+  if (fixed && address != preferred) {
+    (void)sceKernelMunmap(address, static_cast<unsigned long long>(size));
+    return -1;
+  }
+
+  if (protection & kProtExec) {
+    const int protect_rc = sceKernelMprotect(
+        address, static_cast<unsigned long long>(size), protection);
+    if (protect_rc != 0) {
+      (void)sceKernelMunmap(address, static_cast<unsigned long long>(size));
+      return protect_rc;
+    }
+  }
+
+  *out = address;
+  return 0;
+}
+
+} // namespace
+
+extern "C" void* ps5rt_exec_allocate(std::size_t requested_size, std::uintptr_t near_hint) {
+  if (requested_size == 0) return nullptr;
+
+  const std::size_t size = round_up(requested_size, kPageSize);
+
+  // Preferred path: the kernel's executable-capable JIT shared-memory API.
+  int handle = -1;
+  int rc = sceKernelJitCreateSharedMemory(
+      0, static_cast<unsigned long long>(size), kProtRWX, &handle);
+  if (rc == 0 && handle >= 0) {
+    void* mapped = near_hint ? reinterpret_cast<void*>(near_hint) : nullptr;
+    // JitMapSharedMemory chooses its own address. Keep near_hint advisory only.
+    mapped = nullptr;
+    rc = sceKernelJitMapSharedMemory(handle, kProtRWX, &mapped);
+    if (rc == 0 && mapped) {
+      std::scoped_lock lock(g_registry_mutex);
+      // Keep the JIT shared-memory handle alive for the lifetime of the
+      // mapping. PS5SX2 does the same; closing it immediately is not assumed
+      // to be safe across firmwares.
+      g_exec_records[mapped] = {ExecRecord::Backend::jit_shared, handle, -1, size};
+      return mapped;
+    }
+    (void)sceKernelClose(handle);
+  } else if (handle >= 0) {
+    (void)sceKernelClose(handle);
+  }
+
+  // Fallback: direct memory, initially RW then promoted to RWX. This keeps
+  // large JIT caches outside the flexible-memory budget.
+  long long direct_start = -1;
+  const std::size_t alignment =
+      size >= kLargeAlignment ? kLargeAlignment : kPageSize;
+  if (allocate_direct_block(size, alignment, kDirectMemoryTypeCachedShared, direct_start) != 0)
+    return nullptr;
+
+  void* mapped = nullptr;
+  if (map_direct_block(direct_start, size, alignment,
+                       near_hint ? reinterpret_cast<void*>(near_hint) : nullptr,
+                       false, kProtRWX, &mapped) != 0) {
+    (void)sceKernelReleaseDirectMemory(
+        direct_start, static_cast<unsigned long long>(size));
+    return nullptr;
+  }
+
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    g_exec_records[mapped] = {ExecRecord::Backend::direct, -1, direct_start, size};
+  }
+  return mapped;
+}
+
+extern "C" void ps5rt_exec_release(void* ptr) {
+  if (!ptr) return;
+
+  ExecRecord record{};
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    const auto it = g_exec_records.find(ptr);
+    if (it == g_exec_records.end()) return;
+    record = it->second;
+    g_exec_records.erase(it);
+  }
+
+  (void)sceKernelMunmap(ptr, static_cast<unsigned long long>(record.size));
+  if (record.backend == ExecRecord::Backend::jit_shared) {
+    if (record.jit_handle >= 0)
+      (void)sceKernelClose(record.jit_handle);
+  } else if (record.direct_start >= 0) {
+    (void)sceKernelReleaseDirectMemory(
+        record.direct_start, static_cast<unsigned long long>(record.size));
+  }
+}
+
+extern "C" int ps5rt_shm_create(std::size_t requested_size, ps5rt_shm* out) {
+  if (!out || requested_size == 0) return -1;
+  *out = {};
+
+  const std::size_t size = round_up(requested_size, kPageSize);
+  long long direct_start = -1;
+  const int rc = allocate_direct_block(size, kPageSize, kDirectMemoryTypeCached, direct_start);
+  if (rc != 0) return rc;
+
+  out->handle = static_cast<std::uint64_t>(direct_start);
+  out->size = size;
+  return 0;
+}
+
+extern "C" void ps5rt_shm_destroy(ps5rt_shm* shm) {
+  if (!shm || shm->size == 0) return;
+  const auto direct_start = static_cast<long long>(shm->handle);
+  (void)sceKernelReleaseDirectMemory(
+      direct_start, static_cast<unsigned long long>(shm->size));
+  *shm = {};
+}
+
+extern "C" int ps5rt_shm_map(ps5rt_shm* shm,
+                              std::size_t offset,
+                              std::size_t requested_size,
+                              void* hint,
+                              unsigned flags,
+                              unsigned map_flags,
+                              void** out) {
+  if (!shm || !out || requested_size == 0) return -1;
+  if (offset % kPageSize != 0) return -1;
+
+  const std::size_t size = round_up(requested_size, kPageSize);
+  if (offset > shm->size || size > shm->size - offset) return -1;
+
+  int protection = 0;
+  if (flags & PS5RT_SHM_READ) protection |= kProtRead;
+  if (flags & PS5RT_SHM_WRITE) protection |= kProtWrite;
+  if (flags & PS5RT_SHM_EXEC) protection |= kProtExec;
+  if (protection == 0) return -1;
+
+  const auto base = static_cast<long long>(shm->handle);
+  const bool fixed = (flags & PS5RT_SHM_FIXED) != 0 ||
+                     (map_flags & PS5RT_SHM_FIXED) != 0;
+  if (fixed && !hint) return -1;
+
+  return map_direct_block(
+      base + static_cast<long long>(offset), size, kPageSize,
+      hint, fixed, protection, out);
+}
+
+extern "C" int ps5rt_shm_unmap(void* address, std::size_t requested_size, unsigned flags) {
+  if (!address || requested_size == 0) return -1;
+  const std::size_t size = round_up(requested_size, kPageSize);
+
+  const int rc = sceKernelMunmap(address, static_cast<unsigned long long>(size));
+  if (rc != 0) return rc;
+
+  if (flags & PS5RT_SHM_KEEP_RESERVED) {
+    void* reserved = address;
+    const int reserve_rc = sceKernelReserveVirtualRange(
+        &reserved, static_cast<unsigned long long>(size),
+        kVirtualMapFixed, kPageSize);
+    if (reserve_rc != 0) return reserve_rc;
+    if (reserved != address) {
+      (void)sceKernelMunmap(reserved, static_cast<unsigned long long>(size));
+      return -1;
+    }
+  }
+  return 0;
+}
+
+extern "C" int ps5rt_sparse_arena_create(std::size_t requested_size,
+                                                void* hint,
+                                                std::size_t alignment,
+                                                ps5rt_sparse_arena* out) {
+  if (!out || requested_size == 0) return -1;
+  *out = {};
+
+  const auto size = round_up(requested_size, kPageSize);
+  const auto normalized_alignment = normalize_alignment(alignment);
+  void* base = nullptr;
+  const int rc = ps5rt_vrange_reserve(size, hint, normalized_alignment, &base);
+  if (rc != 0 || !base) return rc != 0 ? rc : -1;
+
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    g_sparse_arenas[base] = SparseArenaRecord{size, normalized_alignment, {}};
+  }
+  out->base = base;
+  out->size = size;
+  out->committed = 0;
+  return 0;
+}
+
+extern "C" int ps5rt_sparse_arena_commit(ps5rt_sparse_arena* arena,
+                                          std::size_t offset,
+                                          std::size_t requested_size,
+                                          unsigned flags) {
+  if (!arena || !arena->base || requested_size == 0) return -1;
+  if ((offset % kPageSize) != 0 || (requested_size % kPageSize) != 0) return -1;
+  if (offset > arena->size || requested_size > arena->size - offset) return -1;
+
+  int protection = 0;
+  if (flags & PS5RT_SPARSE_READ) protection |= kProtRead;
+  if (flags & PS5RT_SPARSE_WRITE) protection |= kProtWrite;
+  if (flags & PS5RT_SPARSE_EXEC) protection |= kProtExec;
+  if (protection == 0) return -1;
+
+  const auto size = requested_size;
+  const auto end = offset + size;
+
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    const auto ait = g_sparse_arenas.find(arena->base);
+    if (ait == g_sparse_arenas.end() || ait->second.size != arena->size) return -1;
+    const auto next = ait->second.chunks.lower_bound(offset);
+    if (next != ait->second.chunks.end() && next->first < end) return -1;
+    if (next != ait->second.chunks.begin()) {
+      const auto prev = std::prev(next);
+      if (prev->second.offset + prev->second.size > offset) return -1;
+    }
+  }
+
+  const std::size_t direct_alignment =
+      size >= kLargeAlignment ? kLargeAlignment : kPageSize;
+  const int memory_type =
+      (protection & kProtExec) ? kDirectMemoryTypeCachedShared
+                               : kDirectMemoryTypeCached;
+
+  long long direct_start = -1;
+  int rc = allocate_direct_block(size, direct_alignment, memory_type, direct_start);
+  if (rc != 0) return rc;
+
+  auto* target = static_cast<std::byte*>(arena->base) + offset;
+  void* mapped = nullptr;
+  rc = map_direct_block(
+      direct_start, size, direct_alignment, target, true, protection, &mapped);
+  if (rc != 0 || mapped != target) {
+    if (mapped && mapped != target)
+      (void)sceKernelMunmap(mapped, static_cast<unsigned long long>(size));
+    (void)sceKernelReleaseDirectMemory(
+        direct_start, static_cast<unsigned long long>(size));
+    return rc != 0 ? rc : -1;
+  }
+
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    const auto ait = g_sparse_arenas.find(arena->base);
+    if (ait == g_sparse_arenas.end()) {
+      (void)sceKernelMunmap(mapped, static_cast<unsigned long long>(size));
+      (void)sceKernelReleaseDirectMemory(
+          direct_start, static_cast<unsigned long long>(size));
+      return -1;
+    }
+    ait->second.chunks[offset] =
+        SparseChunkRecord{offset, size, direct_start, protection};
+    arena->committed += size;
+  }
+  return 0;
+}
+
+extern "C" int ps5rt_sparse_arena_decommit(ps5rt_sparse_arena* arena,
+                                            std::size_t offset,
+                                            std::size_t requested_size) {
+  if (!arena || !arena->base || requested_size == 0) return -1;
+  if ((offset % kPageSize) != 0 || (requested_size % kPageSize) != 0) return -1;
+  if (offset > arena->size || requested_size > arena->size - offset) return -1;
+
+  const auto end = offset + requested_size;
+  std::vector<SparseChunkRecord> chunks;
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    const auto ait = g_sparse_arenas.find(arena->base);
+    if (ait == g_sparse_arenas.end()) return -1;
+
+    for (const auto& [chunk_offset, chunk] : ait->second.chunks) {
+      const auto chunk_end = chunk_offset + chunk.size;
+      const bool overlaps = chunk_offset < end && chunk_end > offset;
+      if (!overlaps) continue;
+      if (chunk_offset < offset || chunk_end > end) return -1;
+      chunks.push_back(chunk);
+    }
+  }
+
+  for (const auto& chunk : chunks) {
+    auto* address = static_cast<std::byte*>(arena->base) + chunk.offset;
+    int rc = sceKernelMunmap(address, static_cast<unsigned long long>(chunk.size));
+    if (rc != 0) return rc;
+
+    rc = sceKernelReleaseDirectMemory(
+        chunk.direct_start, static_cast<unsigned long long>(chunk.size));
+    if (rc != 0) return rc;
+
+    void* reserved = address;
+    rc = sceKernelReserveVirtualRange(
+        &reserved, static_cast<unsigned long long>(chunk.size),
+        kVirtualMapFixed, kPageSize);
+    if (rc != 0 || reserved != address) {
+      if (rc == 0 && reserved)
+        (void)sceKernelMunmap(reserved, static_cast<unsigned long long>(chunk.size));
+      return rc != 0 ? rc : -1;
+    }
+
+    std::scoped_lock lock(g_registry_mutex);
+    const auto ait = g_sparse_arenas.find(arena->base);
+    if (ait == g_sparse_arenas.end()) return -1;
+    ait->second.chunks.erase(chunk.offset);
+    arena->committed -= chunk.size;
+  }
+  return 0;
+}
+
+extern "C" int ps5rt_sparse_arena_protect(ps5rt_sparse_arena* arena,
+                                           std::size_t offset,
+                                           std::size_t requested_size,
+                                           unsigned flags) {
+  if (!arena || !arena->base || requested_size == 0) return -1;
+  if ((offset % kPageSize) != 0 || (requested_size % kPageSize) != 0) return -1;
+  if (offset > arena->size || requested_size > arena->size - offset) return -1;
+
+  int protection = 0;
+  if (flags & PS5RT_SPARSE_READ) protection |= kProtRead;
+  if (flags & PS5RT_SPARSE_WRITE) protection |= kProtWrite;
+  if (flags & PS5RT_SPARSE_EXEC) protection |= kProtExec;
+  if (protection == 0) return -1;
+
+  struct ProtectSpan {
+    std::size_t offset{};
+    std::size_t size{};
+  };
+  std::vector<ProtectSpan> spans;
+
+  const auto end = offset + requested_size;
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    const auto ait = g_sparse_arenas.find(arena->base);
+    if (ait == g_sparse_arenas.end()) return -1;
+
+    auto it = ait->second.chunks.lower_bound(offset);
+    if (it != ait->second.chunks.begin()) {
+      const auto prev = std::prev(it);
+      if (prev->second.offset + prev->second.size > offset)
+        it = prev;
+    }
+
+    std::size_t covered = offset;
+    for (; it != ait->second.chunks.end() && covered < end; ++it) {
+      const auto& chunk = it->second;
+      const auto chunk_end = chunk.offset + chunk.size;
+      if (chunk_end <= covered)
+        continue;
+      if (chunk.offset > covered)
+        return -1;
+
+      const auto span_begin = covered;
+      const auto span_end = std::min(chunk_end, end);
+      spans.push_back({span_begin, span_end - span_begin});
+      covered = span_end;
+    }
+
+    if (covered != end || spans.empty())
+      return -1;
+  }
+
+  for (const auto& span : spans) {
+    auto* address = static_cast<std::byte*>(arena->base) + span.offset;
+    const int rc = sceKernelMprotect(
+        address, static_cast<unsigned long long>(span.size), protection);
+    if (rc != 0) return rc;
+  }
+
+  return 0;
+}
+
+extern "C" void ps5rt_sparse_arena_destroy(ps5rt_sparse_arena* arena) {
+  if (!arena || !arena->base) return;
+
+  (void)ps5rt_sparse_arena_decommit(arena, 0, arena->size);
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    g_sparse_arenas.erase(arena->base);
+  }
+  (void)ps5rt_vrange_release(arena->base, arena->size);
+  *arena = {};
+}
+
+extern "C" int ps5rt_vrange_reserve(std::size_t requested_size,
+                                     void* hint,
+                                     std::size_t alignment,
+                                     void** out) {
+  if (!out || requested_size == 0) return -1;
+
+  const auto normalized_alignment = normalize_alignment(alignment);
+  const auto size = round_up(requested_size, kPageSize);
+  void* address = hint;
+
+  // A non-null hint is preferred rather than required. If the exact range is
+  // unavailable, retry without MAP_FIXED so large fastmem reservations can
+  // still succeed at another legal address.
+  int rc = sceKernelReserveVirtualRange(
+      &address, static_cast<unsigned long long>(size),
+      hint ? (kVirtualMapFixed | kVirtualMapNoOverwrite) : 0,
+      static_cast<unsigned long long>(normalized_alignment));
+  if (rc != 0 && hint) {
+    address = nullptr;
+    rc = sceKernelReserveVirtualRange(
+        &address, static_cast<unsigned long long>(size), 0,
+        static_cast<unsigned long long>(normalized_alignment));
+  }
+  if (rc != 0) return rc;
+
+  *out = address;
+  return 0;
+}
+
+extern "C" int ps5rt_vrange_reserve_fixed(std::size_t requested_size,
+                                           void* requested_address,
+                                           std::size_t alignment,
+                                           void** out) {
+  if (!out || !requested_address || requested_size == 0) return -1;
+
+  const auto normalized_alignment = normalize_alignment(alignment);
+  const auto size = round_up(requested_size, kPageSize);
+  void* address = requested_address;
+  const int rc = sceKernelReserveVirtualRange(
+      &address, static_cast<unsigned long long>(size),
+      kVirtualMapFixed | kVirtualMapNoOverwrite,
+      static_cast<unsigned long long>(normalized_alignment));
+  if (rc != 0) return rc;
+  if (address != requested_address) {
+    (void)sceKernelMunmap(address, static_cast<unsigned long long>(size));
+    return -1;
+  }
+
+  *out = address;
+  return 0;
+}
+
+extern "C" int ps5rt_vrange_release(void* address, std::size_t requested_size) {
+  if (!address || requested_size == 0) return -1;
+  const auto size = round_up(requested_size, kPageSize);
+  return sceKernelMunmap(address, static_cast<unsigned long long>(size));
+}
+
+
+extern "C" int ps5rt_vmem_commit(void* address,
+                                  std::size_t requested_size,
+                                  unsigned flags) {
+  if (!address || requested_size == 0) return -1;
+
+  void* page_address = nullptr;
+  std::size_t size = 0;
+  align_range(address, requested_size, page_address, size);
+
+  int protection = 0;
+  if (flags & PS5RT_VMEM_READ) protection |= kProtRead;
+  if (flags & PS5RT_VMEM_WRITE) protection |= kProtWrite;
+  if (flags & PS5RT_VMEM_EXEC) protection |= kProtExec;
+  if (protection == 0) return -1;
+
+  void* mapped = page_address;
+  int rc = sceKernelMapFlexibleMemory(
+      &mapped, size, protection, kFlexibleMapFixed);
+  if (rc != 0) return rc;
+  if (mapped != page_address) {
+    (void)sceKernelReleaseFlexibleMemory(mapped, size);
+    return -1;
+  }
+  return 0;
+}
+
+extern "C" int ps5rt_vmem_decommit(void* address,
+                                    std::size_t requested_size) {
+  if (!address || requested_size == 0) return -1;
+
+  void* page_address = nullptr;
+  std::size_t size = 0;
+  align_range(address, requested_size, page_address, size);
+
+  int rc = sceKernelReleaseFlexibleMemory(page_address, size);
+  if (rc != 0) return rc;
+
+  void* reserved = page_address;
+  rc = sceKernelReserveVirtualRange(
+      &reserved, size, kVirtualMapFixed, kPageSize);
+  if (rc != 0) return rc;
+  if (reserved != page_address) {
+    (void)sceKernelMunmap(reserved, size);
+    return -1;
+  }
+  return 0;
+}
+
+extern "C" int ps5rt_vmem_protect(void* address,
+                                   std::size_t requested_size,
+                                   unsigned flags) {
+  if (!address || requested_size == 0) return -1;
+
+  void* page_address = nullptr;
+  std::size_t size = 0;
+  align_range(address, requested_size, page_address, size);
+
+  int protection = 0;
+  if (flags & PS5RT_VMEM_READ) protection |= kProtRead;
+  if (flags & PS5RT_VMEM_WRITE) protection |= kProtWrite;
+  if (flags & PS5RT_VMEM_EXEC) protection |= kProtExec;
+
+  return sceKernelMprotect(page_address, size, protection);
+}
+
+namespace ps5rt {
+
+Result allocate_memory(MemoryKind kind,
+                       const MemoryRequest& request,
+                       Mapping& out) noexcept {
+  out = {};
+  if (request.size == 0)
+    return {ErrorCode::invalid_argument, 0, "memory size is zero"};
+
+  const auto size = round_up(request.size, kPageSize);
+  const auto alignment = normalize_alignment(request.alignment);
+  const int protection = to_native_protection(request.protection);
+  if (protection == 0)
+    return {ErrorCode::invalid_argument, 0, "memory protection is empty"};
+
+  if (kind == MemoryKind::executable) {
+    void* address = ps5rt_exec_allocate(
+        size, reinterpret_cast<std::uintptr_t>(request.preferred_address));
+    if (!address)
+      return {ErrorCode::out_of_memory, 0, "executable memory allocation failed"};
+    if (request.fixed_address && address != request.preferred_address) {
+      ps5rt_exec_release(address);
+      return {ErrorCode::system_error, 0, "fixed executable mapping unavailable"};
+    }
+    out = {address, size, kind, request.protection};
+    return Result::success();
+  }
+
+  if (kind == MemoryKind::flexible) {
+    void* address = request.preferred_address;
+    const int flags = request.fixed_address ? kFlexibleMapFixed : 0;
+    int rc = 0;
+    if (request.debug_name && *request.debug_name) {
+      rc = sceKernelMapNamedFlexibleMemory(
+          &address, size, protection, flags, request.debug_name);
+    } else {
+      rc = sceKernelMapFlexibleMemory(&address, size, protection, flags);
+    }
+    if (rc != 0)
+      return {ErrorCode::out_of_memory, rc, "flexible memory mapping failed"};
+    if (request.fixed_address && address != request.preferred_address) {
+      (void)sceKernelReleaseFlexibleMemory(address, size);
+      return {ErrorCode::system_error, 0, "fixed flexible mapping moved"};
+    }
+    out = {address, size, kind, request.protection};
+    return Result::success();
+  }
+
+  if (kind == MemoryKind::pooled) {
+    if (protection & kProtExec)
+      return {ErrorCode::invalid_argument, 0,
+              "pooled memory cannot be executable"};
+
+    const auto pool_size = round_up(request.size, kPoolAlignment);
+    const auto pool_alignment =
+        std::max(round_up(alignment, kPoolAlignment), kPoolAlignment);
+
+    std::scoped_lock lock(g_registry_mutex);
+
+    const auto available =
+        g_pool_capacity >= g_pool_committed
+            ? g_pool_capacity - g_pool_committed
+            : 0;
+    if (available < pool_size) {
+      const auto expansion = round_up(pool_size - available, kPoolAlignment);
+      const long long direct_total = sceKernelGetDirectMemorySize();
+      if (direct_total <= 0)
+        return {ErrorCode::out_of_memory, 0,
+                "pooled memory backing unavailable"};
+
+      unsigned long long physical_start = 0;
+      const int expand_rc = sceKernelMemoryPoolExpand(
+          0,
+          static_cast<unsigned long long>(direct_total),
+          static_cast<unsigned long long>(expansion),
+          static_cast<unsigned long long>(pool_alignment),
+          &physical_start);
+      if (expand_rc != 0)
+        return {ErrorCode::out_of_memory, expand_rc,
+                "pooled memory expansion failed"};
+
+      g_pool_capacity += expansion;
+    }
+
+    void* address = request.preferred_address;
+    const int reserve_rc = sceKernelMemoryPoolReserve(
+        request.preferred_address,
+        static_cast<unsigned long long>(pool_size),
+        static_cast<unsigned long long>(pool_alignment),
+        0,
+        &address);
+    if (reserve_rc != 0 || !address)
+      return {ErrorCode::out_of_memory, reserve_rc,
+              "pooled virtual reservation failed"};
+
+    if (request.fixed_address &&
+        address != request.preferred_address) {
+      (void)sceKernelMunmap(
+          address,
+          static_cast<unsigned long long>(pool_size));
+      return {ErrorCode::system_error, 0,
+              "fixed pooled reservation moved"};
+    }
+
+    const int commit_rc = sceKernelMemoryPoolCommit(
+        address,
+        static_cast<unsigned long long>(pool_size),
+        kPoolMemoryTypeCachedShared,
+        protection,
+        0);
+    if (commit_rc != 0) {
+      (void)sceKernelMunmap(
+          address,
+          static_cast<unsigned long long>(pool_size));
+      return {ErrorCode::out_of_memory, commit_rc,
+              "pooled memory commit failed"};
+    }
+
+    g_pool_records[address] = {pool_size, true};
+    g_pool_committed += pool_size;
+    out = {address, pool_size, kind, request.protection};
+    return Result::success();
+  }
+
+  if (kind == MemoryKind::direct) {
+    long long direct_start = -1;
+    int rc = allocate_direct_block(size, alignment, kDirectMemoryTypeCached, direct_start);
+    if (rc != 0)
+      return {ErrorCode::out_of_memory, rc, "direct memory allocation failed"};
+
+    void* address = nullptr;
+    rc = map_direct_block(
+        direct_start, size, alignment, request.preferred_address,
+        request.fixed_address, protection, &address);
+    if (rc != 0) {
+      (void)sceKernelReleaseDirectMemory(direct_start, size);
+      return {ErrorCode::system_error, rc, "direct memory mapping failed"};
+    }
+    {
+      std::scoped_lock lock(g_registry_mutex);
+      g_direct_records[address] = {direct_start, size};
+    }
+    out = {address, size, kind, request.protection};
+    return Result::success();
+  }
+
+  return {ErrorCode::unsupported, 0, "pooled memory backend not enabled yet"};
+}
+
+Result release_memory(Mapping& mapping) noexcept {
+  if (!mapping) return Result::success();
+
+  if (mapping.kind == MemoryKind::executable) {
+    ps5rt_exec_release(mapping.address);
+    mapping = {};
+    return Result::success();
+  }
+
+  if (mapping.kind == MemoryKind::flexible) {
+    const int rc = sceKernelReleaseFlexibleMemory(mapping.address, mapping.size);
+    if (rc != 0)
+      return {ErrorCode::system_error, rc, "flexible memory release failed"};
+    mapping = {};
+    return Result::success();
+  }
+
+  if (mapping.kind == MemoryKind::pooled) {
+    PoolRecord record{};
+    {
+      std::scoped_lock lock(g_registry_mutex);
+      const auto it = g_pool_records.find(mapping.address);
+      if (it == g_pool_records.end())
+        return {ErrorCode::invalid_argument, 0,
+                "unknown pooled mapping"};
+      record = it->second;
+    }
+
+    if (record.committed) {
+      const int decommit_rc = sceKernelMemoryPoolDecommit(
+          mapping.address,
+          static_cast<unsigned long long>(record.size),
+          0);
+      if (decommit_rc != 0)
+        return {ErrorCode::system_error, decommit_rc,
+                "pooled memory decommit failed"};
+
+      std::scoped_lock lock(g_registry_mutex);
+      const auto it = g_pool_records.find(mapping.address);
+      if (it != g_pool_records.end() && it->second.committed) {
+        it->second.committed = false;
+        if (g_pool_committed >= it->second.size)
+          g_pool_committed -= it->second.size;
+        else
+          g_pool_committed = 0;
+      }
+    }
+
+    const int unmap_rc = sceKernelMunmap(
+        mapping.address,
+        static_cast<unsigned long long>(record.size));
+    if (unmap_rc != 0)
+      return {ErrorCode::system_error, unmap_rc,
+              "pooled virtual reservation release failed"};
+
+    {
+      std::scoped_lock lock(g_registry_mutex);
+      g_pool_records.erase(mapping.address);
+    }
+    mapping = {};
+    return Result::success();
+  }
+
+  if (mapping.kind == MemoryKind::direct) {
+    DirectRecord record{};
+    {
+      std::scoped_lock lock(g_registry_mutex);
+      const auto it = g_direct_records.find(mapping.address);
+      if (it == g_direct_records.end())
+        return {ErrorCode::invalid_argument, 0, "unknown direct mapping"};
+      record = it->second;
+      g_direct_records.erase(it);
+    }
+
+    int rc = sceKernelMunmap(mapping.address, record.size);
+    if (rc == 0)
+      rc = sceKernelReleaseDirectMemory(record.start, record.size);
+    if (rc != 0)
+      return {ErrorCode::system_error, rc, "direct memory release failed"};
+
+    mapping = {};
+    return Result::success();
+  }
+
+  return {ErrorCode::unsupported, 0, "pooled memory release not enabled"};
+}
+
+Result query_available_memory(MemoryKind kind, std::size_t& out_bytes) noexcept {
+  out_bytes = 0;
+
+  if (kind == MemoryKind::flexible) {
+    unsigned long long bytes = 0;
+    const int rc = sceKernelAvailableFlexibleMemorySize(&bytes);
+    if (rc != 0)
+      return {ErrorCode::system_error, rc,
+              "flexible memory size query failed"};
+    out_bytes = static_cast<std::size_t>(bytes);
+    return Result::success();
+  }
+
+  if (kind == MemoryKind::direct) {
+    const long long total = sceKernelGetDirectMemorySize();
+    if (total <= 0)
+      return {ErrorCode::system_error, 0,
+              "direct memory aperture unavailable"};
+
+    long long block_start = 0;
+    std::size_t block_bytes = 0;
+    const int rc = sceKernelAvailableDirectMemorySize(
+        0, total, kPageSize, &block_start, &block_bytes);
+    if (rc != 0)
+      return {ErrorCode::system_error, rc,
+              "direct memory availability query failed"};
+
+    out_bytes = block_bytes;
+    return Result::success();
+  }
+
+  if (kind == MemoryKind::pooled) {
+    std::scoped_lock lock(g_registry_mutex);
+    out_bytes =
+        g_pool_capacity >= g_pool_committed
+            ? g_pool_capacity - g_pool_committed
+            : 0;
+    return Result::success();
+  }
+
+  return {ErrorCode::unsupported, 0,
+          "available-size query not implemented for executable memory"};
+}
+
+Result query_memory_diagnostics(MemoryDiagnostics& out) noexcept {
+  out = {};
+
+  unsigned long long flexible_bytes = 0;
+  int rc = sceKernelAvailableFlexibleMemorySize(&flexible_bytes);
+  if (rc != 0)
+    return {ErrorCode::system_error, rc,
+            "flexible memory diagnostics query failed"};
+
+  const long long direct_total = sceKernelGetDirectMemorySize();
+  if (direct_total <= 0)
+    return {ErrorCode::system_error, 0,
+            "direct memory aperture unavailable"};
+
+  long long direct_block_start = 0;
+  std::size_t direct_block_bytes = 0;
+  rc = sceKernelAvailableDirectMemorySize(
+      0, direct_total, kPageSize,
+      &direct_block_start, &direct_block_bytes);
+  if (rc != 0)
+    return {ErrorCode::system_error, rc,
+            "direct memory diagnostics query failed"};
+
+  MemoryDiagnostics snapshot{};
+  snapshot.flexible_available =
+      static_cast<std::size_t>(flexible_bytes);
+  snapshot.direct_available =
+      direct_block_bytes;
+  snapshot.largest_known_free_range =
+      direct_block_bytes;
+  snapshot.direct_aperture_bytes =
+      static_cast<std::size_t>(direct_total);
+
+  {
+    std::scoped_lock lock(g_registry_mutex);
+
+    snapshot.pool_capacity_bytes = g_pool_capacity;
+    snapshot.pool_committed_bytes = g_pool_committed;
+    snapshot.pool_available_bytes =
+        g_pool_capacity >= g_pool_committed
+            ? g_pool_capacity - g_pool_committed
+            : 0;
+
+    snapshot.tracked_direct_mapping_count =
+        g_direct_records.size();
+    for (const auto& [address, record] : g_direct_records) {
+      (void)address;
+      snapshot.tracked_direct_bytes += record.size;
+    }
+
+    snapshot.tracked_pool_mapping_count =
+        g_pool_records.size();
+    for (const auto& [address, record] : g_pool_records) {
+      (void)address;
+      snapshot.tracked_pool_bytes += record.size;
+    }
+
+    snapshot.tracked_executable_mapping_count =
+        g_exec_records.size();
+    for (const auto& [address, record] : g_exec_records) {
+      (void)address;
+      snapshot.tracked_executable_bytes += record.size;
+    }
+
+    for (const auto& [address, record] : g_dual_jit_records) {
+      if (address != record.execute_view)
+        continue;
+      ++snapshot.tracked_dual_jit_region_count;
+      snapshot.tracked_dual_jit_bytes += record.size;
+    }
+
+    snapshot.tracked_sparse_arena_count =
+        g_sparse_arenas.size();
+    for (const auto& [base, arena] : g_sparse_arenas) {
+      (void)base;
+      snapshot.tracked_sparse_reserved_bytes += arena.size;
+      for (const auto& [offset, chunk] : arena.chunks) {
+        (void)offset;
+        snapshot.tracked_sparse_committed_bytes += chunk.size;
+        if (chunk.protection & kProtExec)
+          snapshot.tracked_sparse_executable_bytes += chunk.size;
+      }
+    }
+
+    snapshot.executable_reserved =
+        snapshot.tracked_executable_bytes +
+        snapshot.tracked_dual_jit_bytes +
+        snapshot.tracked_sparse_executable_bytes;
+  }
+
+  out = snapshot;
+  return Result::success();
+}
+
+Result create_jit_region(const JitRequest& request, JitRegion& out) noexcept {
+  out = {};
+  if (request.size == 0)
+    return {ErrorCode::invalid_argument, 0, "JIT size is zero"};
+
+  if (request.require_fixed_write && !request.preferred_write_address)
+    return {ErrorCode::invalid_argument, 0, "fixed JIT write address missing"};
+  if (request.require_fixed_execute && !request.preferred_execute_address)
+    return {ErrorCode::invalid_argument, 0, "fixed JIT execute address missing"};
+
+  const auto size = round_up(request.size, kPageSize);
+  const auto alignment = normalize_alignment(request.alignment);
+
+  const bool address_controlled =
+      request.preferred_write_address || request.preferred_execute_address ||
+      request.require_fixed_write || request.require_fixed_execute;
+
+  // The public JIT shared-memory mapper chooses its own virtual address.
+  // Backends requiring specific host ranges use one direct-memory allocation
+  // with one or two aliases.
+  if (address_controlled) {
+    long long direct_start = -1;
+    int rc = allocate_direct_block(
+        size, alignment, kDirectMemoryTypeCachedShared, direct_start);
+    if (rc != 0)
+      return {ErrorCode::out_of_memory, rc, "fixed-address JIT backing allocation failed"};
+
+    void* execute_view = nullptr;
+    rc = map_direct_block(
+        direct_start, size, alignment,
+        request.preferred_execute_address, request.require_fixed_execute,
+        request.prefer_dual_mapping ? (kProtRead | kProtExec) : kProtRWX,
+        &execute_view);
+    if (rc != 0 || !execute_view) {
+      (void)sceKernelReleaseDirectMemory(
+          direct_start, static_cast<unsigned long long>(size));
+      return {ErrorCode::system_error, rc, "JIT execute-view mapping failed"};
+    }
+
+    void* write_view = execute_view;
+    if (request.prefer_dual_mapping) {
+      write_view = nullptr;
+      rc = map_direct_block(
+          direct_start, size, alignment,
+          request.preferred_write_address, request.require_fixed_write,
+          kProtRW, &write_view);
+      if (rc != 0 || !write_view) {
+        (void)sceKernelMunmap(
+            execute_view, static_cast<unsigned long long>(size));
+        (void)sceKernelReleaseDirectMemory(
+            direct_start, static_cast<unsigned long long>(size));
+        return {ErrorCode::system_error, rc, "JIT write-view mapping failed"};
+      }
+    }
+
+    const DualJitRecord record{
+        DualJitRecord::Backend::direct, -1, -1, direct_start,
+        write_view, execute_view, size};
+    {
+      std::scoped_lock lock(g_registry_mutex);
+      g_dual_jit_records[write_view] = record;
+      g_dual_jit_records[execute_view] = record;
+    }
+
+    out.write_view = {
+        write_view, size, MemoryKind::executable,
+        request.prefer_dual_mapping
+            ? (Protection::read | Protection::write)
+            : (Protection::read | Protection::write | Protection::execute)};
+    out.execute_view = {
+        execute_view, size, MemoryKind::executable,
+        request.prefer_dual_mapping
+            ? (Protection::read | Protection::execute)
+            : (Protection::read | Protection::write | Protection::execute)};
+    return Result::success();
+  }
+
+  if (!request.prefer_dual_mapping) {
+    void* address = ps5rt_exec_allocate(size, 0);
+    if (!address)
+      return {ErrorCode::out_of_memory, 0, "JIT allocation failed"};
+
+    const auto protection = Protection::read | Protection::write | Protection::execute;
+    out.write_view = {address, size, MemoryKind::executable, protection};
+    out.execute_view = out.write_view;
+    return Result::success();
+  }
+
+  int primary = -1;
+  int alias = -1;
+  void* write_view = nullptr;
+  void* execute_view = nullptr;
+
+  int rc = sceKernelJitCreateSharedMemory(
+      0, static_cast<unsigned long long>(size), kProtRWX, &primary);
+  if (rc != 0 || primary < 0)
+    return {ErrorCode::out_of_memory, rc, "JIT shared-memory creation failed"};
+
+  rc = sceKernelJitMapSharedMemory(primary, kProtRW, &write_view);
+  if (rc == 0)
+    rc = sceKernelJitCreateAliasOfSharedMemory(primary, kProtRead | kProtExec, &alias);
+  if (rc == 0)
+    rc = sceKernelJitMapSharedMemory(alias, kProtRead | kProtExec, &execute_view);
+
+  if (rc != 0 || !write_view || !execute_view) {
+    if (write_view)
+      (void)sceKernelMunmap(write_view, static_cast<unsigned long long>(size));
+    if (execute_view)
+      (void)sceKernelMunmap(execute_view, static_cast<unsigned long long>(size));
+    if (alias >= 0)
+      (void)sceKernelClose(alias);
+    (void)sceKernelClose(primary);
+    return {ErrorCode::system_error, rc, "dual-view JIT mapping failed"};
+  }
+
+  const DualJitRecord record{
+      DualJitRecord::Backend::jit_shared, primary, alias, -1,
+      write_view, execute_view, size};
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    g_dual_jit_records[write_view] = record;
+    g_dual_jit_records[execute_view] = record;
+  }
+
+  out.write_view = {
+      write_view, size, MemoryKind::executable,
+      Protection::read | Protection::write};
+  out.execute_view = {
+      execute_view, size, MemoryKind::executable,
+      Protection::read | Protection::execute};
+  return Result::success();
+}
+
+Result destroy_jit_region(JitRegion& region) noexcept {
+  if (!region) return Result::success();
+
+  DualJitRecord dual{};
+  bool is_dual = false;
+  {
+    std::scoped_lock lock(g_registry_mutex);
+    auto it = g_dual_jit_records.find(region.execute_view.address);
+    if (it == g_dual_jit_records.end())
+      it = g_dual_jit_records.find(region.write_view.address);
+    if (it != g_dual_jit_records.end()) {
+      dual = it->second;
+      g_dual_jit_records.erase(dual.write_view);
+      g_dual_jit_records.erase(dual.execute_view);
+      is_dual = true;
+    }
+  }
+
+  if (is_dual) {
+    int first_error = 0;
+    if (dual.write_view) {
+      const int rc = sceKernelMunmap(
+          dual.write_view, static_cast<unsigned long long>(dual.size));
+      if (rc != 0 && first_error == 0) first_error = rc;
+    }
+    if (dual.execute_view && dual.execute_view != dual.write_view) {
+      const int rc = sceKernelMunmap(
+          dual.execute_view, static_cast<unsigned long long>(dual.size));
+      if (rc != 0 && first_error == 0) first_error = rc;
+    }
+    if (dual.backend == DualJitRecord::Backend::jit_shared) {
+      if (dual.alias_handle >= 0)
+        (void)sceKernelClose(dual.alias_handle);
+      if (dual.primary_handle >= 0)
+        (void)sceKernelClose(dual.primary_handle);
+    } else if (dual.direct_start >= 0) {
+      const int rc = sceKernelReleaseDirectMemory(
+          dual.direct_start, static_cast<unsigned long long>(dual.size));
+      if (rc != 0 && first_error == 0) first_error = rc;
+    }
+    region = {};
+    if (first_error != 0)
+      return {ErrorCode::system_error, first_error, "dual-view JIT unmap failed"};
+    return Result::success();
+  }
+
+  void* const address = region.execute_view.address
+      ? region.execute_view.address
+      : region.write_view.address;
+  ps5rt_exec_release(address);
+  region = {};
+  return Result::success();
+}
+
+Result flush_instruction_cache(void* address, std::size_t size) noexcept {
+  if (!address || size == 0)
+    return {ErrorCode::invalid_argument, 0, "invalid instruction-cache range"};
+
+#if defined(__GNUC__) || defined(__clang__)
+  auto* begin = static_cast<char*>(address);
+  __builtin___clear_cache(begin, begin + size);
+#endif
+  return Result::success();
+}
+
+} // namespace ps5rt
+
+
+namespace {
+int ps5rt_result_to_c(const ps5rt::Result& result) noexcept {
+  if (result) return 0;
+  if (result.native_code != 0) return result.native_code;
+  return -static_cast<int>(result.code);
+}
+} // namespace
+
+extern "C" int ps5rt_jit_create(std::size_t size,
+                                  std::size_t alignment,
+                                  unsigned flags,
+                                  ps5rt_jit_region* out) {
+  if (!out || size == 0) return -1;
+  *out = {};
+
+  ps5rt::JitRequest request{};
+  request.size = size;
+  request.alignment = alignment;
+  request.debug_name = "ps5rt-c-jit";
+  request.prefer_dual_mapping = (flags & PS5RT_JIT_DUAL_VIEW) != 0;
+
+  ps5rt::JitRegion region{};
+  const auto result = ps5rt::create_jit_region(request, region);
+  if (!result) return ps5rt_result_to_c(result);
+
+  out->write_view = region.write_view.address;
+  out->execute_view = region.execute_view.address;
+  out->size = region.execute_view.size ? region.execute_view.size
+                                       : region.write_view.size;
+  return 0;
+}
+
+extern "C" int ps5rt_jit_destroy(ps5rt_jit_region* region) {
+  if (!region) return -1;
+  if (!region->write_view && !region->execute_view) {
+    *region = {};
+    return 0;
+  }
+
+  ps5rt::JitRegion cpp{};
+  cpp.write_view = {
+      region->write_view, region->size, ps5rt::MemoryKind::executable,
+      ps5rt::Protection::read | ps5rt::Protection::write};
+  cpp.execute_view = {
+      region->execute_view ? region->execute_view : region->write_view,
+      region->size, ps5rt::MemoryKind::executable,
+      ps5rt::Protection::read | ps5rt::Protection::execute};
+
+  const auto result = ps5rt::destroy_jit_region(cpp);
+  if (!result) return ps5rt_result_to_c(result);
+  *region = {};
+  return 0;
+}
+
+extern "C" int ps5rt_jit_flush(const ps5rt_jit_region* region,
+                                std::size_t offset,
+                                std::size_t size) {
+  if (!region || !region->execute_view || offset > region->size) return -1;
+  const std::size_t available = region->size - offset;
+  if (size == 0) size = available;
+  if (size > available) return -1;
+
+  auto* address = static_cast<char*>(region->execute_view) + offset;
+  const auto result = ps5rt::flush_instruction_cache(address, size);
+  return ps5rt_result_to_c(result);
+}

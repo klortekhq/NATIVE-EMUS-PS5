@@ -1,0 +1,67 @@
+#pragma once
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
+
+#include <ps5rt/result.hpp>
+
+namespace ps5rt {
+
+struct ThreadConfig {
+  const char* name{};
+  std::size_t stack_size{};
+  std::int32_t priority{};
+  std::int32_t affinity_hint{-1};
+};
+
+inline constexpr std::size_t max_thread_name_bytes = 64;
+
+struct ThreadName {
+  std::array<char, max_thread_name_bytes> value{};
+};
+
+struct ThreadDiagnostics {
+  ThreadName name{};
+  std::size_t stack_bytes{};
+  std::uint32_t managed_thread_count{};
+};
+
+using ThreadEntry = void (*)(void*) noexcept;
+
+struct ThreadHandle {
+  std::uintptr_t native{};
+  bool joinable{};
+
+  [[nodiscard]] explicit operator bool() const noexcept {
+    return joinable;
+  }
+};
+
+Result set_current_thread_name(const char* name) noexcept;
+Result query_current_thread_name(ThreadName& out) noexcept;
+Result set_current_thread_affinity(std::int32_t cpu) noexcept;
+Result query_current_thread_stack(std::size_t& out_bytes) noexcept;
+Result query_current_thread_diagnostics(ThreadDiagnostics& out) noexcept;
+
+Result create_thread(
+    ThreadHandle& out,
+    const ThreadConfig& config,
+    ThreadEntry entry,
+    void* argument) noexcept;
+
+Result join_thread(ThreadHandle& thread) noexcept;
+Result detach_thread(ThreadHandle& thread) noexcept;
+
+// Number of currently executing threads created through ps5rt::create_thread.
+// This intentionally excludes unrelated process/libc threads.
+[[nodiscard]] std::uint32_t managed_thread_count() noexcept;
+
+// Used by ports that need to override small host/default stacks without
+// replacing std::thread throughout an upstream core.
+[[nodiscard]] std::size_t recommended_stack_size(
+    std::string_view subsystem,
+    std::size_t upstream_default) noexcept;
+
+} // namespace ps5rt

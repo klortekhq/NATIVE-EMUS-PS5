@@ -1,0 +1,83 @@
+name: package-gambatte-native
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ports/gambatte-ps5/**'
+      - 'corehost/**'
+      - 'runtime/**'
+      - 'tools/ps5/finalize_native_pie.sh'
+      - 'tools/ps5/prepare_native_pie_linker.sh'
+      - 'tools/ps5/app-hidden.map'
+      - '.github/workflows/package-gambatte.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+  pull_request:
+    paths:
+      - 'ports/gambatte-ps5/**'
+      - 'corehost/**'
+      - 'runtime/**'
+      - 'tools/ps5/finalize_native_pie.sh'
+      - 'tools/ps5/prepare_native_pie_linker.sh'
+      - 'tools/ps5/app-hidden.map'
+      - '.github/workflows/package-gambatte.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+  workflow_dispatch:
+
+concurrency:
+  group: package-gambatte-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build Game Boy and Game Boy Color PIEs
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/gambatte-ps5/build_ps5.sh
+
+      - name: Verify PIE dynamic surfaces
+        run: |
+          set -euo pipefail
+          for pie in \
+            build/ps5/gambatte/artifacts/gb_gambatte_pie.elf \
+            build/ps5/gambatte/artifacts/gbc_gambatte_pie.elf; do
+            bad="$(readelf --dyn-syms --wide "$pie" | awk 'NR > 3 && $7 != "UND" && $7 != "ABS" {print}')"
+            if [[ -n "$bad" ]]; then
+              printf '%s\n' "$bad" | head -80 >&2
+              exit 20
+            fi
+          done
+
+      - name: Finalize native PS5 executables
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          set -euo pipefail
+          bash tools/ps5/finalize_native_pie.sh \
+            build/ps5/gambatte/artifacts/gb_gambatte_pie.elf \
+            build/ps5/gambatte/native/gb
+          bash tools/ps5/finalize_native_pie.sh \
+            build/ps5/gambatte/artifacts/gbc_gambatte_pie.elf \
+            build/ps5/gambatte/native/gbc
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-gambatte-gb-gbc-ps5-fself
+          path: |
+            build/ps5/gambatte/native/gb/eboot.elf
+            build/ps5/gambatte/native/gb/eboot.bin
+            build/ps5/gambatte/native/gb/NATIVE_SHA256SUMS
+            build/ps5/gambatte/native/gbc/eboot.elf
+            build/ps5/gambatte/native/gbc/eboot.bin
+            build/ps5/gambatte/native/gbc/NATIVE_SHA256SUMS
+          if-no-files-found: error

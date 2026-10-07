@@ -1,0 +1,263 @@
+name: ps1-lightrec
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/**'
+      - 'tools/ps5/apply_beetle_psx_ps5.py'
+      - 'tools/ps5/tests/test_radv_bundle.py'
+      - 'tools/ps5/freeze_radv_bundle.py'
+      - 'tools/ps5/validate_radv_bundle.py'
+      - 'tools/ps5/prepare_radv_source_stack.sh'
+      - 'tools/ps5/build_radv_bundle_from_pins.sh'
+      - 'tools/ps5/build-libsmb2.sh'
+      - 'ports/beetle-psx-ps5/**'
+      - '.github/workflows/ps1-lightrec.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+  pull_request:
+    paths:
+      - 'runtime/**'
+      - 'tools/ps5/apply_beetle_psx_ps5.py'
+      - 'tools/ps5/tests/test_radv_bundle.py'
+      - 'tools/ps5/freeze_radv_bundle.py'
+      - 'tools/ps5/validate_radv_bundle.py'
+      - 'tools/ps5/prepare_radv_source_stack.sh'
+      - 'tools/ps5/build-libsmb2.sh'
+      - 'ports/beetle-psx-ps5/**'
+      - '.github/workflows/ps1-lightrec.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+  workflow_dispatch:
+
+concurrency:
+  group: ps1-lightrec-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned public Beetle PSX upstream
+        run: |
+          git clone --filter=blob:none https://github.com/libretro/beetle-psx-libretro.git /tmp/beetle-psx
+          git -C /tmp/beetle-psx checkout --detach ed87921996c67658d7a70814f73034bbca08786a
+      - name: Validate deterministic Lightrec transform
+        run: |
+          set -euo pipefail
+          python3 tools/ps5/apply_beetle_psx_ps5.py /tmp/beetle-psx --check
+          python3 tools/ps5/apply_beetle_psx_ps5.py /tmp/beetle-psx
+          grep -q 'else ifeq ($(platform), ps5)' /tmp/beetle-psx/Makefile
+          grep -q 'HAVE_LIGHTREC = 1' /tmp/beetle-psx/Makefile
+          grep -q 'THREADED_RECOMPILER = 1' /tmp/beetle-psx/Makefile
+          grep -q 'ps5rt_exec_allocate' /tmp/beetle-psx/libretro.c
+          grep -q 'ps5rt_exec_release' /tmp/beetle-psx/libretro.c
+          grep -q 'defined(__PROSPERO__)' /tmp/beetle-psx/libretro.c
+          grep -q '#define HAVE_MMAP 0' /tmp/beetle-psx/include/lightning.h
+          grep -q -- '-DSTATIC_LINKING' /tmp/beetle-psx/Makefile
+          grep -q 'PS5 Vulkan loader is frontend-supplied' /tmp/beetle-psx/rhi/rhi_lib_vulkan.c
+          echo "GNU Lightning must not own mmap on PS5: PASS"
+          echo "PS5 Vulkan core must not use dlopen: PASS"
+
+      - name: Validate pinned RADV source bootstrap
+        run: |
+          set -euo pipefail
+          bash -n tools/ps5/prepare_radv_source_stack.sh
+          bash -n tools/ps5/build_radv_bundle_from_pins.sh
+          grep -q '71026e7ec1951fe72ae5b9118ff0905216a4c220' tools/ps5/prepare_radv_source_stack.sh
+          grep -q 'cedb774b27d089fa81f46add28d0a8c13ff0f7d2' tools/ps5/prepare_radv_source_stack.sh
+          grep -q '95c08f27386fc698f6bbe21dde3030140a41d10b' tools/ps5/prepare_radv_source_stack.sh
+
+      - name: Test verified offline RADV source overrides
+        run: python3 tools/ps5/tests/test_prepare_radv_sources.py
+
+      - name: Test immutable PS1 RADV bundle receipt
+        run: python3 tools/ps5/tests/test_radv_bundle.py
+
+      - name: Test Vulkan hardware-context lifecycle
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -I/tmp/beetle-psx/libretro-common/include \
+            -I/tmp/beetle-psx/parallel-psx/khronos/include \
+            ports/beetle-psx-ps5/native/vulkan_environment.cpp \
+            ports/beetle-psx-ps5/tests/vulkan_environment_test.cpp \
+            -o /tmp/ps1-vulkan-environment-test
+          /tmp/ps1-vulkan-environment-test
+
+      - name: Test standalone Vulkan provider negotiation
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -I/tmp/beetle-psx/libretro-common/include \
+            -I/tmp/beetle-psx/parallel-psx/khronos/include \
+            ports/beetle-psx-ps5/native/vulkan_environment.cpp \
+            ports/beetle-psx-ps5/native/vulkan_provider.cpp \
+            ports/beetle-psx-ps5/tests/vulkan_provider_test.cpp \
+            -o /tmp/ps1-vulkan-provider-test
+          /tmp/ps1-vulkan-provider-test
+
+      - name: Test PS5 VK_KHR_display surface selection
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -I/tmp/beetle-psx/parallel-psx/khronos/include \
+            ports/beetle-psx-ps5/native/display_surface.cpp \
+            ports/beetle-psx-ps5/tests/display_surface_test.cpp \
+            -o /tmp/ps1-display-surface-test
+          /tmp/ps1-display-surface-test
+
+      - name: Test standalone PS1 Vulkan presenter geometry
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -I/tmp/beetle-psx/libretro-common/include \
+            -I/tmp/beetle-psx/parallel-psx/khronos/include \
+            ports/beetle-psx-ps5/native/vulkan_environment.cpp \
+            ports/beetle-psx-ps5/native/vulkan_provider.cpp \
+            ports/beetle-psx-ps5/native/display_surface.cpp \
+            ports/beetle-psx-ps5/native/vulkan_presenter.cpp \
+            ports/beetle-psx-ps5/tests/vulkan_presenter_test.cpp \
+            -o /tmp/ps1-vulkan-presenter-test
+          /tmp/ps1-vulkan-presenter-test
+
+      - name: Test native PS1 content and save persistence
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -Icorehost/include \
+            -Iruntime/include \
+            ports/beetle-psx-ps5/native/content.cpp \
+            corehost/src/static_core.cpp \
+            corehost/src/vfs.cpp \
+            runtime/src/common/io.cpp \
+            ports/beetle-psx-ps5/tests/content_test.cpp \
+            -o /tmp/ps1-content-test
+          /tmp/ps1-content-test
+
+      - name: Test standalone PS1 BIOS region configuration
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -Icorehost/include \
+            -Iruntime/include \
+            ports/beetle-psx-ps5/native/config.cpp \
+            corehost/src/static_core.cpp \
+            corehost/src/vfs.cpp \
+            runtime/src/common/io.cpp \
+            ports/beetle-psx-ps5/tests/config_test.cpp \
+            -o /tmp/ps1-config-test
+          /tmp/ps1-config-test
+
+      - name: Test native PS1 audio input and rumble bridge
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -I/tmp/beetle-psx/libretro-common/include \
+            -I/tmp/beetle-psx/parallel-psx/khronos/include \
+            -Icorehost/include \
+            -Iruntime/include \
+            ports/beetle-psx-ps5/native/vulkan_environment.cpp \
+            ports/beetle-psx-ps5/native/runtime_io.cpp \
+            corehost/src/ps5rt_bridge.cpp \
+            ports/beetle-psx-ps5/tests/runtime_io_test.cpp \
+            -o /tmp/ps1-runtime-io-test
+          /tmp/ps1-runtime-io-test
+
+      - name: Compile standalone native PS1 shell
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -I/tmp/beetle-psx/libretro-common/include \
+            -I/tmp/beetle-psx/parallel-psx/khronos/include \
+            -Icorehost/include \
+            -Iruntime/include \
+            -Iports/beetle-psx-ps5/native \
+            -c ports/beetle-psx-ps5/native/main.cpp \
+            -o /tmp/ps1-native-main.o
+          test -s /tmp/ps1-native-main.o
+
+  cross-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+          test -x /opt/ps5-payload-sdk/bin/prospero-ranlib
+
+      - name: Cross-build pinned libsmb2 and compile ps5rt SMB backend
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          set -euo pipefail
+          bash tools/ps5/build-libsmb2.sh
+          test -s build/ps5/libsmb2/libsmb2.ps5.a
+          /opt/ps5-payload-sdk/bin/prospero-clang++ \
+            --sysroot=/opt/ps5-payload-sdk/target \
+            -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -Iruntime/include \
+            -Ibuild/ps5/libsmb2/install/include \
+            -c runtime/src/ps5/io_smb.cpp \
+            -o /tmp/ps5rt-io-smb.o
+          test -s /tmp/ps5rt-io-smb.o
+
+      - name: Compile native EMUS server backend
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          set -euo pipefail
+          /opt/ps5-payload-sdk/bin/prospero-clang++ \
+            --sysroot=/opt/ps5-payload-sdk/target \
+            -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -Iruntime/include \
+            -c runtime/src/ps5/io_emu_server.cpp \
+            -o /tmp/ps5rt-io-emu-server.o
+          test -s /tmp/ps5rt-io-emu-server.o
+
+      - name: Cross-build Beetle PSX HW Lightrec x86-64 engine
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/beetle-psx-ps5/build_engine_ps5.sh
+
+      - name: Validate standalone RADV link script contract
+        run: |
+          set -euo pipefail
+          bash -n ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'prospero-lld' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'radv_link_recipe' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'radv_linker_script' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'radv_link_inputs' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'radv_link_flags' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'libSceAgcDriver' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'STATIC_SUPPORT_SOURCES' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'retro_waitable_spsc.c' ports/beetle-psx-ps5/build_app_ps5.sh
+          grep -q 'native/config.cpp' ports/beetle-psx-ps5/build_app_ps5.sh
+          bash -n tools/ps5/finalize_native_pie.sh
+          grep -q 'EXTRA_STUB_ARGS' tools/ps5/finalize_native_pie.sh
+          echo "static frontend helper list: PASS"
+
+      - name: Verify PS5 archive has no accidental POSIX JIT allocator
+        run: |
+          set -euo pipefail
+          A=build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
+          test -s "$A"
+          nm -u "$A" | awk '/ U /{print $NF}' | sort -u > /tmp/ps1-undef.txt
+          ! grep -Eq '^(mmap|mprotect|munmap)$' /tmp/ps1-undef.txt
+          grep -q '^ps5rt_exec_allocate$' /tmp/ps1-undef.txt
+          grep -q '^ps5rt_exec_release$' /tmp/ps1-undef.txt
+
+      - name: Upload engine evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-beetle-psx-hw-lightrec-x64-ps5-engine
+          path: |
+            build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
+            build/ps5/beetle-psx/artifacts/BUILD-MANIFEST.json
+            build/ps5/beetle-psx/artifacts/SHA256SUMS
+          if-no-files-found: error

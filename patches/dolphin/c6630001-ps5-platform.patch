@@ -1,0 +1,407 @@
+# NATIVE-EMUS-PS5 selective Dolphin PS5 platform patch
+# Base: libretro/dolphin c6630001e05780b7c03e661a4a539b59ef716ebc
+# Donor concepts: mihawk-99/PS5_RetroArch ps5-port.patch
+# Only platform/JIT/fastmem/thread/config hunks retained; libretro/debug hunks excluded.
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 01b03ecee5..30a51970cc 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -652,7 +652,7 @@ if(ENABLE_EVDEV)
+   endif()
+ endif()
+ 
+-if(UNIX)
++if(UNIX AND NOT DOLPHIN_PS5)
+   message(STATUS "Using named pipes as controller inputs")
+   add_definitions(-DUSE_PIPES=1)
+   message(STATUS "Watching game memory for changes")
+@@ -780,7 +780,9 @@ if(ENABLE_CUBEB)
+   add_definitions(-DHAVE_CUBEB)
+ endif()
+ 
+-if(NOT ANDROID AND NOT IOS AND NOT WEBOS)
++# PS5: no USB passthrough and no real Wii Remotes; a core reaches the pad only
++# through the frontend (libusb, hidapi and cpp-ipc are not built).
++if(NOT ANDROID AND NOT IOS AND NOT WEBOS AND NOT DOLPHIN_PS5)
+   dolphin_find_optional_system_library(LibUSB Externals/libusb)
+   add_definitions(-D__LIBUSB__)
+ endif()
+@@ -801,7 +803,7 @@ dolphin_find_optional_system_library(MBEDTLS Externals/mbedtls 2.28)
+ 
+ dolphin_find_optional_system_library(CURL Externals/curl)
+ 
+-if(NOT ANDROID AND NOT IOS)
++if(NOT ANDROID AND NOT IOS AND NOT DOLPHIN_PS5)
+   dolphin_find_optional_system_library(HIDAPI Externals/hidapi)
+ endif()
+ 
+@@ -848,7 +850,7 @@ if (NOT IOS)
+ endif()
+ 
+ # Any other platform or BSD is currently unsupported by cpp-ipc
+-if(WIN32 OR LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR CMAKE_SYSTEM_NAME STREQUAL "QNX")
++if((WIN32 OR LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR CMAKE_SYSTEM_NAME STREQUAL "QNX") AND NOT DOLPHIN_PS5)
+   add_subdirectory(Externals/cpp-ipc)
+   add_definitions(-DHAVE_CPPIPC)
+ endif()
+diff --git a/Source/Core/Common/MemArena.h b/Source/Core/Common/MemArena.h
+index 1a3093cc4d..22a59f7a47 100644
+--- a/Source/Core/Common/MemArena.h
++++ b/Source/Core/Common/MemArena.h
+@@ -14,6 +14,10 @@
+ #include "Common/CommonTypes.h"
+ #include "Common/DynamicLibrary.h"
+ 
++#ifdef __PROSPERO__
++#include <ps5rt/c/shm.h>
++#endif
++
+ namespace Common
+ {
+ #ifdef _WIN32
+@@ -152,6 +156,11 @@ private:
+   int m_shm_fd = 0;
+   void* m_reserved_region = nullptr;
+   std::size_t m_reserved_region_size = 0;
++#ifdef __PROSPERO__
++  // PS5: guest memory is one direct-memory object of the platform layer
++  // (MemArenaUnix.cpp, ps5rt/c/shm.h).
++  ps5rt_shm m_shm{};
++#endif
+ #endif
+ };
+ 
+diff --git a/Source/Core/Common/MemArenaUnix.cpp b/Source/Core/Common/MemArenaUnix.cpp
+index 26a123c081..b8c89961af 100644
+--- a/Source/Core/Common/MemArenaUnix.cpp
++++ b/Source/Core/Common/MemArenaUnix.cpp
+@@ -21,6 +21,24 @@
+ #include "Common/Logging/Log.h"
+ #include "Common/MsgHandler.h"
+ 
++#ifdef __PROSPERO__
++// PS5: guest memory is direct memory, through the platform layer (my payload SDK
++// fork, ps5rt/c/shm.h), rather than a shared-memory object. Every view of a
++// shared-memory object was charged to the title's flexible memory (448 MiB for
++// the whole title), and Wind Waker's fake-VMEM mirrors - one 32 MiB region
++// mapped at up to 28 logical addresses - exhausted it: the mappings failed and a
++// fastmem access faulted through a missing view (2026-09-24). A direct-memory
++// object is charged to nothing but the 12 GiB direct pool, and can be mapped at
++// any number of addresses, which is what a mirror is.
++namespace
++{
++int ps5_protection(bool writeable)
++{
++  return PS5RT_SHM_READ | (writeable ? PS5RT_SHM_WRITE : 0);
++}
++}  // namespace
++#endif
++
+ namespace Common
+ {
+ MemArena::MemArena() = default;
+@@ -28,6 +46,13 @@ MemArena::~MemArena() = default;
+ 
+ void MemArena::GrabSHMSegment(size_t size, std::string_view base_name)
+ {
++#ifdef __PROSPERO__
++  const int result = ps5rt_shm_create(size, &m_shm);
++  if (result != 0)
++    PanicAlertFmt("PS5: allocating {:#x} bytes of direct memory for guest RAM failed: {:#010x}",
++                  size, static_cast<u32>(result));
++  return;
++#endif
+   const std::string file_name = fmt::format("/{}.{}", base_name, getpid());
+   m_shm_fd = shm_open(file_name.c_str(), O_RDWR | O_CREAT | O_EXCL, 0600);
+   if (m_shm_fd == -1)
+@@ -42,11 +67,28 @@ void MemArena::GrabSHMSegment(size_t size, std::string_view base_name)
+ 
+ void MemArena::ReleaseSHMSegment()
+ {
++#ifdef __PROSPERO__
++  ps5rt_shm_destroy(&m_shm);
++  return;
++#endif
+   close(m_shm_fd);
+ }
+ 
+ void* MemArena::CreateView(s64 offset, size_t size)
+ {
++#ifdef __PROSPERO__
++  // Anywhere outside the Vulkan driver's GPU window.
++  void* view = nullptr;
++  const int result = ps5rt_shm_map(&m_shm, static_cast<size_t>(offset), size, nullptr,
++                                 ps5_protection(true), 0, &view);
++  if (result != 0)
++  {
++    ERROR_LOG_FMT(MEMMAP, "PS5: mapping a view of {:#x} bytes at offset {:#x} failed: {:#010x}",
++                  size, offset, static_cast<u32>(result));
++    return nullptr;
++  }
++  return view;
++#endif
+   void* retval = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, m_shm_fd, offset);
+   if (retval == MAP_FAILED)
+   {
+@@ -61,11 +103,45 @@ void* MemArena::CreateView(s64 offset, size_t size)
+ 
+ void MemArena::ReleaseView(void* view, size_t size)
+ {
++#ifdef __PROSPERO__
++  ps5rt_shm_unmap(view, size, 0);
++  return;
++#endif
+   munmap(view, size);
+ }
+ 
+ u8* MemArena::ReserveMemoryRegion(size_t memory_size)
+ {
++#ifdef __PROSPERO__
++  // PS5: an anonymous PROT_NONE mapping of this size is charged to the title's
++  // small flexible-memory budget and fails. The platform layer reserves the
++  // range without backing it, outside the Vulkan driver's GPU window, and the
++  // views are mapped into it at fixed addresses as upstream does.
++  //
++  // RetroArch unloads a core when content closes. A reservation an earlier
++  // instance left behind (a core that did not reach ReleaseMemoryRegion) holds
++  // the hint; the range is this arena's alone, so it is released and asked for
++  // again rather than taken elsewhere.
++  void* const ps5_arena_hint = reinterpret_cast<void*>(0x10'0000'0000);
++  void* address = nullptr;
++  int result = ps5rt_vrange_reserve(memory_size, ps5_arena_hint, 0x10000, &address);
++  if (result == 0 && address != ps5_arena_hint)
++  {
++    ps5rt_vrange_release(address, memory_size);
++    ps5rt_vrange_release(ps5_arena_hint, memory_size);
++    result = ps5rt_vrange_reserve(memory_size, ps5_arena_hint, 0x10000, &address);
++  }
++  if (result != 0)
++  {
++    PanicAlertFmt("PS5: reserving {:#x} bytes of address space failed: {:#010x}", memory_size,
++                  static_cast<u32>(result));
++    return nullptr;
++  }
++  INFO_LOG_FMT(MEMMAP, "PS5: fastmem arena reserved at {} ({:#x} bytes)", address, memory_size);
++  m_reserved_region = address;
++  m_reserved_region_size = memory_size;
++  return static_cast<u8*>(address);
++#endif
+   const int flags = MAP_ANON | MAP_PRIVATE;
+   void* base = mmap(nullptr, memory_size, PROT_NONE, flags, -1, 0);
+   if (base == MAP_FAILED)
+@@ -82,13 +158,30 @@ void MemArena::ReleaseMemoryRegion()
+ {
+   if (m_reserved_region)
+   {
++#ifdef __PROSPERO__
++    ps5rt_vrange_release(m_reserved_region, m_reserved_region_size);
++#else
+     munmap(m_reserved_region, m_reserved_region_size);
++#endif
+     m_reserved_region = nullptr;
+   }
+ }
+ 
+ void* MemArena::MapInMemoryRegion(s64 offset, size_t size, void* base, bool writeable)
+ {
++#ifdef __PROSPERO__
++  // Fixed, over the reservation (ReserveMemoryRegion) or a view unmapped from it.
++  void* view = nullptr;
++  const int result = ps5rt_shm_map(&m_shm, static_cast<size_t>(offset), size, base,
++                                 ps5_protection(writeable), PS5RT_SHM_FIXED, &view);
++  if (result != 0)
++  {
++    ERROR_LOG_FMT(MEMMAP, "PS5: mapping {:#x} bytes of guest RAM at {} failed: {:#010x}", size,
++                  base, static_cast<u32>(result));
++    return nullptr;
++  }
++  return view;
++#endif
+   int prot = PROT_READ;
+   if (writeable)
+     prot |= PROT_WRITE;
+@@ -96,7 +189,8 @@ void* MemArena::MapInMemoryRegion(s64 offset, size_t size, void* base, bool writ
+   void* retval = mmap(base, size, prot, MAP_SHARED | MAP_FIXED, m_shm_fd, offset);
+   if (retval == MAP_FAILED)
+   {
+-    NOTICE_LOG_FMT(MEMMAP, "mmap failed");
++    ERROR_LOG_FMT(MEMMAP, "mmap of {:#x} bytes at {} (offset {:#x}) failed: {}", size, base,
++                  offset, strerror(errno));
+     return nullptr;
+   }
+   else
+@@ -119,9 +213,15 @@ bool MemArena::ChangeMappingProtection(void* view, size_t size, bool writeable)
+ 
+ void MemArena::UnmapFromMemoryRegion(void* view, size_t size)
+ {
++#ifdef __PROSPERO__
++  // The hole stays reserved, so nothing else is mapped into the arena.
++  if (ps5rt_shm_unmap(view, size, PS5RT_SHM_KEEP_RESERVED) != 0)
++    ERROR_LOG_FMT(MEMMAP, "PS5: unmapping the view at {} failed", view);
++  return;
++#endif
+   void* retval = mmap(view, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+   if (retval == MAP_FAILED)
+-    NOTICE_LOG_FMT(MEMMAP, "mmap failed");
++    ERROR_LOG_FMT(MEMMAP, "unmapping {:#x} bytes at {} failed: {}", size, view, strerror(errno));
+ }
+ 
+ size_t MemArena::GetPageSize() const
+diff --git a/Source/Core/Common/MemoryUtil.cpp b/Source/Core/Common/MemoryUtil.cpp
+index 5d5085aa09..48afb09fac 100644
+--- a/Source/Core/Common/MemoryUtil.cpp
++++ b/Source/Core/Common/MemoryUtil.cpp
+@@ -3,6 +3,8 @@
+ 
+ #include "Common/MemoryUtil.h"
+ 
++#include <cstdio>
++
+ #include <cstddef>
+ #include <cstdlib>
+ 
+@@ -10,6 +12,10 @@
+ #include "Common/Logging/Log.h"
+ #include "Common/MsgHandler.h"
+ 
++#ifdef __PROSPERO__
++#include <ps5rt/c/exec.h>
++#endif
++
+ #ifdef _WIN32
+ #include <windows.h>
+ #include "Common/StringUtil.h"
+@@ -103,7 +109,20 @@ void* AllocateExecutableMemory(size_t size)
+ 
+   int map_prot = PROT_READ | PROT_WRITE | PROT_EXEC;
+ 
++#ifdef __PROSPERO__
++  // PS5: code lives in direct memory through the platform layer (my payload SDK
++  // fork, ps5rt/c/exec.h): read, write and execute at once, within a 32-bit
++  // displacement of this core's own code, and out of the 12 GiB direct pool
++  // rather than the title's 448 MiB of flexible memory -- which is why the code
++  // caches are upstream's size again (Jit64Constants.h, FarCodeCache.h).
++  (void)map_prot;
++  (void)map_flags;
++  void* ptr = ps5rt_exec_allocate(size, reinterpret_cast<uintptr_t>(&AllocateExecutableMemory));
++  if (ptr == nullptr)
++    fprintf(stderr, "dolphin ps5: no executable memory for %zu bytes\n", size);
++#else
+   void* ptr = mmap(nullptr, size, map_prot, map_flags, -1, 0);
++#endif
+   if (ptr == MAP_FAILED)
+     ptr = nullptr;
+ #endif
+@@ -236,6 +255,13 @@ bool FreeMemoryPages(void* ptr, size_t size)
+ {
+   if (ptr)
+   {
++#ifdef __PROSPERO__
++    // Code blocks free their executable memory here (CodeBlock.h, off iOS):
++    // what the platform layer handed out goes back to it, direct memory and
++    // all, rather than being only unmapped.
++    ps5rt_exec_release(ptr);
++    return true;
++#endif
+ #ifdef _WIN32
+     if (!VirtualFree(ptr, 0, MEM_RELEASE))
+     {
+@@ -436,6 +462,11 @@ void FreeExecutableMemory(void* ptr, size_t size)
+       return;
+     }
+   }
++#endif
++#ifdef __PROSPERO__
++  (void)size;
++  ps5rt_exec_release(ptr);
++  return;
+ #endif
+   munmap(ptr, size);
+ }
+diff --git a/Source/Core/Common/Thread.cpp b/Source/Core/Common/Thread.cpp
+index 41afff087b..a5750cca86 100644
+--- a/Source/Core/Common/Thread.cpp
++++ b/Source/Core/Common/Thread.cpp
+@@ -177,6 +177,11 @@ void SetCurrentThreadName(const char* name)
+ {
+ #ifdef __APPLE__
+   pthread_setname_np(name);
++#elif defined(__PROSPERO__)
++  // PS5 defines __FreeBSD__, but its libkernel's pthread_set_name_np faults when
++  // a title calls it on a fresh thread (the PPSSPP port found this); the name is
++  // not needed.
++  (void)name;
+ #elif defined __FreeBSD__ || defined __OpenBSD__
+   pthread_set_name_np(pthread_self(), name);
+ #elif defined(__NetBSD__)
+diff --git a/Source/Core/Core/Config/MainSettings.cpp b/Source/Core/Core/Config/MainSettings.cpp
+index f0cc8511b7..ffbcace60a 100644
+--- a/Source/Core/Core/Config/MainSettings.cpp
++++ b/Source/Core/Core/Config/MainSettings.cpp
+@@ -46,7 +46,14 @@ const Info<bool> MAIN_JIT_FOLLOW_BRANCH{{System::Main, "Core", "JITFollowBranch"
+ const Info<bool> MAIN_FASTMEM{{System::Main, "Core", "Fastmem"}, true};
+ const Info<bool> MAIN_PAGE_TABLE_FASTMEM{{System::Main, "Core", "PageTableFastmem"}, true};
+ const Info<bool> MAIN_FASTMEM_ARENA{{System::Main, "Core", "FastmemArena"}, true};
++// PS5: the large map is a 64 GiB lazily committed anonymous mapping, which the
++// console charges up front against a far smaller budget; the JIT's own fallback
++// lookup is used instead.
++#ifdef __PROSPERO__
++const Info<bool> MAIN_LARGE_ENTRY_POINTS_MAP{{System::Main, "Core", "LargeEntryPointsMap"}, false};
++#else
+ const Info<bool> MAIN_LARGE_ENTRY_POINTS_MAP{{System::Main, "Core", "LargeEntryPointsMap"}, true};
++#endif
+ const Info<bool> MAIN_ACCURATE_CPU_CACHE{{System::Main, "Core", "AccurateCPUCache"}, false};
+ const Info<bool> MAIN_DSP_HLE{{System::Main, "Core", "DSPHLE"}, true};
+ const Info<int> MAIN_MAX_FALLBACK{{System::Main, "Core", "MaxFallback"}, 100};
+diff --git a/Source/Core/Core/MemTools.cpp b/Source/Core/Core/MemTools.cpp
+index 871bb3f615..bad7c5d42a 100644
+--- a/Source/Core/Core/MemTools.cpp
++++ b/Source/Core/Core/MemTools.cpp
+@@ -260,14 +260,17 @@ bool IsExceptionHandlerSupported()
+ #elif defined(_POSIX_VERSION) && !defined(_M_GENERIC) && !(defined(TARGET_OS_TV) && TARGET_OS_TV)
+ 
+ static struct sigaction old_sa_segv;
+-#if defined(__APPLE__)
++// PS5: an access to a reserved but unmapped page may arrive as SIGBUS, as on
++// Apple platforms, so both are taken there.
++#if defined(__APPLE__) || defined(__PROSPERO__)
++#define DOLPHIN_FASTMEM_SIGBUS 1
+ static struct sigaction old_sa_bus;
+ #endif
+ 
+ static void sigsegv_handler(int sig, siginfo_t* info, void* raw_context)
+ {
+   if (sig != SIGSEGV
+-#if defined(__APPLE__)
++#if defined(DOLPHIN_FASTMEM_SIGBUS)
+       && sig != SIGBUS
+ #endif
+   )
+@@ -298,7 +301,7 @@ static void sigsegv_handler(int sig, siginfo_t* info, void* raw_context)
+ 
+   // If JIT didn't handle the signal, restore the original handler and invoke it.
+   const auto& old_sa =
+-#if defined(__APPLE__)
++#if defined(DOLPHIN_FASTMEM_SIGBUS)
+       (sig == SIGBUS) ? old_sa_bus :
+ #endif
+                         old_sa_segv;
+@@ -324,7 +327,7 @@ void InstallExceptionHandler()
+   sa.sa_flags = SA_SIGINFO;
+   sigemptyset(&sa.sa_mask);
+   sigaction(SIGSEGV, &sa, &old_sa_segv);
+-#ifdef __APPLE__
++#ifdef DOLPHIN_FASTMEM_SIGBUS
+   sigaction(SIGBUS, &sa, &old_sa_bus);
+ #endif
+ }
+@@ -339,7 +342,7 @@ void UninstallExceptionHandler()
+     free(old_stack.ss_sp);
+   }
+   sigaction(SIGSEGV, &old_sa_segv, nullptr);
+-#ifdef __APPLE__
++#ifdef DOLPHIN_FASTMEM_SIGBUS
+   sigaction(SIGBUS, &old_sa_bus, nullptr);
+ #endif
+ }

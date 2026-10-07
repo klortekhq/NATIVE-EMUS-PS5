@@ -1,0 +1,122 @@
+name: xenia-ps5-recompiler-gate
+
+on:
+  push:
+    paths:
+      - 'runtime/include/ps5rt/jit.hpp'
+      - 'runtime/include/ps5rt/c/vmem.h'
+      - 'runtime/src/ps5/memory.cpp'
+      - 'tools/ps5/apply_xenia_ps5rt.py'
+      - 'ports/xenia-ps5/**'
+      - '.github/workflows/xenia-gate.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+  pull_request:
+    paths:
+      - 'runtime/include/ps5rt/jit.hpp'
+      - 'runtime/include/ps5rt/c/vmem.h'
+      - 'runtime/src/ps5/memory.cpp'
+      - 'tools/ps5/apply_xenia_ps5rt.py'
+      - 'ports/xenia-ps5/**'
+      - '.github/workflows/xenia-gate.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+  workflow_dispatch:
+
+concurrency:
+  group: xenia-ps5-recompiler-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  x64-code-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+      - name: Fetch pinned Xenia
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none https://github.com/xenia-project/xenia.git /tmp/xenia
+          git -C /tmp/xenia checkout --detach 95a5c3ee250f80c3b9d139658649d9ffb6db3eec
+      - name: Verify fixed-address x64 JIT transform
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_xenia_ps5rt.py" /tmp/xenia --check
+      - name: Apply PS5 x64 transform
+        run: python3 "$GITHUB_WORKSPACE/tools/ps5/apply_xenia_ps5rt.py" /tmp/xenia
+      - name: Cross-compile Xenia PS5 platform identity
+        run: |
+          cat >/tmp/xenia_ps5_platform.cpp <<'EOF'
+          #include "xenia/base/platform.h"
+          #if !XE_PLATFORM_PS5
+          #error XE_PLATFORM_PS5 was not selected
+          #endif
+          #if !XE_ARCH_AMD64
+          #error PS5 Xenia host must be AMD64
+          #endif
+          int xenia_ps5_platform_probe() { return 0; }
+          EOF
+          /opt/ps5-payload-sdk/bin/prospero-clang++ -std=c++20             -I/tmp/xenia/src -c /tmp/xenia_ps5_platform.cpp             -o /tmp/xenia_ps5_platform.o
+      - name: Cross-compile transformed Xenia x64 code cache
+        run: |
+          set -euo pipefail
+          git -C /tmp/xenia submodule update --init --depth 1             third_party/fmt third_party/cpptoml third_party/cxxopts third_party/xbyak third_party/capstone third_party/date
+          /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG -fno-operator-names             -I/tmp/xenia             -I/tmp/xenia/src             -I"$GITHUB_WORKSPACE/runtime/include"             -c /tmp/xenia/src/xenia/cpu/backend/x64/x64_code_cache.cc             -o /tmp/xenia_x64_code_cache.o
+          test -s /tmp/xenia_x64_code_cache.o
+
+      - name: Cross-compile Xenia x64 backend
+        run: |
+          set -euo pipefail
+          /opt/ps5-payload-sdk/bin/prospero-clang++             -std=c++20 -O2 -DNDEBUG -fno-operator-names             -I/tmp/xenia             -I/tmp/xenia/src             -I"$GITHUB_WORKSPACE/runtime/include"             -c /tmp/xenia/src/xenia/cpu/backend/x64/x64_backend.cc             -o /tmp/xenia_x64_backend.o
+          test -s /tmp/xenia_x64_backend.o
+
+      - name: Cross-build complete Xenia x64 backend archive
+        run: |
+          set -euo pipefail
+          CXX=/opt/ps5-payload-sdk/bin/prospero-clang++
+          AR=/opt/ps5-payload-sdk/bin/prospero-ar
+          mkdir -p /tmp/xenia-x64-obj
+
+          common_flags=(
+            -std=c++20 -O2 -DNDEBUG -fno-operator-names
+            -DXBYAK_NO_OP_NAMES
+            -DXBYAK_ENABLE_OMITTED_OPERAND
+            -DCAPSTONE_X86_ATT_DISABLE
+            -DCAPSTONE_DIET_NO
+            -DCAPSTONE_X86_REDUCE_NO
+            -DCAPSTONE_HAS_X86
+            -DCAPSTONE_USE_SYS_DYN_MEM
+            -I/tmp/xenia
+            -I/tmp/xenia/src
+            -I/tmp/xenia/third_party/capstone/include
+            -I"$GITHUB_WORKSPACE/runtime/include"
+          )
+
+          objects=()
+          for src in /tmp/xenia/src/xenia/cpu/backend/x64/*.cc; do
+            case "$src" in
+              *_win.cc|*_posix.cc) continue ;;
+            esac
+            base="$(basename "$src" .cc)"
+            obj="/tmp/xenia-x64-obj/${base}.o"
+            echo "PS5 x64 backend: $(basename "$src")"
+            "$CXX" "${common_flags[@]}" -c "$src" -o "$obj"
+            objects+=("$obj")
+          done
+
+          test "${#objects[@]}" -ge 8
+          "$AR" rcs /tmp/libxenia_cpu_backend_x64_ps5.a "${objects[@]}"
+          test -s /tmp/libxenia_cpu_backend_x64_ps5.a
+
+          contents="$("$AR" t /tmp/libxenia_cpu_backend_x64_ps5.a)"
+          grep -q '^x64_backend.o$' <<<"$contents"
+          grep -q '^x64_code_cache.o$' <<<"$contents"
+          grep -q '^x64_emitter.o$' <<<"$contents"
+          grep -q '^x64_sequences.o$' <<<"$contents"
+
+      - name: Upload Xenia x64 PS5 backend
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-xenia-x64-ps5-backend
+          path: /tmp/libxenia_cpu_backend_x64_ps5.a
+          if-no-files-found: error

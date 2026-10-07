@@ -1,0 +1,178 @@
+name: ps1-full-native-link
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ports/beetle-psx-ps5/**'
+      - 'runtime/**'
+      - 'corehost/**'
+      - 'tools/ps5/build_radv_bundle_from_pins.sh'
+      - 'tools/ps5/apply_beetle_psx_ps5.py'
+      - 'tools/ps5/write_artifact_manifest.py'
+      - 'tools/ps5/prepare_radv_source_stack.sh'
+      - 'tools/ps5/freeze_radv_bundle.py'
+      - 'tools/ps5/validate_radv_bundle.py'
+      - 'tools/ps5/finalize_native_pie.sh'
+      - '.github/workflows/ps1-full-link.yml'
+
+concurrency:
+  group: ps1-full-native-link
+  cancel-in-progress: true
+
+jobs:
+  pinned-radv-source-gate:
+    runs-on: ubuntu-24.04
+    outputs:
+      available: ${{ steps.probe.outputs.available }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe exact historical RADV source pins
+        id: probe
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sources=(
+            "mihawk-99/PS5_Vulkan@71026e7ec1951fe72ae5b9118ff0905216a4c220"
+            "mihawk-99/PS5_Mesa@cedb774b27d089fa81f46add28d0a8c13ff0f7d2"
+            "mihawk-99/PS5_PayloadSDK@95c08f27386fc698f6bbe21dde3030140a41d10b"
+          )
+          missing=0
+          for source in "${sources[@]}"; do
+            repo="${source%@*}"
+            pin="${source#*@}"
+            url="https://api.github.com/repos/${repo}/commits/${pin}"
+            if curl --fail --silent --show-error --location \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                "$url" -o /tmp/pin.json; then
+              echo "available: ${source}"
+            else
+              echo "::warning title=RADV source unavailable::${source} is not publicly retrievable; the full native-link job remains blocked rather than producing a false failure."
+              missing=1
+            fi
+          done
+          if [[ "$missing" -eq 0 ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "### PS1 full native link source gate: READY" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### PS1 full native link source gate: BLOCKED"
+              echo
+              echo "One or more exact historical Mihawk RADV pins are currently unavailable."
+              echo "No final-link evidence is claimed. The reproducible Lightrec/ps5rt gates continue independently."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  full-native-link:
+    needs: pinned-radv-source-gate
+    if: needs.pinned-radv-source-gate.outputs.available == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install host tools required by pinned RADV build
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            clang-18 lld-18 llvm-18-tools llvm-18-dev \
+            libclang-18-dev libclang-cpp18-dev libclc-18-dev libllvmspirvlib-18-dev \
+            cmake ninja-build ccache make nasm meson rsync \
+            git curl wget unzip tar pkg-config \
+            glslang-tools spirv-tools bison flex \
+            python3 python3-venv python3-mako python3-yaml
+          python3 -m venv /tmp/native-emus-meson
+          /tmp/native-emus-meson/bin/python -m pip install --disable-pip-version-check \
+            'meson==1.7.2' \
+            'packaging==24.2' \
+            'Mako==1.3.8' \
+            'PyYAML==6.0.2'
+          echo "/tmp/native-emus-meson/bin" >> "$GITHUB_PATH"
+          export PATH="/tmp/native-emus-meson/bin:$PATH"
+          command -v clang-18
+          command -v lld-18
+          command -v meson
+          test "$(meson --version)" = "1.7.2"
+          command -v ninja
+          command -v glslangValidator
+          command -v spirv-val
+
+      - name: Validate PS1 release CPU policy
+        run: |
+          set -euo pipefail
+          grep -q 'beetle_psx_hw_cpu_dynarec.*execute' ports/beetle-psx-ps5/native/config.cpp
+          grep -q 'Lightrec' ports/beetle-psx-ps5/README.md
+          echo "PS1 release CPU policy: Lightrec x86-64 recompiler"
+
+      - name: Build immutable pinned PS5 RADV bundle
+        env:
+          JOBS: "2"
+        run: |
+          set -euo pipefail
+          bash tools/ps5/build_radv_bundle_from_pins.sh
+          python3 tools/ps5/validate_radv_bundle.py build/ps5/radv-bundle
+          test -s build/ps5/radv-bundle/lib/libvulkan_radeon.ps5.a
+
+      - name: Build Beetle PSX HW Lightrec x86-64 engine
+        env:
+          PS5_PAYLOAD_SDK: ${{ github.workspace }}/build/ps5/radv-bundle/sdk
+        run: |
+          set -euo pipefail
+          bash ports/beetle-psx-ps5/build_engine_ps5.sh
+          test -s build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
+
+      - name: Verify recompiler survives engine build
+        run: |
+          set -euo pipefail
+          A=build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
+          nm "$A" | grep -q '[[:space:]]lightrec_execute$'
+          nm "$A" | grep -q '[[:space:]]_jit_set_code$'
+          nm -u "$A" | awk '/ U /{print $NF}' | sort -u > /tmp/ps1-undef.txt
+          grep -q '^ps5rt_exec_allocate$' /tmp/ps1-undef.txt
+          grep -q '^ps5rt_exec_release$' /tmp/ps1-undef.txt
+          ! grep -Eq '^(mmap|mprotect|munmap)$' /tmp/ps1-undef.txt
+
+      - name: Full-link standalone PS1 title against pinned RADV
+        env:
+          PS5_RADV_BUNDLE_DIR: ${{ github.workspace }}/build/ps5/radv-bundle
+          PS5_FINALIZE_NATIVE: "1"
+        run: |
+          set -euo pipefail
+          bash ports/beetle-psx-ps5/build_app_ps5.sh
+          test -s build/ps5/beetle-psx-app/artifacts/beetle_psx_hw_ps5_pie.elf
+          test -s build/ps5/beetle-psx-app/artifacts/native/eboot.elf
+          test -s build/ps5/beetle-psx-app/artifacts/native/eboot.bin
+          test -s build/ps5/beetle-psx-app/artifacts/BUILD-MANIFEST.json
+          test -s build/ps5/beetle-psx-app/artifacts/SHA256SUMS
+
+      - name: Static inspect final PS5 outputs
+        run: |
+          set -euo pipefail
+          readelf -h build/ps5/beetle-psx-app/artifacts/beetle_psx_hw_ps5_pie.elf
+          readelf -l build/ps5/beetle-psx-app/artifacts/beetle_psx_hw_ps5_pie.elf
+          sha256sum \
+            build/ps5/beetle-psx-app/artifacts/beetle_psx_hw_ps5_pie.elf \
+            build/ps5/beetle-psx-app/artifacts/native/eboot.elf \
+            build/ps5/beetle-psx-app/artifacts/native/eboot.bin
+
+      - name: Upload PS1 full native title evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ps1-beetle-lightrec-radv-native-title
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            build/ps5/beetle-psx-app/artifacts/beetle_psx_hw_ps5_pie.elf
+            build/ps5/beetle-psx-app/artifacts/native/eboot.elf
+            build/ps5/beetle-psx-app/artifacts/native/eboot.bin
+            build/ps5/beetle-psx-app/artifacts/BUILD-MANIFEST.json
+            build/ps5/beetle-psx-app/artifacts/RADV-RECEIPT.txt
+            build/ps5/beetle-psx-app/artifacts/SHA256SUMS
+            build/ps5/radv-bundle/manifest.json

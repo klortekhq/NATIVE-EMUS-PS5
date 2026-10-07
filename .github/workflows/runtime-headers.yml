@@ -1,0 +1,748 @@
+name: native-host-smoke
+
+on:
+  push:
+    paths:
+      - 'CMakeLists.txt'
+      - 'runtime/**'
+      - 'ports/**'
+      - 'third_party/libretro/**'
+      - 'tools/ps5/**'
+      - '.github/workflows/runtime-headers.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+  pull_request:
+    paths:
+      - 'CMakeLists.txt'
+      - 'runtime/**'
+      - 'ports/**'
+      - 'third_party/libretro/**'
+      - 'tools/ps5/**'
+      - '.github/workflows/runtime-headers.yml'
+
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-compile-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure runtime and corehost tests
+        run: >
+          cmake -S . -B build
+          -DNATIVE_EMUS_BUILD_HEADER_TESTS=ON
+          -DCOREHOST_BUILD_TESTS=ON
+          -DPS5RT_BUILD_HOST_PLATFORM_TESTS=ON
+
+      - name: Build runtime and corehost tests
+        run: cmake --build build --parallel
+
+      - name: Run runtime and corehost tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Compile standalone port entry points
+        run: |
+          mkdir -p build/smoke
+          CXXFLAGS="-std=c++20 -Wall -Wextra -Wpedantic"
+          INC="-Iruntime/include -Icorehost/include"
+          for src in             ports/nes-fceumm/main.cpp             ports/snes9x-ps5/main.cpp             ports/genesis-plus-gx-ps5/main_sg1000.cpp             ports/genesis-plus-gx-ps5/main_mastersystem.cpp             ports/genesis-plus-gx-ps5/main_gamegear.cpp             ports/genesis-plus-gx-ps5/main_megadrive.cpp             ports/freeintv-ps5/main.cpp             ports/o2em-ps5/main.cpp; do
+            obj="build/smoke/$(echo "$src" | tr '/.' '__').o"
+            g++ $CXXFLAGS $INC -c "$src" -o "$obj"
+          done
+
+      - name: Validate all PS5 port scripts
+        run: |
+          set -euo pipefail
+          while IFS= read -r script; do
+            echo "bash -n $script"
+            bash -n "$script"
+          done < <(find ports -name build_ps5.sh -type f | sort)
+
+      - name: Validate pinned Snes9x static core
+        run: |
+          set -euo pipefail
+          PIN=fae2fea08f74180759ef540ee94259213f503480
+          SHA=0d4b0c4181d66668ec0040eb17f90a559f7b7fa6cbd9198593c3bdbe79acd029
+          mkdir -p build/snes9x
+          curl -fL --retry 3 "https://codeload.github.com/libretro/snes9x/tar.gz/$PIN" -o build/snes9x/core.tar.gz
+          echo "$SHA  build/snes9x/core.tar.gz" | sha256sum -c -
+          tar -xzf build/snes9x/core.tar.gz -C build/snes9x
+          CORE="$PWD/build/snes9x/snes9x-$PIN"
+          make -C "$CORE/libretro" -f Makefile \
+            platform=unix STATIC_LINKING=1 STATIC_LINKING_LINK=1 \
+            TARGET="$PWD/build/snes9x/libsnes9x_libretro.a" \
+            CC=gcc CXX=g++ AR=ar
+          test -s build/snes9x/libsnes9x_libretro.a
+          for sym in retro_init retro_deinit retro_load_game retro_run retro_unload_game; do
+            nm build/snes9x/libsnes9x_libretro.a | grep -q "[[:space:]]$sym$"
+          done
+
+      - name: Validate pinned Genesis Plus GX static core
+        run: |
+          set -euo pipefail
+          PIN=c2838c7dc4236fc2fe94e5dbd08b41486067918e
+          SHA=7ba2eab9d6dae71bb42e8208573300ad3475a4263e860178c4d19c36d85fc92b
+          mkdir -p build/genesis-plus-gx
+          curl -fL --retry 3 "https://codeload.github.com/libretro/Genesis-Plus-GX/tar.gz/$PIN" -o build/genesis-plus-gx/core.tar.gz
+          echo "$SHA  build/genesis-plus-gx/core.tar.gz" | sha256sum -c -
+          tar -xzf build/genesis-plus-gx/core.tar.gz -C build/genesis-plus-gx
+          CORE="$PWD/build/genesis-plus-gx/Genesis-Plus-GX-$PIN"
+          make -C "$CORE" -f Makefile.libretro \
+            platform=unix STATIC_LINKING=1 \
+            TARGET="$PWD/build/genesis-plus-gx/libgenesis_plus_gx_libretro.a" \
+            CC=gcc CXX=g++ AR=ar HAVE_CHD=0 HAVE_CDROM=0 FRONTEND_SUPPORTS_RGB565=1
+          test -s build/genesis-plus-gx/libgenesis_plus_gx_libretro.a
+          for sym in retro_init retro_deinit retro_load_game retro_run retro_unload_game; do
+            nm build/genesis-plus-gx/libgenesis_plus_gx_libretro.a | grep -q "[[:space:]]$sym$"
+          done
+
+      - name: Validate pinned FCEUmm static core
+        run: |
+          set -euo pipefail
+          PIN=236ccdfc911e84c60fea6b9d0699c2d440a8de14
+          SHA=dd002cde9b5271979e0394bb9e696bd37e149ced473ff1e3629cc7fed502381f
+          mkdir -p build/fceumm
+          curl -fL --retry 3 "https://codeload.github.com/libretro/libretro-fceumm/tar.gz/$PIN" -o build/fceumm/core.tar.gz
+          echo "$SHA  build/fceumm/core.tar.gz" | sha256sum -c -
+          tar -xzf build/fceumm/core.tar.gz -C build/fceumm
+          CORE="build/fceumm/libretro-fceumm-$PIN"
+          make -C "$CORE" -f Makefile.libretro \
+            platform=unix STATIC_LINKING=1 \
+            TARGET="$PWD/build/fceumm/libfceumm_libretro.a" \
+            CC=gcc CXX=g++ AR=ar \
+            HAVE_HDPACK=0 HAVE_NTSC=1 WANT_32BPP=1
+          test -s build/fceumm/libfceumm_libretro.a
+          for sym in retro_init retro_deinit retro_load_game retro_run retro_unload_game; do
+            nm build/fceumm/libfceumm_libretro.a | grep -q "[[:space:]]$sym$"
+          done
+
+      - name: Validate PS1 RADV bundle receipts
+        run: python3 tools/ps5/tests/test_radv_bundle.py
+
+      - name: Compile PS5 base backend translation units
+        run: |
+          set -euo pipefail
+          mkdir -p build/smoke
+          CXXFLAGS="-std=c++20 -Wall -Wextra -Wpedantic"
+          INC="-Iruntime/include"
+          for src in \
+            runtime/src/ps5/app.cpp \
+            runtime/src/ps5/audio.cpp \
+            runtime/src/ps5/input.cpp \
+            runtime/src/ps5/input_hid.cpp \
+            runtime/src/ps5/log.cpp \
+            runtime/src/ps5/memory.cpp \
+            runtime/src/ps5/tls.cpp \
+            runtime/src/ps5/vfs.cpp \
+            runtime/src/ps5/video.cpp; do
+            obj="build/smoke/$(basename "${src%.cpp}").o"
+            echo "compile $src -> $obj"
+            g++ $CXXFLAGS $INC -c "$src" -o "$obj"
+          done
+          echo "Optional io_smb.cpp and io_emu_server.cpp are compiled in their dependency-aware gates."
+
+  ps5-cross-build-nes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build native NES FCEUmm
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          bash ports/nes-fceumm/build_ps5.sh
+          test -s build/ps5/nes-fceumm/artifacts/nes_fceumm_pie.elf
+
+      - name: Upload native NES build
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-nes-fceumm-ps5-pie
+          path: |
+            build/ps5/nes-fceumm/artifacts/nes_fceumm_pie.elf
+            build/ps5/nes-fceumm/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-snes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build native SNES Snes9x
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          bash ports/snes9x-ps5/build_ps5.sh
+          test -s build/ps5/snes9x/artifacts/snes9x_pie.elf
+
+      - name: Upload native SNES build
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-snes-snes9x-ps5-pie
+          path: |
+            build/ps5/snes9x/artifacts/snes9x_pie.elf
+            build/ps5/snes9x/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-sega:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build Genesis Plus GX PS5 family
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          bash ports/genesis-plus-gx-ps5/build_ps5.sh
+          test -s build/ps5/genesis-plus-gx/artifacts/sg1000_genesis_plus_gx_pie.elf
+          test -s build/ps5/genesis-plus-gx/artifacts/mastersystem_genesis_plus_gx_pie.elf
+          test -s build/ps5/genesis-plus-gx/artifacts/gamegear_genesis_plus_gx_pie.elf
+          test -s build/ps5/genesis-plus-gx/artifacts/megadrive_genesis_plus_gx_pie.elf
+
+      - name: Upload Genesis Plus GX PS5 family
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-sega-genesis-plus-gx-ps5-pie
+          path: |
+            build/ps5/genesis-plus-gx/artifacts/*.elf
+            build/ps5/genesis-plus-gx/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-freeintv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build native Intellivision FreeIntv
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          bash ports/freeintv-ps5/build_ps5.sh
+          test -s build/ps5/freeintv/artifacts/freeintv_pie.elf
+
+      - name: Upload native Intellivision build
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-intellivision-freeintv-ps5-pie
+          path: |
+            build/ps5/freeintv/artifacts/freeintv_pie.elf
+            build/ps5/freeintv/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-o2em:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build native Odyssey2 O2EM
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          bash ports/o2em-ps5/build_ps5.sh
+          test -s build/ps5/o2em/artifacts/o2em_pie.elf
+
+      - name: Upload native Odyssey2 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-odyssey2-o2em-ps5-pie
+          path: |
+            build/ps5/o2em/artifacts/o2em_pie.elf
+            build/ps5/o2em/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-flycast-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-cmake
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Cross-build Flycast rec-x64 engine
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/flycast-ps5/build_engine_ps5.sh
+
+      - name: Upload Flycast PS5 engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-flycast-rec-x64-ps5-engine
+          path: |
+            build/ps5/flycast/artifacts/libflycast_ps5_engine.a
+            build/ps5/flycast/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-runtime-jit-probes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-cmake
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+
+      - name: Cross-build native ps5rt JIT probes
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          set -euo pipefail
+          /opt/ps5-payload-sdk/bin/prospero-cmake \
+            -S runtime \
+            -B build/ps5/runtime-probes \
+            -G Ninja \
+            -DPS5RT_BUILD_PS5_BACKEND=ON \
+            -DPS5RT_BUILD_PS5_PROBES=ON \
+            -DPS5RT_ENABLE_SMB=OFF \
+            -DPS5RT_ENABLE_EMU_SERVER=OFF
+          /opt/ps5-payload-sdk/bin/prospero-cmake \
+            --build build/ps5/runtime-probes \
+            --target ps5rt-jit-alias-probe ps5rt-flycast-jit-probe ps5rt-rpcs3-sparse-jit-probe ps5rt-pool-memory-probe ps5rt-memory-diagnostics-probe ps5rt-thread-probe ps5rt-emutls-probe ps5rt-audioout-probe \
+            --parallel 2
+          test -s build/ps5/runtime-probes/ps5rt-jit-alias-probe
+          test -s build/ps5/runtime-probes/ps5rt-flycast-jit-probe
+          test -s build/ps5/runtime-probes/ps5rt-rpcs3-sparse-jit-probe
+          test -s build/ps5/runtime-probes/ps5rt-pool-memory-probe
+          test -s build/ps5/runtime-probes/ps5rt-memory-diagnostics-probe
+          test -s build/ps5/runtime-probes/ps5rt-thread-probe
+          test -s build/ps5/runtime-probes/ps5rt-emutls-probe
+          test -s build/ps5/runtime-probes/ps5rt-audioout-probe
+          readelf -Ws build/ps5/runtime-probes/ps5rt-emutls-probe \
+            | grep -q '__emutls_get_address'
+          mkdir -p build/ps5/runtime-probes/artifacts
+          cp build/ps5/runtime-probes/ps5rt-jit-alias-probe \
+             build/ps5/runtime-probes/ps5rt-flycast-jit-probe \
+             build/ps5/runtime-probes/ps5rt-rpcs3-sparse-jit-probe \
+             build/ps5/runtime-probes/ps5rt-pool-memory-probe \
+             build/ps5/runtime-probes/ps5rt-memory-diagnostics-probe \
+             build/ps5/runtime-probes/ps5rt-thread-probe \
+             build/ps5/runtime-probes/ps5rt-emutls-probe \
+             build/ps5/runtime-probes/ps5rt-audioout-probe \
+             build/ps5/runtime-probes/artifacts/
+          sha256sum build/ps5/runtime-probes/artifacts/* > \
+            build/ps5/runtime-probes/artifacts/SHA256SUMS
+
+      - name: Upload native ps5rt JIT probes
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ps5rt-jit-probes
+          path: build/ps5/runtime-probes/artifacts/*
+          if-no-files-found: error
+
+      - name: Stage emulated-TLS hardware smoke
+        run: |
+          set -euo pipefail
+          SRC="$GITHUB_WORKSPACE/build/ps5/runtime-probes/ps5rt-emutls-probe"
+          OUT="$GITHUB_WORKSPACE/build/ps5/emutls-hardware-smoke"
+          test -s "$SRC"
+          readelf -h "$SRC" | grep -q 'Class:.*ELF64'
+          readelf -h "$SRC" | grep -q 'Machine:.*X86-64'
+          readelf -Ws "$SRC" | grep -q '__emutls_get_address'
+          mkdir -p "$OUT"
+          cp "$SRC" "$OUT/ps5rt-emutls-probe.elf"
+          cat > "$OUT/HARDWARE-TEST.txt" <<'EOF'
+          ps5rt compiler-rt emulated TLS hardware smoke
+
+          This probe contains no commercial game data.
+
+          Run ps5rt-emutls-probe.elf with the already-installed PS5 ELF loader.
+
+          The probe:
+          1. initializes ps5rt in compiler_rt_emutls mode;
+          2. keeps one thread_local 64-bit value on the main thread;
+          3. creates two ps5rt-managed pthreads with 2 MiB stacks;
+          4. gives each worker a different thread_local value;
+          5. holds both workers alive at the same time;
+          6. verifies all three values remain isolated;
+          7. joins both workers and performs ps5rt TLS policy shutdown.
+
+          Expected final line:
+            ps5rt-emutls-probe: PASS isolated=3
+
+          Any earlier FAILED line, crash, hang, loader error or missing final
+          PASS is a hardware failure to report. Include firmware/loader, the
+          last visible log line and whether the process exited cleanly.
+
+          A PASS validates this small compiler-rt emutls/thread-local smoke only.
+          It does not by itself validate every emulator's TLS usage.
+          EOF
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "source=runtime/probes/emutls_probe.cpp"
+            echo "compile_flag=-femulated-tls"
+            echo "backend=ps5rt::TlsMode::compiler_rt_emutls"
+            echo "physical_ps5_validation=pending"
+          } > "$OUT/BUILD-INFO.txt"
+          (
+            cd "$OUT"
+            sha256sum ps5rt-emutls-probe.elf HARDWARE-TEST.txt BUILD-INFO.txt > SHA256SUMS
+          )
+
+      - name: Upload emulated-TLS hardware smoke
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ps5rt-emutls-hardware-smoke-${{ github.sha }}
+          path: build/ps5/emutls-hardware-smoke/
+          if-no-files-found: error
+
+      - name: Stage AudioOut hardware smoke
+        run: |
+          set -euo pipefail
+          SRC="$GITHUB_WORKSPACE/build/ps5/runtime-probes/ps5rt-audioout-probe"
+          OUT="$GITHUB_WORKSPACE/build/ps5/audioout-hardware-smoke"
+          test -s "$SRC"
+          readelf -h "$SRC" > "$GITHUB_WORKSPACE/build/ps5/audioout-elf-header.txt"
+          readelf -Ws "$SRC" > "$GITHUB_WORKSPACE/build/ps5/audioout-symbols.txt"
+          grep -q 'Class:.*ELF64' "$GITHUB_WORKSPACE/build/ps5/audioout-elf-header.txt"
+          grep -q 'Type:.*DYN' "$GITHUB_WORKSPACE/build/ps5/audioout-elf-header.txt"
+          grep -q 'Machine:.*X86-64' "$GITHUB_WORKSPACE/build/ps5/audioout-elf-header.txt"
+          grep -q 'sceAudioOutOutput' "$GITHUB_WORKSPACE/build/ps5/audioout-symbols.txt"
+          mkdir -p "$OUT"
+          cp "$SRC" "$OUT/ps5rt-audioout-probe.elf"
+          cat > "$OUT/HARDWARE-TEST.txt" <<'EOF'
+          ps5rt AudioOut hardware smoke
+
+          This probe contains no commercial game data.
+
+          Run ps5rt-audioout-probe.elf with the already-installed PS5 ELF loader.
+          Keep console/TV volume low: the probe emits a quiet square-wave tone
+          for roughly 1.5 seconds through the ps5rt AudioOut backend.
+
+          Expected log:
+            ps5rt-audioout-probe: start
+            ps5rt-audioout-probe: PASS grains=280 frames=71680
+
+          Any open/write/pause FAILED line, crash, hang, missing final PASS, or
+          silence despite PASS must be recorded. Report firmware/loader and the
+          last visible line.
+
+          A PASS validates only the small ps5rt AudioOut open/write/drain/close
+          path on that hardware/runtime combination. It does not validate an
+          emulator's complete audio timing or latency.
+          EOF
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "source=runtime/probes/audioout_probe.cpp"
+            echo "backend=ps5rt::AudioDevice/libSceAudioOut"
+            echo "format=f32-stereo-48000-to-s16-hardware-path"
+            echo "physical_ps5_validation=pending"
+          } > "$OUT/BUILD-INFO.txt"
+          (
+            cd "$OUT"
+            sha256sum ps5rt-audioout-probe.elf HARDWARE-TEST.txt BUILD-INFO.txt > SHA256SUMS
+          )
+
+      - name: Upload AudioOut hardware smoke
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ps5rt-audioout-hardware-smoke-${{ github.sha }}
+          path: build/ps5/audioout-hardware-smoke/
+          if-no-files-found: error
+
+  ps5-cross-build-dynarmic-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe exact historical PS5 Dynarmic donor
+        id: donor
+        shell: bash
+        run: |
+          set -euo pipefail
+          if GIT_TERMINAL_PROMPT=0 git ls-remote --exit-code https://github.com/mihawk-99/PS5_Dynarmic.git 1df2a07e9a86afef73d511a931f40bedb40b30c4 >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=PS5_Dynarmic provenance unavailable::Exact historical donor is not publicly retrievable. Cross-build is blocked; host-ci still validates the frozen ps5rt transform contract."
+          fi
+
+      - name: Install public PS5 SDK bundle
+        if: steps.donor.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-cmake
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Install Dynarmic header-only Boost dependency
+        if: steps.donor.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libboost-dev
+          test -d /usr/include/boost
+
+      - name: Cross-build Dynarmic A32+A64 x64 JIT
+        if: steps.donor.outputs.available == 'true'
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/dynarmic-ps5/build_engine_ps5.sh
+
+      - name: Upload Dynarmic PS5 JIT engine
+        if: steps.donor.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-dynarmic-a32-a64-x64-ps5-engine
+          path: |
+            build/ps5/dynarmic/artifacts/libdynarmic_ps5.a
+            build/ps5/dynarmic/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+
+  ps5-cross-build-ppsspp-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Cross-build PPSSPP MIPS x86-64 JIT engine
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/ppsspp-ps5/build_engine_ps5.sh
+
+      - name: Upload PPSSPP PS5 JIT engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ppsspp-x64-jit-ps5-engine
+          path: |
+            build/ps5/ppsspp-engine/artifacts/libppsspp_core_ps5.a
+            build/ps5/ppsspp-engine/artifacts/libppsspp_common_ps5.a
+            build/ps5/ppsspp-engine/artifacts/BUILD-MANIFEST.json
+            build/ps5/ppsspp-engine/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-vita3k-dynarmic-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-cmake
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Install Vita3K Dynarmic Boost headers
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libboost-dev
+          test -d /usr/include/boost
+
+      - name: Cross-build Vita3K A32 x64 JIT
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/vita3k-ps5/build_dynarmic_ps5.sh
+
+      - name: Upload Vita3K Dynarmic PS5 JIT engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-vita3k-dynarmic-a32-x64-ps5-engine
+          path: |
+            build/ps5/vita3k-dynarmic/artifacts/libvita3k_dynarmic_ps5.a
+            build/ps5/vita3k-dynarmic/artifacts/ARTIFACT.json
+            build/ps5/vita3k-dynarmic/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-azahar-dynarmic-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-cmake
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Install Azahar Dynarmic Boost headers
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libboost-dev
+          test -d /usr/include/boost
+
+      - name: Cross-build Azahar A32 sparse x64 JIT
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/azahar-ps5/build_dynarmic_ps5.sh
+
+      - name: Upload Azahar Dynarmic PS5 JIT engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-azahar-dynarmic-a32-x64-ps5-engine
+          path: |
+            build/ps5/azahar-dynarmic/artifacts/libazahar_dynarmic_ps5.a
+            build/ps5/azahar-dynarmic/artifacts/ARTIFACT.json
+            build/ps5/azahar-dynarmic/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-mupen64plus-jit-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe exact historical PS5 Mupen64Plus donor
+        id: donor
+        shell: bash
+        run: |
+          set -euo pipefail
+          if GIT_TERMINAL_PROMPT=0 git ls-remote --exit-code https://github.com/mihawk-99/PS5_Mupen64Plus.git 98ec1019d191fc3c0e1c2d031f2574e95bd8d30d >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=PS5_Mupen64Plus provenance unavailable::Exact historical donor is not publicly retrievable. Cross-build is blocked; host-ci still validates the frozen ps5rt transform contract."
+          fi
+
+      - name: Install public PS5 SDK bundle
+        if: steps.donor.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+          test -x /opt/ps5-payload-sdk/bin/prospero-ranlib
+
+      - name: Install N64 assembler dependency
+        if: steps.donor.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends nasm
+
+      - name: Cross-build Mupen64Plus R4300 + RSP x64 JIT engine
+        if: steps.donor.outputs.available == 'true'
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/mupen64plus-ps5/build_engine_ps5.sh
+
+      - name: Upload Mupen64Plus PS5 JIT engine
+        if: steps.donor.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-mupen64plus-r4300-rsp-x64-ps5-engine
+          path: |
+            build/ps5/mupen64plus/artifacts/libmupen64plus_ps5_jit_engine.a
+            build/ps5/mupen64plus/artifacts/ARTIFACT.json
+            build/ps5/mupen64plus/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  ps5-cross-build-beetle-psx-lightrec-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+          test -x /opt/ps5-payload-sdk/bin/prospero-ranlib
+
+      - name: Cross-build Beetle PSX HW Lightrec x86-64 engine
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/beetle-psx-ps5/build_engine_ps5.sh
+
+      - name: Upload Beetle PSX HW PS5 Lightrec engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-beetle-psx-hw-lightrec-x64-ps5-engine
+          path: |
+            build/ps5/beetle-psx/artifacts/libbeetle_psx_hw_ps5_lightrec.a
+            build/ps5/beetle-psx/artifacts/BUILD-MANIFEST.json
+            build/ps5/beetle-psx/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+
+  ps5-cross-build-mgba-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-cmake
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Cross-build pinned mGBA GBA core
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          set -euo pipefail
+          bash ports/mgba-ps5/build_engine_ps5.sh
+          test -s build/ps5/mgba/artifacts/libmgba_gba_ps5.a
+          python3 -m json.tool build/ps5/mgba/artifacts/BUILD-MANIFEST.json >/dev/null
+          (cd build/ps5/mgba/artifacts && sha256sum -c SHA256SUMS)
+
+      - name: Upload mGBA PS5 core
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-mgba-gba-ps5-core
+          path: |
+            build/ps5/mgba/artifacts/libmgba_gba_ps5.a
+            build/ps5/mgba/artifacts/BUILD-MANIFEST.json
+            build/ps5/mgba/artifacts/SHA256SUMS
+          if-no-files-found: error

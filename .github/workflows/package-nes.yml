@@ -1,0 +1,70 @@
+name: package-nes-native
+
+on:
+  push:
+    paths:
+      - 'ports/nes-fceumm/**'
+      - 'corehost/**'
+      - 'runtime/**'
+      - 'tools/ps5/finalize_native_pie.sh'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+      - 'tools/ps5/app-hidden.map'
+      - '.github/workflows/package-nes.yml'
+  pull_request:
+    paths:
+      - 'ports/nes-fceumm/**'
+      - 'corehost/**'
+      - 'runtime/**'
+      - 'tools/ps5/finalize_native_pie.sh'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+      - 'tools/ps5/app-hidden.map'
+      - '.github/workflows/package-nes.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: package-nes-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  finalize-nes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pinned public PS5 SDK bundle
+        run: bash tools/ps5/install_pinned_payload_sdk.sh
+
+      - name: Cross-build NES PIE
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/nes-fceumm/build_ps5.sh
+
+      - name: Verify PIE exposes imports only
+        run: |
+          set -euo pipefail
+          PIE=build/ps5/nes-fceumm/artifacts/nes_fceumm_pie.elf
+          bad="$(
+            readelf --dyn-syms --wide "$PIE" |
+              awk 'NR > 3 && $7 != "UND" && $7 != "ABS" {print}'
+          )"
+          if [[ -n "$bad" ]]; then
+            echo "Defined application symbols remain in .dynsym:" >&2
+            printf '%s\n' "$bad" | head -80 >&2
+            exit 20
+          fi
+
+      - name: Convert NES PIE to native PS5 ELF and FSELF
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          bash tools/ps5/finalize_native_pie.sh             build/ps5/nes-fceumm/artifacts/nes_fceumm_pie.elf             build/ps5/nes-fceumm/native
+
+      - name: Upload finalized NES app binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-nes-fceumm-ps5-fself
+          path: |
+            build/ps5/nes-fceumm/native/eboot.elf
+            build/ps5/nes-fceumm/native/eboot.bin
+            build/ps5/nes-fceumm/native/NATIVE_SHA256SUMS
+          if-no-files-found: error

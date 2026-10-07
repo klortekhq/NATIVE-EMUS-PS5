@@ -1,0 +1,74 @@
+name: dolphin-ps5-jit64-gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/**'
+      - 'ports/dolphin-ps5/**'
+      - 'tools/ps5/apply_dolphin_native.py'
+      - 'patches/dolphin/**'
+      - 'tools/ps5/apply_dolphin_native.py'
+      - '.github/workflows/dolphin-gate.yml'
+      - 'tools/ps5/install_pinned_payload_sdk.sh'
+  workflow_dispatch:
+
+concurrency:
+  group: dolphin-ps5-jit64-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  jit64-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-cmake
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Cross-build Dolphin Jit64 engine
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/dolphin-ps5/build_engine_ps5.sh
+
+      - name: Upload Dolphin PS5 Jit64 engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-dolphin-jit64-ps5-engine
+          path: |
+            build/ps5/dolphin/artifacts/libdolphin_jit64_ps5.a
+            build/ps5/dolphin/artifacts/SHA256SUMS
+          if-no-files-found: error
+
+  vulkan-compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install public PS5 SDK bundle
+        run: |
+          set -euo pipefail
+          bash tools/ps5/install_pinned_payload_sdk.sh
+          test -x /opt/ps5-payload-sdk/bin/prospero-cmake
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang++
+          test -x /opt/ps5-payload-sdk/bin/prospero-ar
+
+      - name: Cross-build Dolphin Vulkan backend
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: bash ports/dolphin-ps5/build_vulkan_ps5.sh
+
+      - name: Upload Dolphin PS5 Vulkan compile evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-dolphin-vulkan-ps5-compile
+          path: |
+            build/ps5/dolphin-vulkan/artifacts/libdolphin_vulkan_ps5.a
+            build/ps5/dolphin-vulkan/artifacts/SHA256SUMS
+          if-no-files-found: error
